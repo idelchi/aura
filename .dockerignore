@@ -1,0 +1,16 @@
+# Ignore everything
+*
+
+# But not .go files, go.mod, and go.sum
+!**/*.go
+!go.mod
+!go.sum
+!vendor/**
+
+# Not the SDK
+!sdk/go.mod
+# Not the .aura directory, which is embedded.
+!.aura/config/**
+!samples/config/**
+# Not the static directory, which is embedded.
+!internal/ui/web/static/**

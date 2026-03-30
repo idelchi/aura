@@ -1,0 +1,42 @@
+# EXAMPLE — This file is not loaded. Rename to <name>.yaml to use.
+# Full reference of sandbox configuration.
+# Sandbox files are loaded into the features pipeline under the "sandbox" key.
+
+sandbox:
+  # Enable or disable sandbox enforcement globally.
+  # When false, all filesystem restrictions are ignored.
+  # Toggle at runtime with /sandbox or Ctrl+S.
+  enabled: true
+
+  # Filesystem path restrictions enforced via Landlock LSM.
+  # Paths support $HOME and other environment variable expansion.
+  # Agents and modes can extend these via features.sandbox.extra in their frontmatter.
+  restrictions:
+    # Read-only paths — tools can read but not write.
+    ro:
+      - /bin
+      - /etc
+      - /home
+      - /lib
+      - /lib64
+      - /opt
+      - /run
+      - /sbin
+      - /tmp
+      - /usr
+      - /var
+    # Read-write paths — tools can both read and write.
+    # A path listed in both ro and rw gets read-write access (rw wins).
+    rw:
+      - /tmp
+      - $HOME/.cache
+      - $HOME/go
+      - /dev/null
+
+  # Additional paths added on top of restrictions (from agent/mode frontmatter).
+  # Typically set per-agent or per-mode, not here — shown for reference.
+  # extra:
+  #   ro:
+  #     - /var/log
+  #   rw:
+  #     - .              # current working directory

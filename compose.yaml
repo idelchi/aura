@@ -1,0 +1,57 @@
+services:
+  aura:
+    build:
+      dockerfile: Dockerfile.dev
+      args:
+        - AURA_VERSION=local
+        - BUILD_TAGS=${BUILD_TAGS:-}
+      target: build
+    image: idelchi/aura:build
+    container_name: aura
+    hostname: aura
+    env_file:
+      - secrets.env
+    volumes:
+      - .:/home/user/ws
+      - ./.bash_history:/home/user/.bash_history
+    extra_hosts:
+      - host:host-gateway
+    working_dir: /home/user/ws
+    environment:
+      - GOFLAGS=-buildvcs=false
+    networks:
+      - aura
+    entrypoint:
+      - /bin/bash
+      - -c
+
+  goreleaser:
+    image: goreleaser/goreleaser-cross:v1.26.0
+    container_name: goreleaser
+    hostname: goreleaser
+    env_file:
+      - secrets.env
+      - tokens.env
+    environment:
+      GOMODCACHE: /tmp/.goreleaser/.gomodcache
+      GOCACHE: /tmp/.goreleaser/.gocache
+    volumes:
+      - .:/goreleaser
+      - goreleaser:/tmp/.goreleaser
+    working_dir: /goreleaser
+    entrypoint:
+      - /bin/bash
+      - -c
+    command:
+      - |
+        unset GITLAB_TOKEN
+        goreleaser release --clean --skip=validate --config .goreleaser.yaml
+
+volumes:
+  goreleaser:
+    name: goreleaser
+
+networks:
+  aura:
+    name: aura
+    driver: bridge

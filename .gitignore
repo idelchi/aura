@@ -1,0 +1,8 @@
+/.resources/
+vendor/
+/dist/
+*.env
+/.bash_history
+/.aura/
+/assets/
+/tests/

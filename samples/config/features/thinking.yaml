@@ -1,0 +1,4 @@
+thinking:
+  agent: Thinking
+  keep_last: 5
+  token_threshold: 300

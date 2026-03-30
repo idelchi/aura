@@ -1,0 +1,3 @@
+description: "Warns when a file has been patched too many times consecutively"
+config:
+  threshold: 5

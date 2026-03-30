@@ -1,0 +1,14 @@
+openai:
+  url: https://api.openai.com/v1
+  type: openai
+  timeout: 5m
+
+  models:
+    include:
+      - gpt-4o-mini-transcribe
+      - gpt-4o-mini-tts
+      - text-embedding-3-large
+      - gpt-5.4
+      - gpt-5.3-codex
+      - gpt-5.1-codex-mini
+      - gpt-5-mini

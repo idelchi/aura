@@ -1,0 +1,5 @@
+description: "Send push notifications via Gotify"
+env:
+  - GARFIELD_LABS_GOTIFY_URL
+  - GARFIELD_LABS_GOTIFY_TOKEN
+  - GOTIFY_LOG_LEVEL

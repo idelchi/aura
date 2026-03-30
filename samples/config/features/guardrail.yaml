@@ -1,0 +1,12 @@
+guardrail:
+  # mode: block
+  on_error: allow
+  timeout: 2m
+  scope:
+    tool_calls:
+      agent: "GuardRail:Tool"
+    user_messages:
+      agent: "GuardRail:Input"
+  tools:
+    enabled:
+      - Bash

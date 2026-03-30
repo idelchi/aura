@@ -1,0 +1,135 @@
+# EXAMPLE — This file is not loaded. Rename to <name>.yaml to use.
+# Full reference of all task definition fields.
+# Multiple tasks can be defined in the same file (each is a top-level map key).
+#
+# Two delimiter systems:
+#   {{ }}     — load-time templates (structural generation, env vars, --set vars, sprig)
+#   $[[ ]]   — runtime templates (per-command variables, expanded at execution time)
+#
+# Runtime variables available in all sections (pre, commands, post, foreach, finally):
+#   $[[ .Workdir ]]   — effective working directory (--workdir flag > task workdir > CWD)
+#   $[[ .LaunchDir ]] — directory where aura was originally invoked (before --workdir)
+#   $[[ .Date ]]      — trigger time in filesystem-friendly format (YYYY-MM-DD-HH-MM)
+#   $[[ .KEY ]]       — any key from env: (after expansion) is available as a runtime variable
+#   $[[ .KEY ]]       — any key from vars: is available as a template variable
+#
+# vars: vs env:
+#   vars: are template variables — expanded in {{ }}/​$[[ ]] expressions, not set in the OS environment.
+#   env: are environment variables — set in the OS environment for shell commands and tools.
+#   --set KEY=VALUE overrides vars: of the same name (CLI wins).
+
+# Daily code review of recent changes.
+daily-review:
+  description: Review yesterday's git commits and summarize changes.
+  schedule: "daily: 09:00"
+  timeout: 15m
+  agent: High
+  mode: Ask
+  session: daily-review
+  # disabled: true             # set to true to skip this task without removing the file
+
+  # Working directory for task execution.
+  workdir: /home/user/projects/myapp
+
+  # Tool access control (same syntax as agent/mode tools).
+  tools:
+    enabled:
+      - Read
+      - Glob
+      - Grep
+      - Bash
+    disabled: []
+
+  # Feature overrides (same syntax as agent features).
+  features:
+    compaction:
+      threshold: 90
+    tools:
+      max_steps: 30
+
+  # Task-scoped template variables.
+  # Available in both {{ }} and $[[ ]] templates. --set overrides these.
+  vars:
+    REPORT_DIR: reports
+    RETENTION_DAYS: "30"
+
+  # Task-scoped environment variables.
+  # Values support runtime templates. Precedence: env > env_file > process env.
+  env:
+    REVIEW_DIR: "$[[ .Workdir ]]"
+    REPORT_FILE: "$[[ .Workdir ]]/reports/review-$[[ .Date ]].md"
+
+  # Load environment variables from dotenv files.
+  env_file:
+    - secrets.env
+
+  # Shell commands to run BEFORE the LLM session.
+  pre:
+    - mkdir -p $[[ .Workdir ]]/reports
+    - git -C $[[ .Workdir ]] fetch --all
+
+  # Commands sent to the LLM session (required, non-empty).
+  commands:
+    - |
+      Review the git changes from the last 24 hours in $[[ .Workdir ]]:
+
+      ```
+      git -C $[[ .Workdir ]] log --since="24 hours ago" --oneline --stat
+      ```
+
+      For each commit, summarize what changed and flag any concerns.
+      Write the report to $[[ .Workdir ]]/reports/review-$[[ .Date ]].md
+    - /export $[[ .Workdir ]]/reports/review-$[[ .Date ]].md
+
+  # Shell commands to run when the assistant hits max_steps.
+  on_max_steps:
+    - echo "Review task hit max steps on $[[ .Date ]]" >> /tmp/alerts.log
+
+  # Shell commands to run AFTER the LLM session.
+  post:
+    - cat $[[ .Workdir ]]/reports/review-$[[ .Date ]].md
+
+# Iterate over multiple repositories and run tests.
+test-all-repos:
+  # Inherit config from another task.
+  inherit: [daily-review]
+  description: Run tests across all tracked repositories.
+  schedule: "weekly: mon,fri 08:00"
+  timeout: 30m
+  agent: High
+  mode: Edit
+
+  # Iterate over items from a file or shell command.
+  # Use $[[ .Item ]] in commands (+ sprig dir/base).
+  # Foreach sections additionally have:
+  #   $[[ .Item ]]      — current iteration item
+  #   $[[ .Index ]]     — 0-based iteration index
+  #   $[[ .Total ]]     — total number of items
+  foreach:
+    shell: "find /home/user/projects -maxdepth 1 -name 'go.mod' -exec dirname {} \\;"
+    continue_on_error: true
+    retries: 1
+
+  commands:
+    - |
+      Run `go test ./...` in $[[ .Item ]].
+      If any tests fail, investigate and report the failures.
+      Do NOT fix the code — just report what's broken and why.
+
+  # Commands to run once AFTER the foreach loop completes (requires foreach).
+  finally:
+    - |
+      Summarize test results across all $[[ .Total ]] repositories.
+      List which repos passed and which had failures.
+
+# Structural templates generate YAML structure before parsing.
+# Use {{- range }}/{{- end }} to repeat commands.
+retry-deploy:
+  description: Attempt deployment with retries.
+  schedule: ""
+  timeout: 5m
+  commands:
+    - "Deploy the application to staging"
+    {{- range until 3 }}
+    - /assert not exists:/tmp/deploy-failed "Deployment failed. Diagnose and retry."
+    {{- end }}

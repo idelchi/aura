@@ -1,0 +1,32 @@
+go:format:
+  description: Format Go files with golangci-lint after edits
+  event: post
+  matcher: "Patch|Write"
+  files: "*.go"
+  silent: false
+  command: |
+    golangci-lint fmt --diff ${FILE}
+    golangci-lint fmt ${FILE}
+  timeout: 15
+
+go:fix:
+  description: Auto-fix Go lint issues and organize imports after formatting
+  inherit: [go:format]
+  depends: [go:format]
+  silent: false
+  command: |
+    golangci-lint run --fix ${FILE}
+    for f in ${FILE}; do
+      while gopls codeaction -kind=quickfix -exec -write -diff ${f} 2>/dev/null; do :; done
+      gopls codeaction -kind=source.organizeImports -exec -write -diff ${f} 2>/dev/null
+    done
+    go fix -diff ./...
+    go fix ./...
+  timeout: 30
+
+go:lint:
+  description: Lint Go files with golangci-lint after fixes
+  inherit: [go:format]
+  depends: [go:fix]
+  silent: false
+  command: golangci-lint run ${FILE}

@@ -1,0 +1,42 @@
+# EXAMPLE — This file is not loaded. Rename to <name>.yaml to use.
+# Full reference of all MCP server fields.
+# Each top-level key is a server name. Multiple servers per file, or one per file.
+
+# HTTP-based MCP server (cloud-hosted).
+github:
+  type: http
+  url: https://mcp.example.com/github
+  headers:
+    Authorization: Bearer ${GITHUB_MCP_TOKEN}
+  timeout: 30s
+  disabled: false
+  # All tools from this server are deferred — listed in prompt index, loaded on demand.
+  # Reduces context usage for servers with many tools.
+  deferred: true
+
+# Stdio-based MCP server (local process).
+filesystem:
+  type: stdio
+  command: npx
+  args:
+    - -y
+    - "@modelcontextprotocol/server-filesystem"
+    - /home/user/projects
+  env:
+    NODE_ENV: production
+  timeout: 10s
+
+# Conditional MCP server — only connected when model is large enough.
+# Condition expressions: model_params_gt:<N>, model_has:vision, exists:<path>, bash:<cmd>, etc.
+code-analysis:
+  type: stdio
+  command: code-analysis-server
+  args: [--workspace, .]
+  condition: "model_params_gt:7"
+  timeout: 15s
+
+# Disabled server — kept for reference but not connected.
+experimental:
+  type: http
+  url: http://localhost:3001/mcp
+  disabled: true

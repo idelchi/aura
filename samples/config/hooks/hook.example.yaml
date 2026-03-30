@@ -1,0 +1,75 @@
+# EXAMPLE — rename to <name>.yaml to activate.
+# Each top-level key is a hook name. Multiple hooks per file, or one per file.
+#
+# Hooks receive JSON on stdin:
+#   {"hook_event", "tool": {"name", "input", "output" (post only)}, "cwd", "file_paths"}
+#
+# Exit codes: 0 = ok, 2 = block (pre) or feedback (post), other = feedback returned to LLM.
+# On exit 0, stdout may contain JSON: {"message": "...", "deny": true, "reason": "..."}
+#
+# The description field is optional. When set, active hooks and their descriptions
+# are injected into the system prompt so the LLM knows what to expect.
+
+# Format Go files after patches or writes.
+go:format:
+  description: Format Go files with gofmt after edits
+  event: post
+  matcher: "Patch|Write"
+  files: "*.go"
+  command: gofmt -w $FILE
+  timeout: 10
+  silent: true
+  disabled: false               # set to true to skip without removing the config
+
+# Lint Go files after formatting.
+go:lint:
+  description: Lint Go files with golangci-lint after formatting
+  # Inherit fields from another hook — only override what you set.
+  inherit: [go:format]
+  # Run after go:format (same event). DAG-ordered. Cycles are a hard error.
+  depends: [go:format]
+  silent: false
+  command: golangci-lint run $FILE
+  timeout: 30
+
+# Format Python files with ruff.
+python:format:
+  description: Format and auto-fix Python files with ruff after edits
+  event: post
+  matcher: "Patch|Write"
+  files: "*.py"
+  command: "ruff format $FILE && ruff check --fix $FILE"
+  timeout: 15
+  silent: true
+
+# Lint Python after formatting.
+python:lint:
+  description: Lint Python files with ruff after formatting
+  inherit: [python:format]
+  depends: [python:format]
+  silent: false
+  command: ruff check $FILE
+
+# Validate dangerous Bash commands before execution.
+validate-bash:
+  description: Block dangerous shell commands (rm -rf /, mkfs, dd, fork bombs)
+  event: pre
+  matcher: "Bash"
+  # Seconds before killing the hook process. Default: 10.
+  timeout: 5
+  command: |
+    INPUT=$(cat)
+    CMD=$(echo "$INPUT" | jq -r '.tool.input.command // empty')
+    if echo "$CMD" | grep -qE '(rm -rf /|mkfs|dd if=|:(){ :|fork)'; then
+      echo '{"deny": true, "reason": "Dangerous command blocked by hook"}'
+    fi
+
+# Format JS/TS files with prettier after writes.
+prettier:
+  description: Format JS/TS files with prettier after edits
+  event: post
+  matcher: "Patch|Write"
+  files: "*.{js,ts,jsx,tsx}"
+  command: npx prettier --write $FILE
+  timeout: 15
+  silent: true

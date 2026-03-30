@@ -1,0 +1,5 @@
+tts:
+  agent: Speak
+  voice: af_heart
+  format: mp3
+  speed: 1.0

@@ -1,0 +1,5 @@
+description: "Logs tool calls and errors with detailed summaries"
+disabled: true
+config:
+  preview_length_error: 200
+  preview_length_ok: 100

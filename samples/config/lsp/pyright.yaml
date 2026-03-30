@@ -1,0 +1,6 @@
+pyright:
+  disabled: true
+  command: pyright-langserver
+  args: [--stdio]
+  file_types: [py, pyi]
+  root_markers: [pyproject.toml, setup.py, requirements.txt]

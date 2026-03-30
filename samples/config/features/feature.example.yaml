@@ -1,0 +1,193 @@
+# EXAMPLE — This file is not loaded. Rename to <feature>.yaml to use.
+# Full reference of all feature configuration fields.
+# Each top-level key is a separate feature. In practice, each feature lives in its own file.
+
+# Context compaction — automatically compresses conversation history.
+# Triggered when context window fills up. Also available via /compact.
+compaction:
+  threshold: 80                  # context fill % that triggers compaction (1-100)
+  max_tokens: 0                  # absolute token count trigger (overrides threshold when set; 0 = use threshold)
+  trim_threshold: 50             # fill % for removing duplicate synthetic messages first
+  trim_max_tokens: 0             # absolute token count for trimming (overrides trim_threshold when set; 0 = use trim_threshold)
+  keep_last_messages: 10         # recent messages preserved verbatim during compaction
+  chunks: 3                      # sequential chunks (1 = single-pass, N = chunked summary)
+  agent: Compaction              # dedicated agent for generating summaries
+  prompt: ""                     # named prompt for self-compaction (overrides agent — uses current model)
+  tool_result_max_length: 200    # max chars for tool results in compaction transcript
+  truncation_retries: [150, 100, 50, 0]  # retry sequence with progressively shorter tool results
+  prune:
+    mode: iteration              # "off", "iteration" (prune each loop), "compaction" (prune on compact only)
+    protect_percent: 30          # % of context window to protect from pruning (most recent messages)
+    arg_threshold: 200           # min estimated tokens for tool call args to be prunable
+
+# Session title generation.
+title:
+  disabled: false                # true = skip LLM, use first user message as title
+  agent: Title                   # agent for title generation
+  prompt: ""                     # named prompt for self-title (overrides agent — uses current model)
+  max_length: 50                 # max character length
+
+# Thinking block management.
+# Used when an agent has `thinking: strip` or `thinking: rewrite` in its frontmatter.
+thinking:
+  agent: Thinking                # agent for condensing thinking blocks
+  prompt: ""                     # named prompt for self-rewrite (overrides agent — uses current model)
+  keep_last: 5                   # recent messages whose thinking is preserved unchanged
+  token_threshold: 300           # minimum tokens for a block to be stripped/rewritten
+
+# Vision — LLM-based image/PDF analysis.
+vision:
+  agent: Vision                  # agent with a vision-capable model
+  dimension: 1024                # max pixel dimension for image compression
+  quality: 75                    # JPEG quality (1-100)
+
+# Speech-to-text transcription.
+stt:
+  agent: Transcribe              # agent with a transcription-capable provider
+  language: en                   # ISO-639-1 hint (e.g. "en", "de"); empty = auto-detect
+
+# Text-to-speech synthesis.
+tts:
+  agent: Speak                   # agent with a synthesis-capable provider
+  voice: af_heart                # voice identifier (depends on TTS server)
+  format: mp3                    # output format: mp3, opus, aac, flac, wav, pcm
+  speed: 1.0                     # playback speed (0.25-4.0)
+
+# Embeddings — embedding-based codebase search.
+embeddings:
+  agent: Embeddings              # agent with an embedding-capable model
+  max_results: 5                 # default results per query
+  gitignore: "vendor/"           # additional gitignore patterns for indexing
+  offload: true                  # explicitly load/unload embedding model between stages
+  chunking:
+    strategy: auto               # "auto" (AST for .go, line for rest), "ast", "line"
+    max_tokens: 500              # target max tokens per chunk (estimated as len/4)
+    overlap_tokens: 75           # overlap between adjacent chunks
+  reranking:
+    agent: Reranker              # agent with a reranking-capable model (empty = skip)
+    multiplier: 4                # fetch max_results * multiplier candidates before reranking
+    offload: true                # explicitly load/unload reranker model
+
+# Tool execution guards.
+tools:
+  mode: percentage               # "tokens" (fixed limit) or "percentage" (context-fill based)
+  result:
+    max_tokens: 20000            # single result token limit (mode: tokens)
+    max_percentage: 90           # context fill % limit (mode: percentage)
+  read_small_file_tokens: 4000   # below this, Read tool returns full file ignoring line ranges
+  max_steps: 200                 # iteration cap before tools are disabled
+  token_budget: 0                # cumulative token limit (input+output); 0 = disabled
+  rejection_message:             # error returned when result is rejected (%d = tokens, limit)
+    >-
+    Error: Tool result too large (%d tokens, limit %d).
+    Try a more specific query or use offset/limit parameters.
+  bash:
+    truncation:
+      max_output_bytes: 1048576  # byte cap per stream (stdout/stderr); nil = 1MB default, 0 = disabled
+      max_lines: 200             # truncate after N lines (nil = disabled, 0 = exit-code only)
+      head_lines: 100            # lines from start
+      tail_lines: 80             # lines from end
+    rewrite: ""                  # Go template rewriting Bash commands ({{ .Command }} + sprig)
+    # Example: prefix all commands with a container runtime toolkit:
+    # rewrite: "rtk {{ .Command }}"
+    # Example: conditional rewrite — skip for specific commands:
+    # rewrite: |
+    #   {{- if contains "golangci-lint" .Command -}}
+    #     {{ .Command }}
+    #   {{- else -}}
+    #     rtk {{ .Command }}
+    #   {{- end -}}
+  webfetch_max_body_size: 5242880  # max response body size in bytes for WebFetch (default 5MB)
+  user_input_max_percentage: 80  # reject user input that would exceed this context fill %
+  read_before:                   # read-before enforcement policy (toggle: /readbefore or /rb)
+    write: true                  # require read before overwriting existing files
+    delete: false                # require read before deleting files
+  enabled: []                    # default for --include-tools (glob patterns, empty = all)
+  disabled: []                   # default for --exclude-tools (glob patterns, empty = none)
+  policy:                        # global default tool policy (additive baseline for agent/mode policies)
+    auto: []                     # tool/Bash patterns auto-approved without prompting
+    confirm: []                  # tool/Bash patterns requiring user approval
+    deny: []                     # tool/Bash patterns hard-blocked (pattern: "ToolName", "Bash:cmd*", "Tool:/path/*")
+  opt_in:                        # tools hidden unless explicitly enabled by name (bare "*" doesn't count)
+    - Ask
+    - Done
+    - Diagnostics
+    - LspRestart
+    - Speak
+    - Transcribe
+    - WebFetch
+    - WebSearch
+    - Write
+    - Task
+  deferred:                      # glob patterns for tools excluded from request, listed in prompt index instead
+    - mcp__*                     # model loads them on demand via LoadTools; reduces context for MCP-heavy setups
+  parallel:                      # enable parallel tool execution (nil = true; set false to force sequential)
+
+# Token estimation method.
+estimation:
+  method: rough+tiktoken         # "rough", "tiktoken", "rough+tiktoken", "native"
+  divisor: 4                     # chars-per-token divisor for rough estimation
+  encoding: cl100k_base          # tiktoken encoding name
+
+# Plugin system settings.
+plugins:
+  dir: plugins                   # plugin directory (relative to home; empty = "plugins/")
+  unsafe: false                  # allow os/exec in plugins (requires --unsafe-plugins or this setting)
+  include: []                    # only load these plugins (empty = all)
+  exclude:
+    - experimental-*             # skip plugins matching this pattern
+  config:                        # plugin config values (3-layer merge: plugin.yaml > global > local)
+    global:                      # key-value pairs sent to ALL plugins
+      log_level: info
+    local:                       # per-plugin overrides keyed by plugin name
+      failure-circuit-breaker:
+        max_failures: 5
+      todo-reminder:
+        interval: 10             # remind every 10 iterations instead of default 20
+      session-stats:
+        interval: 10             # show stats every 10 turns instead of default 5
+        top_tools: 5             # show top 5 tools instead of default 3
+
+# Subagent — Task tool configuration
+subagent:
+  max_steps: 25                  # max LLM round-trips per subagent run
+  default_agent: explore         # agent to use when Task tool doesn't specify one (empty = parent agent)
+
+# MCP server filtering.
+mcp:
+  enabled: []                    # default for --include-mcps (glob patterns, empty = connect all)
+  disabled:
+    - echo                       # skip the test echo server by default
+
+# Guardrail — secondary LLM that validates tool calls / user input against a policy.
+guardrail:
+  mode: block                    # "block" (reject violations), "log" (warn only), "" (disabled)
+  on_error: allow                # "block" (fail-closed), "allow" (fail-open); defaults to match mode
+  timeout: 2m                    # max duration per check
+  scope:
+    tool_calls:
+      agent: "GuardRail:Tool"    # dedicated agent for tool call policy checks
+      prompt: ""                 # OR: named prompt for self-guardrail (overrides agent)
+    user_messages:
+      agent: "GuardRail:Input"   # dedicated agent for user message content checks
+      prompt: ""                 # OR: named prompt for self-guardrail (overrides agent)
+  tools:
+    enabled:                     # glob patterns — only matching tools checked (empty = all)
+      - Bash
+      - Write
+      - Patch
+    disabled: []                 # glob patterns — matching tools skipped (applied after enabled)
+
+# Sandbox feature.
+sandbox:
+  enabled: true                  # global enforcement toggle
+  restrictions:
+    ro:                          # read-only paths — tools can read but not write
+      - /bin
+      - /etc
+      - /usr
+      - /home
+    rw:                          # read-write paths — tools can both read and write
+      - /tmp
+      - $HOME/.cache
+      - $HOME/go

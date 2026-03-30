@@ -1,0 +1,3 @@
+description: "Detects consecutive identical tool calls"
+config:
+  window: 2
