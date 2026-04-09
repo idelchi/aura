@@ -1,4 +1,30 @@
 services:
+  build:
+    build:
+      dockerfile: Dockerfile
+      args:
+        - AURA_VERSION=local
+        - BUILD_TAGS=${BUILD_TAGS:-}
+      target: final
+    image: idelchi/aura:release
+    container_name: aura
+    hostname: aura
+    env_file:
+      - secrets.env
+    volumes:
+      - .:/home/user/ws
+      - ./.bash_history:/home/user/.bash_history
+    extra_hosts:
+      - host:host-gateway
+    working_dir: /home/user/ws
+    environment:
+      - GOFLAGS=-buildvcs=false
+    networks:
+      - aura
+    entrypoint:
+      - /bin/bash
+      - -c
+
   aura:
     build:
       dockerfile: Dockerfile.dev
