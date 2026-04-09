@@ -9,7 +9,6 @@ on:
       - "!*-beta"
     # For the docker image
     branches:
-      - dev
       - main
 
 jobs:
