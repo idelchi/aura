@@ -6,12 +6,9 @@ ARG GO_VERSION=1.26.1
 ARG DISTRO=trixie
 
 #### ---- Build ---- ####
-FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-${DISTRO} AS build
+FROM golang:${GO_VERSION}-${DISTRO} AS build
 
 LABEL maintainer=arash.idelchi
-
-ARG TARGETARCH
-ARG TARGETOS
 
 USER root
 
@@ -55,7 +52,7 @@ ARG AURA_VERSION="unofficial & built by unknown"
 ARG BUILD_TAGS=""
 RUN --mount=type=cache,target=${GOMODCACHE},uid=${UID},gid=${UID},id=gomod-${TARGETARCH} \
     --mount=type=cache,target=${GOCACHE},uid=${UID},gid=${UID},id=gocache-${TARGETARCH} \
-    GOOS=${TARGETOS} GOARCH=${TARGETARCH} CGO_ENABLED=1 go build ${BUILD_TAGS} -ldflags="-s -w -X 'main.version=${AURA_VERSION}'" -o /home/${USER}/.local/bin/aura .
+    CGO_ENABLED=1 go build ${BUILD_TAGS} -ldflags="-s -w -X 'main.version=${AURA_VERSION}'" -o /home/${USER}/.local/bin/aura .
 
 ENV PATH=$PATH:/home/${USER}/.local/bin
 ENV PATH=$PATH:/root/.local/bin
