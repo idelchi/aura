@@ -1,0 +1,73 @@
+# EXAMPLE — This file is not loaded. Rename to <name>.yaml to use.
+# Full reference of all provider fields.
+# Multiple providers can be defined in the same file (each is a top-level map key).
+
+# Local Ollama instance — free, no token needed.
+ollama:
+  url: http://host.docker.internal:11434
+  type: ollama
+  # How long models stay loaded in VRAM after a request (Ollama-type providers only).
+  keep_alive: 15m
+  # HTTP response header timeout. Default: 5m.
+  timeout: 5m
+  # Model visibility filter — controls which models appear in `aura models` and `/model`.
+  models:
+    include: ["llama*", "qwen*", "deepseek*"]
+    exclude: ["*embed*", "*vision*"]
+
+# OpenRouter — cloud models via API key.
+openrouter:
+  url: https://openrouter.ai/api/v1
+  type: openrouter
+  # Authentication token. Supports env var expansion.
+  # If empty, falls back to AURA_PROVIDERS_OPENROUTER_TOKEN environment variable.
+  token: ${OPENROUTER_API_KEY}
+  timeout: 3m
+  # Retry configuration for transient failures (rate limits, server errors).
+  retry:
+    max_attempts: 3
+    base_delay: 2s
+    max_delay: 30s
+
+# Anthropic — Claude models via native API.
+anthropic:
+  type: anthropic
+  # URL defaults to https://api.anthropic.com when omitted.
+  token: ${ANTHROPIC_API_KEY}
+  timeout: 5m
+  retry:
+    max_attempts: 2
+    base_delay: 1s
+    max_delay: 15s
+
+# OpenAI — GPT models via Responses API.
+openai:
+  url: https://api.openai.com/v1
+  type: openai
+  token: ${OPENAI_API_KEY}
+  timeout: 3m
+
+# Google Gemini — native API.
+google:
+  type: google
+  token: ${GOOGLE_API_KEY}
+  timeout: 5m
+
+# Local llama.cpp server — OpenAI-compatible.
+llamacpp:
+  url: http://host.docker.internal:8081
+  type: llamacpp
+  timeout: 10m
+  # Explicit capability list. Overrides auto-detection.
+  # Values: chat, embed, rerank, transcribe, synthesize.
+  capabilities: [chat]
+
+# GitHub Copilot — uses OAuth device code flow (aura login copilot).
+copilot:
+  type: copilot
+  timeout: 3m
+
+# OpenAI Codex — uses OAuth device code flow (aura login codex).
+codex:
+  type: codex
+  timeout: 3m

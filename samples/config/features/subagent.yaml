@@ -1,0 +1,3 @@
+subagent:
+  max_steps: 25
+  default_agent: "explore"

@@ -1,0 +1,3 @@
+anthropic:
+  type: anthropic
+  timeout: 5m

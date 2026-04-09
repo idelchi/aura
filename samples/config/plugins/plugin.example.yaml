@@ -1,0 +1,71 @@
+# EXAMPLE — plugin.yaml
+# This file lives under config/plugins/ for reference only — it is NOT loaded from here.
+# To create a plugin, place it under <home>/plugins/<name>/ (one level above config/).
+# Each plugin lives in its own directory: plugins/**/<name>/plugin.yaml + *.go files.
+
+# Override plugin identity (default: leaf directory name).
+# name: my-custom-name
+
+# Human-readable description.
+description: Circuit breaker that blocks tool execution after repeated failures.
+
+# Skip this plugin without removing the directory.
+disabled: false
+
+# Replace a built-in tool with the same name (tools only).
+override: false
+
+# Hidden unless explicitly enabled by name in an enabled list (tools only).
+opt_in: false
+
+# Condition expression evaluated per turn (injectors only).
+# Empty = always run.
+#
+# Boolean:     auto, todo_empty, todo_done, todo_pending
+# Comparison:  context_above:<N>, context_below:<N>,
+#              turns_gt:<N>, turns_lt:<N>,
+#              iteration_gt:<N>, iteration_lt:<N>,
+#              history_gt:<N>, history_lt:<N>,
+#              tool_calls_gt:<N>, tool_calls_lt:<N>,
+#              tool_errors_gt:<N>, tool_errors_lt:<N>,
+#              compactions_gt:<N>, compactions_lt:<N>,
+#              tokens_total_gt:<N>, tokens_total_lt:<N>,
+#              model_context_gt:<N>, model_context_lt:<N>,
+#              model_params_gt:<N>, model_params_lt:<N>
+# Model:       model_has:vision, model_has:tools, model_has:thinking,
+#              model_has:thinking_levels, model_has:embedding, model_has:reranking,
+#              model_has:context_override, model_is:<name>
+# Filesystem:  exists:<path>
+# Shell:       bash:<cmd> (exits 0 = true, 120s timeout)
+# Negation:    not <condition>
+# Composition: <condition> and <condition>
+condition: "tool_errors_gt:3"
+
+# Run only on the first matching turn (injectors only).
+once: false
+
+# Env var names this plugin may read via os.Getenv.
+# Omit for no access. Use ["*"] for full process environment.
+env:
+  - GOTIFY_TOKEN
+  - GOTIFY_URL
+
+# Default config values for the plugin.
+# Accessible in plugin code via sdk.Context.PluginConfig.
+# Overridden by features/plugins.yaml config.global and config.local.<name>.
+config:
+  max_failures: 3
+  reset_interval: 60s
+  notify_on_break: true
+
+# Plugin types (determined by exported Go functions):
+#   Injector: BeforeChat / AfterResponse / BeforeToolExecution / AfterToolExecution / OnError / BeforeCompaction / AfterCompaction / OnAgentSwitch / TransformMessages
+#   Tool:     Schema() + Execute() (optional: Paths, Sandboxable, Parallel, Init, Available)
+#   Command:  Command() + ExecuteCommand() — registers one slash command per plugin
+#
+# Directory layout:
+#   plugins/**/my-plugin/
+#     plugin.yaml
+#     main.go
+#     go.mod
+#     vendor/ (optional)

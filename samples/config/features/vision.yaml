@@ -1,0 +1,4 @@
+vision:
+  agent: Vision
+  dimension: 1024
+  quality: 75

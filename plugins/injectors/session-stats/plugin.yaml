@@ -1,0 +1,4 @@
+description: "Session stats — tracks tool calls, context usage, and injects periodic summaries"
+config:
+  interval: 5
+  top_tools: 3

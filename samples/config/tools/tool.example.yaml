@@ -1,0 +1,44 @@
+# EXAMPLE — This file is not loaded. Rename to <name>.yaml to use.
+# Text overrides for built-in or plugin tools.
+# These override the tool's description, usage, and examples — NOT the implementation.
+# Multiple tools can be defined in the same file (each is a top-level map key).
+
+# Override a built-in tool's description and usage text.
+Read:
+  description: >
+    Read files from the local filesystem. Supports text, images, PDFs, and notebooks.
+    Use offset/limit for large files. Always read before editing.
+  usage: >
+    Provide an absolute file path. Use offset and limit for files over 2000 lines.
+    For PDFs over 10 pages, specify a page range (e.g., pages: "1-5").
+  examples: |
+    Read a full file: { "file_path": "/home/user/project/main.go" }
+    Read lines 50-100: { "file_path": "/home/user/project/main.go", "offset": 50, "limit": 50 }
+    Read PDF pages: { "file_path": "/tmp/report.pdf", "pages": "1-5" }
+
+# Replace a built-in tool with a plugin tool of the same name.
+# The plugin must implement Schema() + Execute().
+Ls:
+  override: true
+
+# Disable a tool entirely — it won't appear in tool listings or be callable.
+WebSearch:
+  disabled: true
+
+# Conditionally include a tool based on runtime state.
+# The tool is only available when the condition evaluates to true.
+Vision:
+  condition: "model_has:vision"
+
+# Condition with model size check — only available for larger models.
+Query:
+  condition: "model_params_gt:7"
+
+# Condition with file existence check.
+Diagnostics:
+  condition: "exists:go.mod"
+
+# Override parallel execution safety for a tool.
+# Forces sequential execution even if the tool implements Parallel()=true.
+Bash:
+  parallel: false

@@ -1,0 +1,108 @@
+version: "3"
+
+vars:
+  # Mandatory, otherwise the includes won't work.
+  DEVENV: .devenv
+
+env:
+  DEVENV: .devenv
+  CONFIG_DIR: "{{.DEVENV}}/settings"
+  SCRIPTS_DIR: "{{.DEVENV}}/scripts"
+  BUILD_DIR: "{{ .ROOT_DIR | toSlash }}/.build"
+
+includes:
+  aux: "{{.DEVENV}}/taskfiles/Taskfile.aux.yml"
+  git: "{{.DEVENV}}/taskfiles/Taskfile.git.yml"
+  lint: "{{.DEVENV}}/taskfiles/Taskfile.lint.yml"
+  format: "{{.DEVENV}}/taskfiles/Taskfile.format.yml"
+  go:
+    taskfile: "{{.DEVENV}}/taskfiles/Taskfile.go.yml"
+    vars:
+      COVERAGE: 0.0%
+      CONFIG_DIR: .
+  github: "{{.DEVENV}}/taskfiles/Taskfile.github.yml"
+
+silent: true
+
+output: prefixed
+
+tasks:
+  docker:
+    desc: Run commands inside the Docker container
+    summary: |
+      This task allows you to run commands inside the Docker container.
+      Usage:
+        - `task docker` to launch the container and enter its shell
+        - `task docker -- task <task> -f` to run a task/command inside the container
+    cmds:
+      - docker rm -f devenv > /dev/null 2>&1 || true
+      - docker compose -f {{.DEVENV}}/compose.yaml build --build-arg CACHEBUST=$(date +%s) devenv
+      - docker compose -f {{.DEVENV}}/compose.yaml run --rm devenv {{.CLI_ARGS}}
+    interactive: true
+
+  push:
+    desc: Push changes to the remote repository
+    summary: |
+      This task pushes changes to the remote repository.
+      Usage:
+        - `task push` for a default commit message
+        - `task push -- "My commit message"` for a custom commit message
+    cmds:
+      - task: git
+      - task: git:push
+
+  clean:
+    - task: aux:clean
+    - task: go:clean
+    - cmd: |
+        rm -rf .bin-*
+
+  info:
+    - task: git
+
+  format:
+    deps:
+      - task: format:yaml
+      - task: format:json
+      - task: format:docker
+      - task: format:md
+      - task: format:ws
+    cmds:
+      - task: go:format
+
+  lint:
+    deps:
+      - task: lint:ws
+      - task: lint:yaml
+      - task: lint:json
+    cmds:
+      - task: go:lint
+
+  build:
+    cmds:
+      - task: go:build
+      - task: go:release
+
+  test:
+    cmds:
+      - task: go:quality
+
+  all:
+    desc: run all available tasks
+    cmds:
+      - task: clean
+      - task: info
+      - task: format
+      - task: lint
+      - task: build
+      - task: test
+
+  default:
+    desc: clean, format & lint
+    cmds:
+      - task: info
+      - task: format
+      - task: lint
+
+  update:
+    - task: git:update

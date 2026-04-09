@@ -1,0 +1,50 @@
+# EXAMPLE — rename to <name>.yaml to activate.
+# Each top-level key is a server name. Multiple servers per file, or one per file.
+
+gopls:
+  # Binary name or path.
+  command: gopls
+  # Command-line arguments.
+  args: [serve]
+  # File extensions this server handles.
+  file_types: [go, mod]
+  # Files that must exist in workdir for the server to start.
+  root_markers: [go.mod]
+  # Workspace/didChangeConfiguration settings.
+  settings:
+    directoryFilters: ["-**/vendor", "-**/node_modules", "-.git"]
+    staticcheck: true
+  # LSP initialize options.
+  init_options: {}
+  # Seconds before giving up on server start. Default: 30.
+  timeout: 30
+  # Skip this server without removing the config.
+  disabled: false
+
+typescript:
+  command: typescript-language-server
+  args: [--stdio]
+  file_types: [ts, tsx, js, jsx]
+  root_markers: [package.json, tsconfig.json]
+  timeout: 30
+
+pyright:
+  command: pyright-langserver
+  args: [--stdio]
+  file_types: [py, pyi]
+  root_markers: [pyproject.toml, setup.py, requirements.txt]
+  settings:
+    python:
+      analysis:
+        typeCheckingMode: basic
+  timeout: 30
+
+rust-analyzer:
+  command: rust-analyzer
+  file_types: [rs]
+  root_markers: [Cargo.toml]
+  settings:
+    rust-analyzer:
+      checkOnSave:
+        command: clippy
+  timeout: 45

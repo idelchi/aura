@@ -1,0 +1,4 @@
+whisper:
+  url: http://localhost:8082
+  type: llamacpp
+  capabilities: [transcribe]

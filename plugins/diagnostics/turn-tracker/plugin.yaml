@@ -1,0 +1,5 @@
+description: "Tracks conversation turns and context usage with loud status messages"
+disabled: true
+config:
+  interval: 3
+  max_response_length: 5000

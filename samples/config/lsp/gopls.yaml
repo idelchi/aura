@@ -1,0 +1,8 @@
+gopls:
+  command: gopls
+  args: [serve]
+  file_types: [go, mod]
+  root_markers: [go.mod]
+  settings:
+    directoryFilters: ["-**/vendor", "-**/node_modules", "-.git"]
+    staticcheck: true

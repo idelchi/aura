@@ -1,0 +1,52 @@
+tools:
+  mode: percentage
+  result:
+    max_tokens: 20000
+    max_percentage: 90
+  read_small_file_tokens: 4000
+  max_steps: 300
+  rejection_message: >-
+    Error: Tool result too large (%d tokens, limit %d).
+    Try a more specific query or use offset/limit parameters.
+  bash:
+    truncation:
+      max_output_bytes: 1048576 # 1MB per stream (stdout/stderr)
+      max_lines: 200
+      head_lines: 100
+      tail_lines: 80
+    rewrite: |
+      if command -v rtk >/dev/null 2>&1 && REWRITTEN=$(rtk rewrite {{ .Command }} 2>/dev/null); then
+        eval "${REWRITTEN/golangci-lint run/golangci-lint}"
+      else
+        {{ .Command }}
+      fi
+
+  user_input_max_percentage: 85
+  read_before:
+    write: true
+    delete: false
+  opt_in:
+    - Ask
+    - Done
+    - Edit
+    - Gotify
+    - Diagnostics
+    - LspRestart
+    - Speak
+    - Transcribe
+    - WebFetch
+    - WebSearch
+    - Write
+    - Task
+    - Tokens
+  deferred:
+    - Ask
+    - Batch
+    - Diagnostics
+    - LspRestart
+    - MemoryRead
+    - MemoryWrite
+    - Query
+    - Task
+    - WebFetch
+    - WebSearch

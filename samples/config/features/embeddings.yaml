@@ -1,0 +1,17 @@
+embeddings:
+  agent: Embeddings
+  max_results: 5
+  gitignore: |
+    *
+    !*/
+    !internal/
+    !internal/**/*.go
+  offload: true
+  chunking:
+    strategy: auto
+    max_tokens: 500
+    overlap_tokens: 75
+  reranking:
+    agent: Reranker
+    multiplier: 4
+    offload: true

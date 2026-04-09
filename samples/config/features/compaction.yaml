@@ -1,0 +1,15 @@
+compaction:
+  threshold: 80
+  max_tokens: 0 # absolute token count trigger (overrides threshold when set)
+  trim_threshold: 50
+  trim_max_tokens: 0 # absolute token count for trimming (overrides trim_threshold when set)
+  keep_last_messages: 10
+  chunks: 5
+  agent: Compaction
+  prompt: "" # self-compact: use current model with this named prompt instead of agent
+  tool_result_max_length: 200
+  truncation_retries: [150, 100, 50, 0]
+  prune:
+    mode: "iteration"
+    protect_percent: 30
+    arg_threshold: 200

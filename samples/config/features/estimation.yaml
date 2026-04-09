@@ -1,0 +1,7 @@
+# Token estimation method.
+# "rough" = chars/divisor, "tiktoken" = tiktoken encoding,
+# "rough+tiktoken" = max of both (default), "native" = provider tokenization endpoint.
+estimation:
+  method: rough+tiktoken
+  divisor: 4
+  encoding: cl100k_base
