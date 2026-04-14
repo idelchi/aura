@@ -141,7 +141,7 @@ tasks:
         fi
 
         latest=$(gh release list -L 1 --exclude-pre-releases --json tagName -q '.[0].tagName')
-        next=v$(go-next-tag $latest --bump=patch)${suffix}
+        next=$(go-next-tag $latest --bump=patch)${suffix}
 
         git tag -d ${next} || true
         gh release delete ${next} --yes --cleanup-tag || true
@@ -164,9 +164,9 @@ tasks:
         git push origin ${next}
         git push origin sdk/${next} -o ci.skip
 
-        docker compose run --rm --remove-orphans goreleaser
+        # docker compose run --rm --remove-orphans goreleaser
 
-        rm -rf dist
+        # rm -rf dist
 
   tag:
     dotenv:

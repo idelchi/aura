@@ -6,7 +6,7 @@ on:
     # For the release
     tags:
       - "*"
-      - "!*-beta"
+      # - "!*-beta"
     # For the docker image
     branches:
       - main
@@ -28,7 +28,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: 1.26.1
+          go-version: 1.26.2
 
       - name: Git Safe Directory
         run: git config --global --add safe.directory ${GITHUB_WORKSPACE}
