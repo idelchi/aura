@@ -689,4 +689,3 @@ func buildSandbox(enabled bool, restrictions config.Restrictions, workDir string
 
 	return sb
 }
-

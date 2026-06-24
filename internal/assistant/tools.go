@@ -473,20 +473,20 @@ func (a *Assistant) executeTools(ctx context.Context, toolCalls []call.Call) {
 				}
 			}
 
+			if postHookMsg != "" {
+				result += "\n\n" + postHookMsg
+			}
+
+			if preHookMsg := pc.preHookMsg; preHookMsg != "" {
+				result = preHookMsg + "\n\n" + result
+			}
+
 			if result != output {
 				est = a.estimator.Estimate(ctx, result)
 			}
 
 			a.builder.CompleteToolCall(ctx, tc.ID, result, commitErr)
 			a.builder.AddToolResult(ctx, tc.Name, tc.ID, result, est)
-
-			if postHookMsg != "" {
-				a.builder.AddEphemeralToolResult(ctx, tc.Name, tc.ID+"-hook-post", postHookMsg, 0)
-			}
-
-			if preHookMsg := pc.preHookMsg; preHookMsg != "" {
-				a.builder.AddEphemeralToolResult(ctx, tc.Name, tc.ID+"-hook-pre", preHookMsg, 0)
-			}
 		}
 
 		// Filter out Output-only injections.

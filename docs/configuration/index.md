@@ -81,6 +81,7 @@ aura --override model.context=200000 run "large context task"
 ```
 
 Two sections are supported:
+
 - `features.*` — all 14 feature sub-structs (~80 fields): tools, compaction, guardrail, sandbox, thinking, vision, etc.
 - `model.*` — name, provider, think, context, generation params (temperature, top_p, etc.)
 
