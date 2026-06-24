@@ -5,7 +5,6 @@ import (
 
 	"github.com/idelchi/aura/internal/config"
 	"github.com/idelchi/aura/internal/conversation"
-
 	"github.com/idelchi/aura/internal/injector"
 	"github.com/idelchi/aura/internal/mcp"
 	"github.com/idelchi/aura/internal/session"

@@ -166,48 +166,48 @@ tasks:
 
         # docker compose run --rm --remove-orphans goreleaser
 
-        # rm -rf dist
+  #       # rm -rf dist
 
-  tag:
-    dotenv:
-      - tokens.env
-    cmds:
-      - defer: rm -rf dist
-      - |
-        git config --global credential.helper '!f() { sleep 1; echo "username=git"; echo "password=${GITHUB_TOKEN}"; }; f'
+  # tag:
+  #   dotenv:
+  #     - tokens.env
+  #   cmds:
+  #     - defer: rm -rf dist
+  #     - |
+  #       git config --global credential.helper '!f() { sleep 1; echo "username=git"; echo "password=${GITHUB_TOKEN}"; }; f'
 
-        git tag -l | xargs git tag -d
-        git fetch --tags
+  #       git tag -l | xargs git tag -d
+  #       git fetch --tags
 
-        # Check if the env var NO_BETA is set to true
-        suffix=-beta
-        if [ "${NO_BETA}" = "true" ]; then
-          suffix=""
-        fi
+  #       # Check if the env var NO_BETA is set to true
+  #       suffix=-beta
+  #       if [ "${NO_BETA}" = "true" ]; then
+  #         suffix=""
+  #       fi
 
-        latest=$(gh release list -L 1 --exclude-pre-releases --json tagName -q '.[0].tagName')
-        next=v$(go-next-tag $latest --bump=patch)${suffix}
+  #       latest=$(gh release list -L 1 --exclude-pre-releases --json tagName -q '.[0].tagName')
+  #       next=v$(go-next-tag $latest --bump=patch)${suffix}
 
-        git tag -d ${next} || true
-        gh release delete ${next} --yes --cleanup-tag || true
+  #       git tag -d ${next} || true
+  #       gh release delete ${next} --yes --cleanup-tag || true
 
-        git tag -d ${next}${suffix} || true
-        gh release delete ${next}${suffix} --yes --cleanup-tag || true
+  #       git tag -d ${next}${suffix} || true
+  #       gh release delete ${next}${suffix} --yes --cleanup-tag || true
 
-        git tag -d sdk/${next}${suffix} || true
-        gh release delete sdk/${next}${suffix} --yes --cleanup-tag || true
+  #       git tag -d sdk/${next}${suffix} || true
+  #       gh release delete sdk/${next}${suffix} --yes --cleanup-tag || true
 
-        git push origin :refs/tags/${next}
-        git push origin :refs/tags/${next}${suffix}
+  #       git push origin :refs/tags/${next}
+  #       git push origin :refs/tags/${next}${suffix}
 
-        git tag ${next}
+  #       git tag ${next}
 
-        git tag -d sdk/${next} || true
-        git tag sdk/${next}
-        git push origin --delete sdk/${next} || true
+  #       git tag -d sdk/${next} || true
+  #       git tag sdk/${next}
+  #       git push origin --delete sdk/${next} || true
 
-        git push origin ${next}
-        git push origin sdk/${next} -o ci.skip
+  #       git push origin ${next}
+  #       git push origin sdk/${next} -o ci.skip
 
   squash:
     - |

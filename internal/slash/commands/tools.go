@@ -25,6 +25,7 @@ func Tools() slash.Command {
 			}
 
 			var b strings.Builder
+
 			b.WriteString("Enabled tools:\n")
 
 			for _, name := range names {

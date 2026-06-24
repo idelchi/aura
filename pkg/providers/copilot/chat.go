@@ -18,6 +18,7 @@ func (c *Client) Chat(ctx context.Context, req request.Request, fn stream.Func) 
 	}
 
 	c.mu.Lock()
+
 	info, ok := c.models[req.Model.Name]
 	c.mu.Unlock()
 

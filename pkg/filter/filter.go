@@ -26,6 +26,7 @@ func Match(v any, filters []string) (bool, error) {
 	}
 
 	var m map[string]any
+
 	if err := yaml.Unmarshal(data, &m); err != nil {
 		return false, fmt.Errorf("unmarshaling for filter: %w", err)
 	}

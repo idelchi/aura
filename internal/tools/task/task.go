@@ -162,6 +162,7 @@ func formatToolSummary(tools map[string]int) string {
 // BuildDescription creates a dynamic tool description from available agents.
 func (t *Tool) BuildDescription() string {
 	var desc strings.Builder
+
 	desc.WriteString(heredoc.Doc(`
 		Launch a subagent to handle a task with isolated context.
 		The subagent gets its own conversation, tool set, and token budget.

@@ -51,6 +51,7 @@ func (c *Client) Models(ctx context.Context) (model.Models, error) {
 	}
 
 	var result codexModelsResponse
+
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("decoding models response: %w", err)
 	}

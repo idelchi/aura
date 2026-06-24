@@ -29,6 +29,7 @@ type Tool struct {
 // New creates a Skill tool with a dynamic description built from all skill descriptions.
 func New(skills config.Collection[config.Skill]) *Tool {
 	var desc strings.Builder
+
 	desc.WriteString(heredoc.Doc(`
 		Invoke a skill by name. Skills are multi-step workflows you execute using your existing tools.
 		Call with the skill name. The skill's full instructions will be returned.

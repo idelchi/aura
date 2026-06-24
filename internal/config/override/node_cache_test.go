@@ -42,14 +42,18 @@ type cacheThinkValue struct {
 
 func (t *cacheThinkValue) UnmarshalYAML(unmarshal func(any) error) error {
 	var b bool
+
 	if err := unmarshal(&b); err == nil {
 		t.Value = b
+
 		return nil
 	}
 
 	var s string
+
 	if err := unmarshal(&s); err == nil {
 		t.Value = s
+
 		return nil
 	}
 
@@ -81,6 +85,7 @@ func cacheNodes(t *testing.T, overrides []string) []cachedNode {
 		}
 
 		yamlStr := DotToYAML(path, value)
+
 		nodes[i] = cachedNode{yaml: yamlStr, raw: raw}
 	}
 
@@ -117,6 +122,7 @@ func TestCachedNodeApproach(t *testing.T) {
 
 	// Validate: apply to empty target
 	var probe cacheTarget
+
 	must(t, ApplyAll(&probe, overrides))
 
 	eq(t, probe.Features.Tools.MaxSteps, 0)
@@ -147,9 +153,9 @@ func TestCachedNodeApproach(t *testing.T) {
 	scratch := cacheTarget{Features: effective, Model: cacheModel{}}
 	must(t, ApplyAll(&scratch, overrides))
 
-	eq(t, scratch.Features.Tools.MaxSteps, 0)            // overridden to zero
-	eq(t, scratch.Features.Tools.Mode, "percentage")      // preserved
-	eq(t, scratch.Features.Compaction.Threshold, 0.5)     // overridden
+	eq(t, scratch.Features.Tools.MaxSteps, 0)              // overridden to zero
+	eq(t, scratch.Features.Tools.Mode, "percentage")       // preserved
+	eq(t, scratch.Features.Compaction.Threshold, 0.5)      // overridden
 	eq(t, scratch.Features.Compaction.Agent, "Compaction") // preserved
 
 	// Simulate rebuildState turn 2: different baseline, overrides re-applied
@@ -163,16 +169,15 @@ func TestCachedNodeApproach(t *testing.T) {
 
 	eq(t, scratch2.Features.Tools.MaxSteps, 0)            // still overridden to zero
 	eq(t, scratch2.Features.Tools.TokenBudget, 100000)    // preserved
-	eq(t, scratch2.Features.Tools.Mode, "tokens")          // preserved (different from turn 1)
-	eq(t, scratch2.Features.Compaction.Threshold, 0.5)     // still overridden
-	eq(t, scratch2.Features.Compaction.Agent, "NewAgent")  // preserved (different from turn 1)
+	eq(t, scratch2.Features.Tools.Mode, "tokens")         // preserved (different from turn 1)
+	eq(t, scratch2.Features.Compaction.Threshold, 0.5)    // still overridden
+	eq(t, scratch2.Features.Compaction.Agent, "NewAgent") // preserved (different from turn 1)
 }
 
 func TestCachedNodeUnknownField(t *testing.T) {
 	t.Parallel()
 
 	err := Apply(&cacheTarget{}, "features.tools.bogus=1")
-
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -186,7 +191,6 @@ func TestCachedNodeUnknownSection(t *testing.T) {
 	t.Parallel()
 
 	err := Apply(&cacheTarget{}, "bogus.thing=1")
-
 	if err == nil {
 		t.Fatal("expected error")
 	}

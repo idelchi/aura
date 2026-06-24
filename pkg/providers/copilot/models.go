@@ -55,6 +55,7 @@ func (c *Client) fetchModels(ctx context.Context) (model.Models, error) {
 	}
 
 	var body copilotModelsResponse
+
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return nil, fmt.Errorf("decoding copilot models response: %w", err)
 	}
@@ -98,6 +99,7 @@ func (c *Client) fetchModels(ctx context.Context) (model.Models, error) {
 	}
 
 	c.mu.Lock()
+
 	c.models = cache
 	c.mu.Unlock()
 
@@ -106,6 +108,7 @@ func (c *Client) fetchModels(ctx context.Context) (model.Models, error) {
 
 func (c *Client) ensureModels(ctx context.Context) error {
 	c.mu.Lock()
+
 	cached := c.models
 	c.mu.Unlock()
 

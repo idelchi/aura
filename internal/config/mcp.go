@@ -37,6 +37,7 @@ func loadMCPs(ff files.Files) (StringCollection[mcp.Server], error) {
 		}
 
 		var temp map[string]mcp.Server
+
 		if err := yamlutil.StrictUnmarshal(content, &temp); err != nil {
 			return nil, fmt.Errorf("parsing %s: %w", f, err)
 		}

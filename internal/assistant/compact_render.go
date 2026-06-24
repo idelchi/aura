@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -43,8 +44,8 @@ func splitHistory(history message.Messages, keepLast int) (toCompact, preserved 
 	splitIdx := len(msgs) // default: compact everything
 	kept := 0
 
-	for i := len(msgs) - 1; i >= 0; i-- {
-		if msgs[i].IsInternal() {
+	for i, v := range slices.Backward(msgs) {
+		if v.IsInternal() {
 			continue
 		}
 

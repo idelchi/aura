@@ -96,6 +96,7 @@ func (td *ToolDefs) Load(ff files.Files) error {
 		}
 
 		var file map[string]ToolDef
+
 		if err := yamlutil.StrictUnmarshal(content, &file); err != nil {
 			return fmt.Errorf("parsing tool definition %s: %w", f, err)
 		}

@@ -43,6 +43,7 @@ func NetworkError(host string, err error) error {
 	}
 
 	var dnsErr *net.DNSError
+
 	if errors.As(err, &dnsErr) {
 		return fmt.Errorf("cannot reach %s: host not found", host)
 	}
@@ -74,6 +75,7 @@ func HTTPError(host string, statusCode int) error {
 func innerError(err error) error {
 	for {
 		var pe *os.PathError
+
 		if errors.As(err, &pe) {
 			return pe.Err
 		}

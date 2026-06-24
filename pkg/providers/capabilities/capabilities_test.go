@@ -13,6 +13,7 @@ func TestAddHas(t *testing.T) {
 		t.Parallel()
 
 		var cs capabilities.Capabilities
+
 		cs.Add(capabilities.Vision)
 
 		if !cs.Has(capabilities.Vision) {
@@ -24,6 +25,7 @@ func TestAddHas(t *testing.T) {
 		t.Parallel()
 
 		var cs capabilities.Capabilities
+
 		cs.Add(capabilities.Vision)
 
 		if cs.Has(capabilities.Tools) {
@@ -35,6 +37,7 @@ func TestAddHas(t *testing.T) {
 		t.Parallel()
 
 		var cs capabilities.Capabilities
+
 		cs.Add(capabilities.Thinking)
 		cs.Add(capabilities.Thinking)
 
@@ -77,6 +80,7 @@ func TestPredicates(t *testing.T) {
 			t.Parallel()
 
 			var cs capabilities.Capabilities
+
 			cs.Add(subject.cap)
 
 			if !subject.predicate(cs) {
@@ -88,6 +92,7 @@ func TestPredicates(t *testing.T) {
 			t.Parallel()
 
 			var cs capabilities.Capabilities
+
 			// Add all capabilities except the subject.
 			for _, other := range all {
 				if other.cap != subject.cap {
@@ -120,6 +125,7 @@ func TestMap(t *testing.T) {
 		t.Parallel()
 
 		var cs capabilities.Capabilities
+
 		cs.Add(capabilities.Vision)
 		cs.Add(capabilities.Tools)
 		cs.Add(capabilities.Thinking)

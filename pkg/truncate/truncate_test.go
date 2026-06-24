@@ -205,6 +205,7 @@ func TestMapToJSON(t *testing.T) {
 
 			// Round-trip: unmarshal and check keys match.
 			var decoded map[string]any
+
 			if err := json.Unmarshal([]byte(got), &decoded); err != nil {
 				t.Fatalf("MapToJSON(%v) produced JSON that could not be unmarshalled: %v", tt.m, err)
 			}

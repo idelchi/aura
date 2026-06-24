@@ -97,6 +97,7 @@ func (m *Manager) NotifyChange(ctx context.Context, path string) {
 	m.Start(ctx, path)
 
 	m.mu.Lock()
+
 	clients := m.clientsForFile(path)
 	m.mu.Unlock()
 
@@ -118,6 +119,7 @@ func (m *Manager) DidOpen(ctx context.Context, path string) {
 	m.Start(ctx, path)
 
 	m.mu.Lock()
+
 	clients := m.clientsForFile(path)
 	m.mu.Unlock()
 

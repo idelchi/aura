@@ -22,6 +22,7 @@ func handleError(err error) error {
 	}
 
 	var ae api.AuthorizationError
+
 	if errors.As(err, &ae) {
 		msg := ae.Status
 		if msg == "" {
@@ -32,6 +33,7 @@ func handleError(err error) error {
 	}
 
 	var se api.StatusError
+
 	if errors.As(err, &se) {
 		if strings.Contains(se.ErrorMessage, "input length exceeds") {
 			return fmt.Errorf("%w: ollama: %d %s", providers.ErrContextExhausted, se.StatusCode, se.ErrorMessage)

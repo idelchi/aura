@@ -31,6 +31,7 @@ func parse(data []byte, vars map[string]string) ([]string, error) {
 	}
 
 	var r []string
+
 	if err := yaml.Unmarshal(expanded, &r); err != nil {
 		return nil, fmt.Errorf("parsing YAML (expected list of strings): %w", err)
 	}
@@ -52,6 +53,7 @@ func Expand(data []byte, vars map[string]string) ([]byte, error) {
 	}
 
 	var buf bytes.Buffer
+
 	if err := tmpl.Execute(&buf, ctx); err != nil {
 		return nil, err
 	}

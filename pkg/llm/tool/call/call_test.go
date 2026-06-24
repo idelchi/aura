@@ -58,6 +58,7 @@ func TestSetArgs(t *testing.T) {
 
 			// ArgumentsDisplay must not exceed MaxArgsLen + len(" [...truncated]").
 			const maxDisplay = call.MaxArgsLen
+
 			if len(c.ArgumentsDisplay) > maxDisplay {
 				t.Errorf("ArgumentsDisplay length = %d, exceeds max %d", len(c.ArgumentsDisplay), maxDisplay)
 			}

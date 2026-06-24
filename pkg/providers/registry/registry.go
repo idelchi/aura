@@ -76,6 +76,7 @@ func Refresh(ctx context.Context, domain *cache.Domain) {
 	}
 
 	mu.Lock()
+
 	index = buildIndex(providers)
 	mu.Unlock()
 
@@ -177,6 +178,7 @@ func loadDiskCache(domain *cache.Domain) []catwalk.Provider {
 	}
 
 	var providers []catwalk.Provider
+
 	if err := json.Unmarshal(data, &providers); err != nil {
 		return nil
 	}

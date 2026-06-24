@@ -30,6 +30,7 @@ func loadSystems(ff files.Files) (Collection[System], error) {
 		}
 
 		var meta SystemMetadata
+
 		if err := yaml.Load(yamlBytes, &meta, yaml.WithKnownFields()); err != nil {
 			return nil, fmt.Errorf("system prompt %s: %w", f, err)
 		}

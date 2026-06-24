@@ -143,6 +143,7 @@ func (a *astChunker) Chunk(ctx context.Context, path, content string) (Chunks, e
 	rootNode := tree.RootNode()
 
 	var boundaries []nodeBoundary
+
 	a.collectBoundaries(rootNode, langInfo.nodeTypes, &boundaries)
 
 	if len(boundaries) == 0 {

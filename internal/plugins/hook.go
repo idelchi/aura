@@ -100,6 +100,7 @@ func (h *Hook) PanicCount() int         { return h.panicCount }
 // panic counter and logs the event.
 func (h *Hook) trackPanic(err error) {
 	var pe *pluginPanic
+
 	if errors.As(err, &pe) {
 		h.panicCount++
 		debug.Log("[plugin] %s panicked: %v", h.Name(), pe.value)

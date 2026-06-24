@@ -306,6 +306,7 @@ func (r Runner) execute(ctx context.Context, entry Entry, eventJSON string, file
 
 	if err != nil {
 		var exitStatus interp.ExitStatus
+
 		if errors.As(err, &exitStatus) {
 			exitCode = int(exitStatus)
 		} else if ctx.Err() != nil {
@@ -358,6 +359,7 @@ func (r Runner) parseSuccessOutput(stdout string) Result {
 	}
 
 	var out hookOutput
+
 	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
 		// Not JSON — treat as plain text message.
 		return Result{Message: stdout}

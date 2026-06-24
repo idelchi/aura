@@ -92,6 +92,7 @@ func (ts *TemplateSet) Render(data any) (string, error) {
 	root.Funcs(template.FuncMap{
 		"include": func(name string, data any) (string, error) {
 			var buf bytes.Buffer
+
 			if err := root.ExecuteTemplate(&buf, name, data); err != nil {
 				return "", err
 			}
@@ -116,6 +117,7 @@ func (ts *TemplateSet) Render(data any) (string, error) {
 	}
 
 	var buf bytes.Buffer
+
 	if err := root.Execute(&buf, data); err != nil {
 		return "", err
 	}

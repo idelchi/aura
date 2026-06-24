@@ -27,6 +27,7 @@ func (s *LSPServers) Load(ff files.Files) error {
 		}
 
 		var file map[string]lsp.Server
+
 		if err := yamlutil.StrictUnmarshal(content, &file); err != nil {
 			return fmt.Errorf("parsing LSP server definition %s: %w", f, err)
 		}

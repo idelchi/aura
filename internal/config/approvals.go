@@ -35,6 +35,7 @@ func (r *ApprovalRules) Load(ff files.Files, globalHome string) error {
 		}
 
 		var a Approvals
+
 		if err := yamlutil.StrictUnmarshal(data, &a); err != nil {
 			return fmt.Errorf("parsing %s: %w", f, err)
 		}

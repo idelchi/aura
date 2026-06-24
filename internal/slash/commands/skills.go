@@ -23,6 +23,7 @@ func Skills() slash.Command {
 			}
 
 			var b strings.Builder
+
 			b.WriteString("Loaded skills:\n")
 
 			for _, name := range names {

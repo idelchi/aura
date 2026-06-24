@@ -64,6 +64,7 @@ func (c *Client) Rerank(ctx context.Context, req rerank.Request) (rerank.Respons
 
 	if resp.StatusCode != http.StatusOK {
 		var apiErr Error
+
 		if err := apiErr.FromResponse(resp); err != nil {
 			return rerank.Response{}, fmt.Errorf("rerank failed with status %d", resp.StatusCode)
 		}
@@ -72,6 +73,7 @@ func (c *Client) Rerank(ctx context.Context, req rerank.Request) (rerank.Respons
 	}
 
 	var apiResp rerankResponse
+
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
 		return rerank.Response{}, fmt.Errorf("decoding response: %w", err)
 	}

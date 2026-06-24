@@ -47,6 +47,7 @@ func TestRandomEmpty(t *testing.T) {
 	got := s.Random()
 
 	const want = "Working..."
+
 	if got != want {
 		t.Errorf("Random() on empty SpinText = %q, want %q", got, want)
 	}

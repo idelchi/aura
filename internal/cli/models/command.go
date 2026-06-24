@@ -149,12 +149,13 @@ func Command(flags *core.Flags) *cli.Command {
 
 // fetchModels returns models for a provider, using the cache when available.
 // On cache miss, fetches live from the provider and caches the result.
-// Returns the error so callers can display it instead of silently showing "No models found."
+// Returns the error so callers can display it instead of silently showing "No models found.".
 func fetchModels(ctx context.Context, name string, p config.Provider, domain *cache.Domain) (model.Models, error) {
 	cacheKey := name + ".json"
 
 	if data, ok := domain.Read(cacheKey); ok {
 		var cached model.Models
+
 		if err := json.Unmarshal(data, &cached); err == nil {
 			return cached, nil
 		}

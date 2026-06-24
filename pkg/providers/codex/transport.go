@@ -97,6 +97,7 @@ func (t *codexTransport) refresh(ctx context.Context) (string, error) {
 	}
 
 	var result tokenResponse
+
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "", fmt.Errorf("decoding token response: %w", err)
 	}

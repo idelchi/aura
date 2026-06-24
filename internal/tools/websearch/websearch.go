@@ -131,6 +131,7 @@ func (t *Tool) Execute(ctx context.Context, args map[string]any) (string, error)
 // The lock is released during sleep so concurrent searches aren't serialized.
 func (t *Tool) rateLimit() {
 	t.mu.Lock()
+
 	since := time.Since(t.lastSearch)
 	t.mu.Unlock()
 
@@ -140,6 +141,7 @@ func (t *Tool) rateLimit() {
 	}
 
 	t.mu.Lock()
+
 	t.lastSearch = time.Now()
 	t.mu.Unlock()
 }

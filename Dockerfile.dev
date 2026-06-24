@@ -55,8 +55,8 @@ RUN mkdir -p /home/${USER}/.local/bin
 
 COPY go.mod go.sum ./
 COPY sdk/go.mod sdk/go.mod
-RUN --mount=type=cache,target=${GOMODCACHE},uid=1001,gid=1001 \
-    --mount=type=cache,target=${GOCACHE},uid=1001,gid=1001 \
+RUN --mount=type=cache,target=${GOMODCACHE},uid=1000,gid=1000 \
+    --mount=type=cache,target=${GOCACHE},uid=1000,gid=1000 \
     go mod download
 
 ARG TARGETOS TARGETARCH

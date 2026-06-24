@@ -178,6 +178,7 @@ func (m *Manager) List() ([]Snapshot, error) {
 		var ts time.Time
 
 		var epoch int64
+
 		if n, err := fmt.Sscanf(parts[2], "%d", &epoch); n == 1 && err == nil {
 			ts = time.Unix(epoch, 0)
 		}

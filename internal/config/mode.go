@@ -64,6 +64,7 @@ func loadModes(ff files.Files) (Collection[Mode], error) {
 		}
 
 		var meta ModeMetadata
+
 		if err := yaml.Load(yamlBytes, &meta, yaml.WithKnownFields()); err != nil {
 			return nil, fmt.Errorf("mode %s: %w", f, err)
 		}

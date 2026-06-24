@@ -56,6 +56,7 @@ func (s *Spinner) Fail(message string) {
 // Update changes the spinner message while running.
 func (s *Spinner) Update(message string) {
 	s.s.Lock()
+
 	s.s.Suffix = " " + message
 	s.s.Unlock()
 }

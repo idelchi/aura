@@ -14,6 +14,7 @@ func parseField(r *http.Request, field string) string {
 	ct := r.Header.Get("Content-Type")
 	if strings.HasPrefix(ct, "application/json") {
 		var m map[string]string
+
 		if json.NewDecoder(r.Body).Decode(&m) == nil {
 			return m[field]
 		}
@@ -74,6 +75,7 @@ func (w *Web) handleAsk(wr http.ResponseWriter, r *http.Request) {
 	answer := parseField(r, "answer")
 
 	w.mu.Lock()
+
 	ch := w.pendingAsk
 	options := w.pendingAskOptions
 	multi := w.pendingAskMulti
@@ -105,6 +107,7 @@ func (w *Web) handleConfirm(wr http.ResponseWriter, r *http.Request) {
 	actionStr := parseField(r, "action")
 
 	w.mu.Lock()
+
 	ch := w.pendingConfirm
 
 	w.pendingConfirm = nil

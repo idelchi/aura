@@ -16,6 +16,7 @@ func parseArgs(remaining []string, schema tool.Schema, rawJSON bool) (map[string
 	// Single arg starting with '{' or --raw flag: parse as JSON.
 	if rawJSON || (len(remaining) == 1 && strings.HasPrefix(strings.TrimSpace(remaining[0]), "{")) {
 		var argsMap map[string]any
+
 		if err := json.Unmarshal([]byte(strings.Join(remaining, " ")), &argsMap); err != nil {
 			return nil, fmt.Errorf("invalid JSON args: %w", err)
 		}

@@ -252,6 +252,7 @@ func (ts *Tasks) Load(ff files.Files, vars map[string]string) error {
 		}
 
 		var fileTasks map[string]taskDef
+
 		if err := yaml.Unmarshal(expanded, &fileTasks); err != nil {
 			return fmt.Errorf("parsing task file %s: %w", f, err)
 		}
@@ -307,6 +308,7 @@ func (ts *Tasks) Load(ff files.Files, vars map[string]string) error {
 		}
 
 		var file map[string]taskDef
+
 		if err := yamlutil.StrictUnmarshal(expanded, &file); err != nil {
 			return fmt.Errorf("parsing task definition %q: %w", name, err)
 		}

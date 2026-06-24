@@ -110,6 +110,7 @@ func TestPtr(t *testing.T) {
 		t.Parallel()
 
 		var v thinking.Value
+
 		if v.Ptr() != nil {
 			t.Errorf("Ptr() = non-nil for zero value, want nil")
 		}
@@ -202,6 +203,7 @@ func TestUnmarshalYAMLBoolTrue(t *testing.T) {
 	var w struct {
 		Think thinking.Value `yaml:"think"`
 	}
+
 	if err := yaml.Unmarshal([]byte("think: true"), &w); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
@@ -217,6 +219,7 @@ func TestUnmarshalYAMLBoolFalse(t *testing.T) {
 	var w struct {
 		Think thinking.Value `yaml:"think"`
 	}
+
 	if err := yaml.Unmarshal([]byte("think: false"), &w); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
@@ -232,6 +235,7 @@ func TestUnmarshalYAMLStringLow(t *testing.T) {
 	var w struct {
 		Think thinking.Value `yaml:"think"`
 	}
+
 	if err := yaml.Unmarshal([]byte("think: low"), &w); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
@@ -251,6 +255,7 @@ func TestUnmarshalYAMLStringMedium(t *testing.T) {
 	var w struct {
 		Think thinking.Value `yaml:"think"`
 	}
+
 	if err := yaml.Unmarshal([]byte("think: medium"), &w); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
@@ -266,6 +271,7 @@ func TestUnmarshalYAMLStringHigh(t *testing.T) {
 	var w struct {
 		Think thinking.Value `yaml:"think"`
 	}
+
 	if err := yaml.Unmarshal([]byte("think: high"), &w); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}

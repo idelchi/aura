@@ -44,6 +44,7 @@ func (c *Client) List(ctx context.Context) (model.Models, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		var apiErr Error
+
 		if err := apiErr.FromResponse(resp); err != nil {
 			return nil, fmt.Errorf("listing models: %s", resp.Status)
 		}

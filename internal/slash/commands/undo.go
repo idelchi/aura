@@ -36,8 +36,8 @@ func Undo() slash.Command {
 			// Build picker items — newest first for the dropdown
 			items := make([]ui.PickerItem, 0, len(snapshots))
 
-			for i := len(snapshots) - 1; i >= 0; i-- {
-				s := snapshots[i]
+			for i, v := range slices.Backward(snapshots) {
+				s := v
 				turnNum := i + 1
 
 				items = append(items, ui.PickerItem{

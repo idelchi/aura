@@ -66,6 +66,7 @@ func Apply(target any, raw string) error {
 	yamlStr := DotToYAML(path, value)
 
 	var node yaml.Node
+
 	if err := yaml.Unmarshal([]byte(yamlStr), &node); err != nil {
 		return fmt.Errorf("override %q: %w", raw, err)
 	}

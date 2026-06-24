@@ -266,6 +266,7 @@ func Command(flags *core.Flags) *cli.Command {
 				if stat, err := os.Stdin.Stat(); err == nil && (stat.Mode()&os.ModeCharDevice) == 0 {
 					if stdinData, err := io.ReadAll(os.Stdin); err == nil && len(stdinData) > 0 {
 						var sdkCtx sdk.Context
+
 						if err := json.Unmarshal(stdinData, &sdkCtx); err != nil {
 							debug.Log("sandbox context unmarshal: %v", err)
 						} else {

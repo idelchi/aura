@@ -104,6 +104,7 @@ func loadProviders(ff files.Files) (StringCollection[Provider], error) {
 		}
 
 		var temp map[string]Provider
+
 		if err := yamlutil.StrictUnmarshal(content, &temp); err != nil {
 			return nil, fmt.Errorf("parsing %s: %w", f, err)
 		}

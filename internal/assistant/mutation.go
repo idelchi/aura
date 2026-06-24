@@ -571,7 +571,6 @@ func (a *Assistant) SetDone(val bool) error {
 	return a.rebuildState()
 }
 
-
 // EnableAsk registers the Ask tool callback.
 // Delegates to rebuildState so the tool respects agent+mode filtering.
 func (a *Assistant) EnableAsk(cb func(context.Context, ask.Request) (string, error)) error {

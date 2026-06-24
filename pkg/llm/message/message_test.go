@@ -417,6 +417,7 @@ func TestUnmarshalJSONUser(t *testing.T) {
 	data := `{"Role":"user","Content":"hello"}`
 
 	var m message.Message
+
 	if err := json.Unmarshal([]byte(data), &m); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
@@ -448,6 +449,7 @@ func TestUnmarshalJSONSystem(t *testing.T) {
 	data := `{"Role":"system","Content":"be helpful"}`
 
 	var m message.Message
+
 	if err := json.Unmarshal([]byte(data), &m); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
@@ -471,6 +473,7 @@ func TestUnmarshalJSONAssistantFull(t *testing.T) {
 	data := `{"Role":"assistant","Content":"answer","Thinking":"reasoning","calls":[{"ID":"c1","Name":"bash","Arguments":{"cmd":"ls"}},{"ID":"c2","Name":"read","Arguments":{"path":"/"}}]}`
 
 	var m message.Message
+
 	if err := json.Unmarshal([]byte(data), &m); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
@@ -544,6 +547,7 @@ func TestUnmarshalJSONNewTypes(t *testing.T) {
 			t.Parallel()
 
 			var m message.Message
+
 			if err := json.Unmarshal([]byte(tt.json), &m); err != nil {
 				t.Fatalf("Unmarshal: %v", err)
 			}
@@ -645,6 +649,7 @@ func TestUnmarshalJSONRoundTrip(t *testing.T) {
 	}
 
 	var got message.Message
+
 	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}

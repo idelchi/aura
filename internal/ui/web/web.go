@@ -86,6 +86,7 @@ func (w *Web) SetWorkdir(_ string)               {}
 // appendReplay adds an event to the compact replay buffer.
 func (w *Web) appendReplay(name, data string) {
 	w.mu.Lock()
+
 	w.compactBuffer = append(w.compactBuffer, sseEvent{Name: name, Data: data})
 	w.mu.Unlock()
 }
@@ -93,6 +94,7 @@ func (w *Web) appendReplay(name, data string) {
 // clearMessages empties the browser's message area and the replay buffer.
 func (w *Web) clearMessages() {
 	w.mu.Lock()
+
 	w.compactBuffer = w.compactBuffer[:0]
 	w.mu.Unlock()
 
@@ -211,6 +213,7 @@ func (w *Web) handleEvents(wr http.ResponseWriter, r *http.Request) {
 
 	// Snapshot status and replay buffer under a single lock.
 	w.mu.Lock()
+
 	status := w.status
 	hints := w.hints
 	replay := make([]sseEvent, len(w.compactBuffer))
@@ -258,6 +261,7 @@ func (w *Web) handleEventsJSON(wr http.ResponseWriter, r *http.Request) {
 
 	// Send current status immediately.
 	w.mu.Lock()
+
 	status := w.status
 	hints := w.hints
 	w.mu.Unlock()
@@ -327,6 +331,7 @@ func (w *Web) processEvent(event ui.Event) {
 	switch e := event.(type) {
 	case ui.StatusChanged:
 		w.mu.Lock()
+
 		w.status = e.Status
 
 		hints := w.hints
@@ -336,6 +341,7 @@ func (w *Web) processEvent(event ui.Event) {
 
 	case ui.DisplayHintsChanged:
 		w.mu.Lock()
+
 		w.hints = e.Hints
 
 		status := w.status
@@ -483,6 +489,7 @@ func (w *Web) processEvent(event ui.Event) {
 
 	case ui.AskRequired:
 		w.mu.Lock()
+
 		w.pendingAsk = e.Response
 		w.pendingAskOptions = e.Options
 		w.pendingAskMulti = e.MultiSelect
@@ -502,6 +509,7 @@ func (w *Web) processEvent(event ui.Event) {
 
 	case ui.ToolConfirmRequired:
 		w.mu.Lock()
+
 		w.pendingConfirm = e.Response
 		w.mu.Unlock()
 		w.broker.Broadcast("confirm", renderConfirmDialog(e))

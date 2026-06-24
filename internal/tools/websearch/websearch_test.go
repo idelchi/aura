@@ -71,6 +71,7 @@ func TestParseResultsLimit(t *testing.T) {
 	t.Parallel()
 
 	var sb strings.Builder
+
 	sb.WriteString("<html><body><table>")
 
 	for i := 1; i <= 5; i++ {

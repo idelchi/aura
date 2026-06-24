@@ -82,6 +82,7 @@ func (r *chromaRenderer) renderFencedCodeBlock(
 	}
 
 	var buf bytes.Buffer
+
 	if err := r.formatter.Format(&buf, r.style, tokens); err != nil {
 		fmt.Fprintf(w, "<pre><code>%s</code></pre>", html.EscapeString(code.String()))
 
@@ -135,6 +136,7 @@ func newMarkdownRenderer() goldmark.Markdown {
 // renderMarkdown converts markdown source to HTML.
 func renderMarkdown(md goldmark.Markdown, source string) string {
 	var buf bytes.Buffer
+
 	if err := md.Convert([]byte(source), &buf); err != nil {
 		return fmt.Sprintf("<pre>%s</pre>", html.EscapeString(source))
 	}
@@ -159,6 +161,7 @@ func highlightDiffHTML(content string) string {
 	formatter := chromahtml.New(chromahtml.WithClasses(true))
 
 	var buf bytes.Buffer
+
 	if err := formatter.Format(&buf, styles.Get("monokai"), iter); err != nil {
 		return html.EscapeString(content)
 	}

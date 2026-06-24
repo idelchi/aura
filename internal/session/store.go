@@ -146,6 +146,7 @@ func (s *Store) Read(f file.File) (*Session, error) {
 	}
 
 	var session Session
+
 	if err := json.Unmarshal(data, &session); err != nil {
 		return nil, fmt.Errorf("unmarshaling session: %w", err)
 	}

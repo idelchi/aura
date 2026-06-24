@@ -114,6 +114,7 @@ func requestDeviceCode(ctx context.Context) (*deviceAuthResponse, error) {
 	}
 
 	var result deviceAuthResponse
+
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, err
 	}

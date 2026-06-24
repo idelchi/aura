@@ -88,6 +88,7 @@ func (t *copilotTransport) ensureToken(ctx context.Context) error {
 	}
 
 	var ct copilotToken
+
 	if err := json.NewDecoder(resp.Body).Decode(&ct); err != nil {
 		return fmt.Errorf("decoding copilot token response: %w", err)
 	}

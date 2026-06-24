@@ -347,6 +347,7 @@ func (a *Assistant) executeTools(ctx context.Context, toolCalls []call.Call) {
 
 		// Setup errors are infrastructure problems the LLM cannot fix — route to user.
 		var se *tools.SetupError
+
 		if res.err != nil && errors.As(res.err, &se) {
 			debug.Log("[tool] %s setup error in %v: %v", tc.Name, res.duration, se.Err)
 			a.send(ui.CommandResult{
@@ -661,11 +662,13 @@ func (a *Assistant) executeSandboxed(ctx context.Context, toolName string, args 
 
 	if err != nil {
 		var exitErr *exec.ExitError
+
 		if errors.As(err, &exitErr) {
 			// Safety net: try parsing stdout before falling back to stderr.
 			// After the child fix, setup errors exit 0, so ExitError should
 			// only happen for truly unexpected crashes.
 			var tr tools.ToolResult
+
 			if jsonErr := json.Unmarshal(output, &tr); jsonErr == nil && tr.Setup {
 				return "", &tools.SetupError{Err: errors.New(tr.Error)}
 			}
@@ -677,6 +680,7 @@ func (a *Assistant) executeSandboxed(ctx context.Context, toolName string, args 
 	}
 
 	var tr tools.ToolResult
+
 	if err := json.Unmarshal(output, &tr); err != nil {
 		return string(output), nil // Return raw if not JSON
 	}

@@ -93,6 +93,7 @@ func (t Value) Ptr() *Value {
 // UnmarshalYAML implements yaml.Unmarshaler for Value.
 func (t *Value) UnmarshalYAML(unmarshal func(any) error) error {
 	var b bool
+
 	if err := unmarshal(&b); err == nil {
 		t.Value = b
 
@@ -100,6 +101,7 @@ func (t *Value) UnmarshalYAML(unmarshal func(any) error) error {
 	}
 
 	var s string
+
 	if err := unmarshal(&s); err == nil {
 		if !slices.Contains(Levels, s) {
 			return fmt.Errorf("invalid think value: %q (must be one of %v)", s, Levels)

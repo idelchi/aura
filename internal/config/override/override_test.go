@@ -93,9 +93,14 @@ type OverrideTarget struct {
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
-func intPtr(v int) *int          { return &v }
-func boolPtr(v bool) *bool       { return &v }
-func floatPtr(v float64) *float64 { return &v }
+//go:fix inline
+func intPtr(v int) *int { return new(v) }
+
+//go:fix inline
+func boolPtr(v bool) *bool { return new(v) }
+
+//go:fix inline
+func floatPtr(v float64) *float64 { return new(v) }
 
 func seed() OverrideTarget {
 	return OverrideTarget{
@@ -104,9 +109,9 @@ func seed() OverrideTarget {
 				Mode: "percentage", MaxSteps: 50, TokenBudget: 100000,
 				Bash: ToolBash{
 					Rewrite:    "original",
-					Truncation: BashTruncation{MaxLines: intPtr(200), HeadLines: intPtr(100), TailLines: intPtr(80)},
+					Truncation: BashTruncation{MaxLines: new(200), HeadLines: new(100), TailLines: new(80)},
 				},
-				Parallel: boolPtr(true),
+				Parallel: new(true),
 				Disabled: []string{"Bash", "Write"},
 			},
 			Compaction: Compaction{Threshold: 0.8, MaxTokens: 10000, Agent: "Compaction"},
@@ -252,6 +257,7 @@ func TestFeature_PtrBoolTrue(t *testing.T) {
 	t.Parallel()
 
 	cfg := seed()
+
 	cfg.Features.Sandbox.Enabled = nil
 	must(t, Apply(&cfg, "features.sandbox.enabled=true"))
 	ptrEq(t, cfg.Features.Sandbox.Enabled, true)
@@ -368,7 +374,8 @@ func TestModel_GenerationTemperatureZero(t *testing.T) {
 	t.Parallel()
 
 	cfg := seed()
-	cfg.Model.Generation = &Generation{Temperature: floatPtr(0.9)}
+
+	cfg.Model.Generation = &Generation{Temperature: new(0.9)}
 	must(t, Apply(&cfg, "model.generation.temperature=0"))
 	ptrEq(t, cfg.Model.Generation.Temperature, 0.0)
 }
@@ -377,7 +384,8 @@ func TestModel_GenerationPreservesOther(t *testing.T) {
 	t.Parallel()
 
 	cfg := seed()
-	cfg.Model.Generation = &Generation{Temperature: floatPtr(0.5), TopK: intPtr(40)}
+
+	cfg.Model.Generation = &Generation{Temperature: new(0.5), TopK: new(40)}
 	must(t, Apply(&cfg, "model.generation.temperature=0.9"))
 	ptrEq(t, cfg.Model.Generation.Temperature, 0.9)
 	ptrEq(t, cfg.Model.Generation.TopK, 40)

@@ -9,6 +9,7 @@ import (
 
 func (c *Client) ensureModels(ctx context.Context) error {
 	c.mu.Lock()
+
 	cached := c.cachedModels
 	c.mu.Unlock()
 
@@ -22,6 +23,7 @@ func (c *Client) ensureModels(ctx context.Context) error {
 	}
 
 	c.mu.Lock()
+
 	c.cachedModels = models
 	c.mu.Unlock()
 
@@ -36,6 +38,7 @@ func (c *Client) Model(ctx context.Context, name string) (model.Model, error) {
 	}
 
 	c.mu.Lock()
+
 	cached := c.cachedModels
 	c.mu.Unlock()
 

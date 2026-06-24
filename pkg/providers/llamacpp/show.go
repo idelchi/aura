@@ -49,6 +49,7 @@ func (e *Error) FromResponse(resp *http.Response) error {
 	var wrapper struct {
 		Error Error `json:"error"`
 	}
+
 	if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
 		return fmt.Errorf("decoding response: %w", err)
 	}
@@ -84,6 +85,7 @@ func (c *Client) Show(ctx context.Context, name string) (ShowResponse, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		var apiErr Error
+
 		if err := apiErr.FromResponse(resp); err != nil {
 			return ShowResponse{}, err
 		}
@@ -92,6 +94,7 @@ func (c *Client) Show(ctx context.Context, name string) (ShowResponse, error) {
 	}
 
 	var show ShowResponse
+
 	if err := json.NewDecoder(resp.Body).Decode(&show); err != nil {
 		return ShowResponse{}, fmt.Errorf("decoding props: %w", err)
 	}

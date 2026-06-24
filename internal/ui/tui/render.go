@@ -82,6 +82,7 @@ func (m Model) renderMessage(msg message.Message, width, startLine int) (string,
 	switch msg.Role {
 	case roles.User:
 		b.WriteString(userStyle.Render("You: "))
+
 		// Find content parts
 		for _, p := range msg.Parts {
 			if p.IsContent() {
@@ -201,6 +202,7 @@ func (m Model) renderMessage(msg message.Message, width, startLine int) (string,
 		// Error
 		if msg.Error != nil {
 			b.WriteString("\n")
+
 			// Check if the error is of type context cancellation
 			if errors.Is(msg.Error, context.Canceled) {
 				b.WriteString(errorStyle.Render("Operation canceled by user"))

@@ -181,6 +181,7 @@ func (t *Tool) Name() string {
 // Close removes any temp files created during truncated output.
 func (t *Tool) Close() {
 	t.mu.Lock()
+
 	files := t.tempFiles
 
 	t.tempFiles = nil
@@ -214,6 +215,7 @@ func (t *Tool) Execute(ctx context.Context, args map[string]any) (string, error)
 		}
 
 		var buf bytes.Buffer
+
 		if err := tmpl.Execute(&buf, data); err != nil {
 			return "", fmt.Errorf("bash.rewrite template exec: %w", err)
 		}
@@ -325,6 +327,7 @@ func (t *Tool) Execute(ctx context.Context, args map[string]any) (string, error)
 
 		// command exited with a non-zero code (normal situation)
 		var exitStatus interp.ExitStatus
+
 		if errors.As(err, &exitStatus) {
 			output += fmt.Sprintf("\nEXIT CODE: %d", uint8(exitStatus))
 
@@ -378,6 +381,7 @@ func (t *Tool) truncateOutput(output string, cfg config.BashTruncation) string {
 		}
 
 		t.mu.Lock()
+
 		t.tempFiles = append(t.tempFiles, tmp.Path())
 		t.mu.Unlock()
 	}

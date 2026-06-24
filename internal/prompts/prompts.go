@@ -29,6 +29,7 @@ func (p Prompt) Render(data any) (Prompt, error) {
 	}
 
 	var buf bytes.Buffer
+
 	if err := tmpl.Execute(&buf, data); err != nil {
 		return "", err
 	}

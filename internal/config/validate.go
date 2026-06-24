@@ -198,6 +198,7 @@ func (c Config) ValidateCrossRefs(loaded map[Part]struct{}) error {
 
 			if t.Features.Kind != 0 {
 				var taskFeatures Features
+
 				if err := t.Features.Load(&taskFeatures, yaml.WithKnownFields()); err != nil {
 					return fmt.Errorf("task %q features: %w", name, err)
 				}

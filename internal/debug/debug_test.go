@@ -91,6 +91,7 @@ func TestNilReceiverLog(t *testing.T) {
 	t.Parallel()
 
 	var l *debug.Logger
+
 	// Must not panic
 	l.Log("should not panic %s", "test")
 }
@@ -99,6 +100,7 @@ func TestNilReceiverClose(t *testing.T) {
 	t.Parallel()
 
 	var l *debug.Logger
+
 	// Must not panic
 	l.Close()
 }

@@ -220,19 +220,19 @@ type Assistant struct {
 
 // Params holds all dependencies for constructing an Assistant.
 type Params struct {
-	Config       config.Config
-	Paths        config.Paths
-	Runtime      *config.Runtime
-	Agent        *agent.Agent
-	Events       chan<- ui.Event
-	Sessions     *session.Manager
-	Todo         *todo.List
-	Plugins      *plugins.Cache
-	LSP          *lsp.Manager
-	Slash        SlashHandler
-	Auto         bool
-	SetVars      map[string]string
-	ConfigOpts   config.Options
+	Config        config.Config
+	Paths         config.Paths
+	Runtime       *config.Runtime
+	Agent         *agent.Agent
+	Events        chan<- ui.Event
+	Sessions      *session.Manager
+	Todo          *todo.List
+	Plugins       *plugins.Cache
+	LSP           *lsp.Manager
+	Slash         SlashHandler
+	Auto          bool
+	SetVars       map[string]string
+	ConfigOpts    config.Options
 	CLIOverrides  agent.Overrides
 	OverrideNodes override.Nodes // pre-parsed --override + --max-steps + --token-budget
 

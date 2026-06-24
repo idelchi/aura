@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/idelchi/aura/pkg/frontmatter"
@@ -54,10 +55,10 @@ func loadCommands(ff files.Files) (Collection[CustomCommand], error) {
 // to prevent $1 from clobbering $12. $ARGUMENTS is replaced with the
 // full joined argument string.
 func Populate(body string, args ...string) string {
-	for i := len(args) - 1; i >= 0; i-- {
+	for i, v := range slices.Backward(args) {
 		placeholder := fmt.Sprintf("$%d", i+1)
 
-		body = strings.ReplaceAll(body, placeholder, args[i])
+		body = strings.ReplaceAll(body, placeholder, v)
 	}
 
 	body = strings.ReplaceAll(body, "$ARGUMENTS", strings.Join(args, " "))

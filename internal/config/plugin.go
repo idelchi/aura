@@ -152,6 +152,7 @@ func loadPlugins(ff files.Files) (StringCollection[Plugin], error) {
 		}
 
 		var p Plugin
+
 		if err := yamlutil.StrictUnmarshal(content, &p); err != nil {
 			return nil, fmt.Errorf("parsing plugin %s: %w", f, err)
 		}

@@ -33,6 +33,7 @@ func mcpList(c slash.Context) (string, error) {
 	}
 
 	var b strings.Builder
+
 	b.WriteString("MCP servers:\n")
 
 	for _, s := range c.MCPSessions() {

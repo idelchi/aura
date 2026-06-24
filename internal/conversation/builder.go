@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -276,8 +277,8 @@ func (b *Builder) StartToolCall(id string) {
 		return
 	}
 
-	for i := len(b.current.Parts) - 1; i >= 0; i-- {
-		p := &b.current.Parts[i]
+	for i, v := range slices.Backward(b.current.Parts) {
+		p := &v
 		if p.IsTool() && p.Call != nil &&
 			p.Call.ID == id && p.Call.State == call.Pending {
 			p.Call.MarkRunning()
@@ -302,8 +303,8 @@ func (b *Builder) CompleteToolCall(ctx context.Context, id, result string, err e
 	}
 
 	// Find the matching pending or running tool by ID
-	for i := len(b.current.Parts) - 1; i >= 0; i-- {
-		p := &b.current.Parts[i]
+	for i, v := range slices.Backward(b.current.Parts) {
+		p := &v
 		if p.IsTool() && p.Call != nil &&
 			p.Call.ID == id && (p.Call.State == call.Pending || p.Call.State == call.Running) {
 			if err != nil {
@@ -642,8 +643,8 @@ func (b *Builder) BackfillToolTokens(delta int) {
 
 	var totalLen int
 
-	for i := len(b.history) - 1; i >= 0; i-- {
-		msg := b.history[i]
+	for i, v := range slices.Backward(b.history) {
+		msg := v
 		if msg.Role == roles.Assistant {
 			break
 		}

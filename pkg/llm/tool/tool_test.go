@@ -193,6 +193,7 @@ func TestTools_Add(t *testing.T) {
 		t.Parallel()
 
 		var ts tool.Tools
+
 		ts.Add(newStub("alpha"))
 
 		if len(ts) != 1 {
@@ -208,6 +209,7 @@ func TestTools_Add(t *testing.T) {
 		t.Parallel()
 
 		var ts tool.Tools
+
 		ts.Add(newStub("beta"))
 		ts.Add(newStub("beta"))
 
@@ -254,6 +256,7 @@ func TestTools_Remove(t *testing.T) {
 		t.Parallel()
 
 		var ts tool.Tools
+
 		ts.Remove("anything") // must not panic
 
 		if len(ts) != 0 {
@@ -601,6 +604,7 @@ func TestBase_MergeTextEmpty(t *testing.T) {
 	t.Parallel()
 
 	var b tool.Base
+
 	b.MergeText(tool.Text{})
 
 	if b.Description() != "" {
@@ -620,6 +624,7 @@ func TestBase_MergeTextPartial(t *testing.T) {
 	t.Parallel()
 
 	var b tool.Base
+
 	b.MergeText(tool.Text{Description: "desc"})
 
 	if b.Description() != "desc" {
@@ -635,6 +640,7 @@ func TestBase_MergeTextFull(t *testing.T) {
 	t.Parallel()
 
 	var b tool.Base
+
 	b.MergeText(tool.Text{Description: "desc", Usage: "use", Examples: "ex"})
 
 	if b.Description() != "desc" {
@@ -654,6 +660,7 @@ func TestBase_MergeTextDoesNotClearExisting(t *testing.T) {
 	t.Parallel()
 
 	var b tool.Base
+
 	b.MergeText(tool.Text{Description: "first", Usage: "original", Examples: "sample"})
 	b.MergeText(tool.Text{Description: "second"})
 

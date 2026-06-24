@@ -93,6 +93,7 @@ func (c *Client) modelAction(ctx context.Context, action, name string) error {
 
 	if resp.StatusCode != http.StatusOK {
 		var apiErr Error
+
 		if err := apiErr.FromResponse(resp); err != nil {
 			return fmt.Errorf("%s model failed with status %d", action, resp.StatusCode)
 		}
@@ -101,6 +102,7 @@ func (c *Client) modelAction(ctx context.Context, action, name string) error {
 	}
 
 	var result modelResponse
+
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return fmt.Errorf("decoding response: %w", err)
 	}

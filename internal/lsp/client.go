@@ -96,6 +96,7 @@ func NewClient(ctx context.Context, name string, server Server, rootURI string) 
 	pnClient.RegisterNotificationHandler("textDocument/publishDiagnostics",
 		func(_ context.Context, _ string, params json.RawMessage) {
 			var dp protocol.PublishDiagnosticsParams
+
 			if err := json.Unmarshal(params, &dp); err != nil {
 				debug.Log("[lsp] diagnostic unmarshal: %v", err)
 
@@ -103,6 +104,7 @@ func NewClient(ctx context.Context, name string, server Server, rootURI string) 
 			}
 
 			c.diagMu.Lock()
+
 			c.diagnostics[dp.URI] = dp.Diagnostics
 			c.diagVersion++
 			c.diagMu.Unlock()
@@ -190,6 +192,7 @@ func (c *Client) NotifyChange(ctx context.Context, path string) error {
 	}
 
 	c.fileMu.Lock()
+
 	fi, open := c.openFiles[uri]
 
 	if !open {
@@ -222,6 +225,7 @@ func (c *Client) NotifyChange(ctx context.Context, path string) error {
 // WaitForDiagnostics polls until the diagnostic version changes or the timeout expires.
 func (c *Client) WaitForDiagnostics(ctx context.Context, timeout time.Duration) {
 	c.diagMu.Lock()
+
 	startVersion := c.diagVersion
 	c.diagMu.Unlock()
 
@@ -239,6 +243,7 @@ func (c *Client) WaitForDiagnostics(ctx context.Context, timeout time.Duration) 
 			return
 		case <-ticker.C:
 			c.diagMu.Lock()
+
 			changed := c.diagVersion != startVersion
 			c.diagMu.Unlock()
 

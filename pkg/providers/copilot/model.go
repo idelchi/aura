@@ -14,6 +14,7 @@ func (c *Client) Model(ctx context.Context, name string) (model.Model, error) {
 	}
 
 	c.mu.Lock()
+
 	info, ok := c.models[name]
 	c.mu.Unlock()
 

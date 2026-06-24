@@ -20,6 +20,7 @@ func filterNoDocuments(err error) error {
 	}
 
 	var le *yaml.LoadErrors
+
 	if !errors.As(err, &le) {
 		return err
 	}

@@ -33,6 +33,7 @@ func highlightReadSyntax(content, path string) string {
 	style := styles.Get("monokai")
 
 	var buf strings.Builder
+
 	if err := formatter.Format(&buf, style, iter); err != nil {
 		return ""
 	}
@@ -59,6 +60,7 @@ func highlightDiff(content string) string {
 	style := styles.Get("monokai")
 
 	var buf strings.Builder
+
 	if err := formatter.Format(&buf, style, iter); err != nil {
 		return content
 	}

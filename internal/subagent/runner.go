@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/idelchi/aura/internal/config"
@@ -179,9 +180,9 @@ func (r *Runner) Run(ctx context.Context, prompt string) (Result, error) {
 // of the first assistant message with non-empty Content. Tool-call-only assistant
 // messages (empty Content) are skipped. Returns "" if no qualifying message exists.
 func lastAssistantContent(history message.Messages) string {
-	for i := len(history) - 1; i >= 0; i-- {
-		if history[i].IsAssistant() && history[i].Content != "" {
-			return history[i].Content
+	for _, v := range slices.Backward(history) {
+		if v.IsAssistant() && v.Content != "" {
+			return v.Content
 		}
 	}
 
@@ -291,6 +292,7 @@ func (r *Runner) executeToolCall(ctx context.Context, builder *conversation.Buil
 
 	if execErr != nil {
 		var se *tools.SetupError
+
 		if errors.As(execErr, &se) {
 			debug.Log("[subagent] %s setup error: %v", tc.Name, se.Err)
 			builder.AddEphemeralToolResult(ctx, tc.Name, tc.ID,

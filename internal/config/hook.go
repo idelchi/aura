@@ -141,6 +141,7 @@ func (h *Hooks) Load(ff files.Files) error {
 		}
 
 		var fileHooks map[string]Hook
+
 		if err := yamlutil.StrictUnmarshal(content, &fileHooks); err != nil {
 			return fmt.Errorf("parsing hook definition %s: %w", f, err)
 		}

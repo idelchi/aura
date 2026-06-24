@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -301,9 +302,9 @@ func (f Flags) ConfigOptions() config.Options {
 // WriteHome returns the primary config directory for writes (sessions, debug, auth, plugins).
 // This is the last non-empty element of Config, falling back to Home (global config home).
 func (f Flags) WriteHome() string {
-	for i := len(f.Config) - 1; i >= 0; i-- {
-		if f.Config[i] != "" {
-			return f.Config[i]
+	for _, v := range slices.Backward(f.Config) {
+		if v != "" {
+			return v
 		}
 	}
 

@@ -63,6 +63,7 @@ func (c *Client) Chat(
 			// Extract reasoning_content from raw JSON (Qwen3, DeepSeek).
 			if raw := delta.RawJSON(); raw != "" {
 				var dr deltaWithReasoning
+
 				if json.Unmarshal([]byte(raw), &dr) == nil && dr.ReasoningContent != "" {
 					reasoning.WriteString(dr.ReasoningContent)
 

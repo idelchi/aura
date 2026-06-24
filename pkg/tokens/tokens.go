@@ -52,6 +52,7 @@ func NewEstimator(method, encoding string, divisor int) (*Estimator, error) {
 // The Estimator falls back to local estimation if the native function returns an error.
 func (e *Estimator) UseNative(fn func(context.Context, string) (int, error)) {
 	e.mu.Lock()
+
 	e.native = fn
 	e.mu.Unlock()
 }
@@ -67,6 +68,7 @@ func (e *Estimator) HasNative() bool {
 // SetDebug registers a debug logging function for per-call estimation breakdowns.
 func (e *Estimator) SetDebug(fn func(string, ...any)) {
 	e.mu.Lock()
+
 	e.debugLog = fn
 	e.mu.Unlock()
 }
@@ -110,6 +112,7 @@ func (e *Estimator) Estimate(ctx context.Context, text string) int {
 
 	// Snapshot function pointers under lock, then release before any calls.
 	e.mu.Lock()
+
 	native := e.native
 	debug := e.debugLog
 	e.mu.Unlock()

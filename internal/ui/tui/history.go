@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/idelchi/godyl/pkg/path/file"
@@ -117,8 +118,8 @@ func (h *history) Suggest(prefix string) string {
 		return ""
 	}
 
-	for i := len(h.entries) - 1; i >= 0; i-- {
-		entry := h.entries[i]
+	for _, v := range slices.Backward(h.entries) {
+		entry := v
 		if entry != prefix && strings.HasPrefix(entry, prefix) {
 			return entry
 		}

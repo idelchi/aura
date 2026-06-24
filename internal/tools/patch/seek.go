@@ -220,6 +220,7 @@ func findSequenceNormalized(lines, pattern []string, startIdx int) int {
 
 func normalizeUnicode(s string) string {
 	var result strings.Builder
+
 	result.Grow(len(s))
 
 	for _, r := range s {

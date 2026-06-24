@@ -28,6 +28,7 @@ func ReadOrigin(dir string) (Origin, error) {
 	}
 
 	var o Origin
+
 	if err := yamlutil.StrictUnmarshal(data, &o); err != nil {
 		return Origin{}, fmt.Errorf("parsing origin: %w", err)
 	}

@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/idelchi/aura/internal/config/inherit"
@@ -150,9 +151,9 @@ func ResolveDefault(agents Collection[Agent], homes []string) (*Agent, error) {
 // homeFor returns the config home that owns the given file path.
 // Homes are checked in reverse order (most specific match wins).
 func homeFor(filePath string, homes []string) string {
-	for i := len(homes) - 1; i >= 0; i-- {
-		if strings.HasPrefix(filePath, homes[i]) {
-			return homes[i]
+	for _, v := range slices.Backward(homes) {
+		if strings.HasPrefix(filePath, v) {
+			return v
 		}
 	}
 
@@ -177,6 +178,7 @@ func loadAgents(ff files.Files, homes []string) (Collection[Agent], error) {
 		}
 
 		var meta AgentMetadata
+
 		if err := yaml.Load(yamlBytes, &meta, yaml.WithKnownFields()); err != nil {
 			return nil, fmt.Errorf("agent %s: %w", f, err)
 		}

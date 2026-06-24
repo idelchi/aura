@@ -28,6 +28,7 @@ func FromPDF(path string) (Images, error) {
 		}
 
 		var buf bytes.Buffer
+
 		if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: jpeg.DefaultQuality}); err != nil {
 			return nil, fmt.Errorf("encoding page %d as JPEG: %w", page, err)
 		}

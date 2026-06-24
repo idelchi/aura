@@ -61,6 +61,7 @@ func (c *Client) Estimate(
 	var out struct {
 		Tokens []int `json:"tokens"`
 	}
+
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		return 0, err
 	}

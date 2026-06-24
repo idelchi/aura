@@ -203,8 +203,10 @@ type guardrailResult struct {
 func parseGuardrailResponse(content string) guardrailResult {
 	// Try JSON parse first (structured output path).
 	var result guardrailResult
+
 	if err := json.Unmarshal([]byte(strings.TrimSpace(content)), &result); err == nil {
 		result.Result = strings.ToLower(result.Result)
+
 		return result
 	}
 

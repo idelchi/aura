@@ -51,7 +51,7 @@ func (s *stubContext) Reload(_ context.Context) error                   { panic(
 func (s *stubContext) ResumeSession(_ context.Context, _ *session.Session) []string {
 	panic("not implemented")
 }
-func (s *stubContext) Resolved() config.Resolved                        { panic("not implemented") }
+func (s *stubContext) Resolved() config.Resolved                         { panic("not implemented") }
 func (s *stubContext) Status() ui.Status                                 { panic("not implemented") }
 func (s *stubContext) DisplayHints() ui.DisplayHints                     { panic("not implemented") }
 func (s *stubContext) SandboxDisplay() string                            { panic("not implemented") }
