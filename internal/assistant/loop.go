@@ -159,6 +159,8 @@ const (
 )
 
 func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
+	a.send(ui.SpinnerMessage{Text: "Preparing..."})
+
 	// Re-read all config from disk so changes made by the LLM (or the user)
 	// in previous turns are picked up. Skips MCP reconnection.
 	if err := a.reloadConfig(nil); err != nil {
@@ -181,6 +183,7 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 
 	// Resolve model eagerly so capability checks (e.g., Vision) are available.
 	// Non-fatal here: chat() will retry and surface the error properly.
+	a.send(ui.SpinnerMessage{Text: "Resolving model..."})
 	if _, err := a.ResolveModel(ctx, "chat", a.agent, &a.resolved.model); err != nil {
 		debug.Log("[loop] model not resolved (will retry in chat): %v", err)
 	}
@@ -188,6 +191,8 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 	preLen := a.builder.Len()
 
 	var anyAdded bool
+
+	a.send(ui.SpinnerMessage{Text: "Processing input..."})
 
 	for _, input := range inputs {
 		if a.addUserInput(ctx, input) {
@@ -203,6 +208,8 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 
 	// Capture working tree BEFORE this turn's tool calls.
 	if a.tools.snapshots != nil {
+		a.send(ui.SpinnerMessage{Text: "Creating snapshot..."})
+
 		msg := inputs[0]
 		if _, err := a.tools.snapshots.Create(msg, preLen); err != nil {
 			debug.Log("[snapshot] create failed: %v", err)

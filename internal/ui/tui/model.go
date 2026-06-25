@@ -103,7 +103,8 @@ type Model struct {
 	hist *history // Persistent file-backed input history with navigation
 
 	// Pending injections
-	pendingMessages []string // Messages queued but not yet processed by backend
+	pendingMessages    []string // Messages queued but not yet processed by backend
+	processingMessages []string // Messages accepted by backend but not yet added to history
 
 	// Text selection
 	selection selectionState
@@ -179,22 +180,23 @@ func NewModel(
 	}
 
 	return Model{
-		status:          status,
-		state:           StateInput,
-		textarea:        ta,
-		viewport:        vp,
-		spinner:         sp,
-		spintext:        spintext.Default(),
-		input:           input,
-		actions:         actions,
-		cancel:          cancel,
-		width:           80,
-		height:          24,
-		messages:        message.Messages{},
-		hist:            h,
-		pendingMessages: []string{},
-		hintFunc:        hintFunc,
-		completer:       comp,
+		status:             status,
+		state:              StateInput,
+		textarea:           ta,
+		viewport:           vp,
+		spinner:            sp,
+		spintext:           spintext.Default(),
+		input:              input,
+		actions:            actions,
+		cancel:             cancel,
+		width:              80,
+		height:             24,
+		messages:           message.Messages{},
+		hist:               h,
+		pendingMessages:    []string{},
+		processingMessages: []string{},
+		hintFunc:           hintFunc,
+		completer:          comp,
 	}
 }
 
@@ -281,6 +283,7 @@ func (m *Model) finishStreaming() tea.Cmd {
 	m.scrollLocked = false
 	m.spinnerMsg = ""
 	m.toolOutputLine = ""
+	m.processingMessages = nil
 	m.viewport.GotoBottom()
 
 	return textarea.Blink

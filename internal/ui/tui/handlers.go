@@ -346,6 +346,8 @@ func (m *Model) handleEnter() (bool, tea.Cmd) {
 
 	// Queue as pending - backend will confirm via UserMessageProcessed
 	m.pendingMessages = append(m.pendingMessages, text)
+	m.updateViewportContent()
+	m.viewport.GotoBottom()
 
 	// Send to backend
 	go func() {
@@ -439,6 +441,16 @@ func (m *Model) handleMouseMsg(msg tea.MouseMsg) (bool, tea.Cmd) {
 
 // handleMessageAdded processes a complete message being added.
 func (m *Model) handleMessageAdded(msg ui.MessageAdded) {
+	if msg.Message.Role == roles.User {
+		for _, p := range msg.Message.Parts {
+			if p.IsContent() {
+				m.removeUserEcho(p.Text)
+
+				break
+			}
+		}
+	}
+
 	m.messages = append(m.messages, msg.Message)
 	m.updateViewportContent()
 
@@ -501,11 +513,8 @@ func (m *Model) handleMessageFinalized(msg ui.MessageFinalized) {
 
 // handleUserMessagesProcessed processes backend acknowledgment of user inputs.
 func (m *Model) handleUserMessagesProcessed(msg ui.UserMessagesProcessed) {
-	// Remove all processed messages from pending queue
 	for _, text := range msg.Texts {
-		if idx := slices.Index(m.pendingMessages, text); idx >= 0 {
-			m.pendingMessages = slices.Delete(m.pendingMessages, idx, idx+1)
-		}
+		m.movePendingToProcessing(text)
 	}
 
 	// Start streaming state for assistant response
@@ -513,6 +522,24 @@ func (m *Model) handleUserMessagesProcessed(msg ui.UserMessagesProcessed) {
 	m.state = StateStreaming
 	m.updateViewportContent()
 	m.viewport.GotoBottom()
+}
+
+func (m *Model) movePendingToProcessing(text string) {
+	if idx := slices.Index(m.pendingMessages, text); idx >= 0 {
+		m.pendingMessages = slices.Delete(m.pendingMessages, idx, idx+1)
+	}
+
+	m.processingMessages = append(m.processingMessages, text)
+}
+
+func (m *Model) removeUserEcho(text string) {
+	if idx := slices.Index(m.pendingMessages, text); idx >= 0 {
+		m.pendingMessages = slices.Delete(m.pendingMessages, idx, idx+1)
+	}
+
+	if idx := slices.Index(m.processingMessages, text); idx >= 0 {
+		m.processingMessages = slices.Delete(m.processingMessages, idx, idx+1)
+	}
 }
 
 // handlePagerKey routes key events to the pager overlay.

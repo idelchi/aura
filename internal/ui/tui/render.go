@@ -35,17 +35,28 @@ func (m Model) renderChatHistory() string {
 		currentLine += lines + 2 // +2 for the double newline separator
 	}
 
+	m.renderUserEchoes(&b, &currentLine, m.processingMessages)
+	if m.currentMessage == nil {
+		m.renderUserEchoes(&b, &currentLine, m.pendingMessages)
+	}
+
 	if m.currentMessage != nil {
 		if len(m.currentMessage.Parts) == 0 {
 			// No content yet - show spinner placeholder in chat area
 			b.WriteString(m.spinner.View() + " " + m.spinnerMsg)
 		} else {
-			rendered, _ := m.renderMessage(*m.currentMessage, m.width, currentLine)
+			rendered, lines := m.renderMessage(*m.currentMessage, m.width, currentLine)
 			b.WriteString(rendered)
+
+			currentLine += lines
 		}
 	} else if m.spinnerMsg != "" {
 		// Standalone spinner (not tied to streaming) — shows during compaction, etc.
 		b.WriteString(m.spinner.View() + " " + m.spinnerMsg)
+	}
+
+	if m.currentMessage != nil {
+		m.renderUserEchoes(&b, &currentLine, m.pendingMessages)
 	}
 
 	// Show latest streaming tool output line below the spinner/message area.
@@ -55,6 +66,25 @@ func (m Model) renderChatHistory() string {
 	}
 
 	return b.String()
+}
+
+func (m Model) renderUserEchoes(b *strings.Builder, currentLine *int, texts []string) {
+	for _, text := range texts {
+		if b.Len() > 0 && !strings.HasSuffix(b.String(), "\n\n") {
+			b.WriteString("\n\n")
+			*currentLine += 2
+		}
+
+		msg := message.Message{
+			Role:  roles.User,
+			Parts: []part.Part{{Type: part.Content, Text: text}},
+		}
+		rendered, lines := m.renderMessage(msg, m.width, *currentLine)
+		b.WriteString(rendered)
+		b.WriteString("\n\n")
+
+		*currentLine += lines + 2
+	}
 }
 
 // renderMessage renders a single message with text wrapping.
