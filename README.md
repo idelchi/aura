@@ -64,7 +64,7 @@ curl -sSL https://raw.githubusercontent.com/idelchi/aura/refs/heads/dev/install.
 aura init
 
 # Install recommended plugins
-aura plugins add --subpath plugins/injectors, plugins/tools https://github.com/idelchi/aura
+aura plugins add --subpath plugins/injectors,plugins/tools https://github.com/idelchi/aura
 
 # Start interactive session
 aura
