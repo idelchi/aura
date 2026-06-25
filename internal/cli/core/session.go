@@ -481,6 +481,10 @@ func NewAssistant(
 		asst.SetNoop(noop.New())
 	}
 
+	if err := asst.RebuildState(); err != nil {
+		return nil, nil, fmt.Errorf("rebuilding assistant state: %w", err)
+	}
+
 	// Wire Task tool callback — must happen after assistant construction.
 	if taskTool != nil {
 		taskTool.Run = func(ctx context.Context, agentName, prompt string) (subagent.Result, error) {

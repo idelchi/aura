@@ -1,6 +1,10 @@
 package config
 
-import "github.com/idelchi/aura/pkg/llm/tool"
+import (
+	"fmt"
+
+	"github.com/idelchi/aura/pkg/llm/tool"
+)
 
 // ReadBeforeConfig holds YAML-level read-before policy settings.
 // Uses *bool so nil = inherit default via mergo merge chain.
@@ -52,8 +56,8 @@ type ToolExecution struct {
 	// ReadSmallFileTokens is the token threshold below which the Read tool ignores line ranges and returns the full
 	// file.
 	ReadSmallFileTokens int `yaml:"read_small_file_tokens"`
-	// MaxSteps caps the total number of iterations to prevent runaway loops.
-	// At this limit, tools are disabled and the LLM must respond with text only.
+	// MaxSteps caps normal LLM iterations before the final text-only wrap-up.
+	// After this limit, tools are disabled and the LLM must respond with text only.
 	MaxSteps int `yaml:"max_steps"`
 	// TokenBudget is the cumulative token limit (input + output) for a session.
 	// Once reached, the assistant stops immediately. 0 = disabled.
@@ -101,6 +105,19 @@ type ToolExecution struct {
 // nil (default) = true.
 func (t ToolExecution) ParallelEnabled() bool {
 	return t.Parallel == nil || *t.Parallel
+}
+
+// ValidateResolved checks semantic constraints after defaults and overlays.
+func (t ToolExecution) ValidateResolved() error {
+	if t.MaxSteps < 1 {
+		return fmt.Errorf("tools.max_steps must be at least 1, got %d", t.MaxSteps)
+	}
+
+	if t.TokenBudget < 0 {
+		return fmt.Errorf("tools.token_budget must be non-negative, got %d", t.TokenBudget)
+	}
+
+	return nil
 }
 
 // BashTruncation holds configuration for Bash tool output truncation.

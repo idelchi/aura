@@ -75,7 +75,7 @@ tools:
     max_tokens: 20000            # single result token limit (mode: tokens)
     max_percentage: 90           # context fill % limit (mode: percentage)
   read_small_file_tokens: 4000   # below this, Read tool returns full file ignoring line ranges
-  max_steps: 200                 # iteration cap before tools are disabled
+  max_steps: 200                 # normal LLM iterations before text-only wrap-up
   token_budget: 0                # cumulative token limit (input+output); 0 = disabled
   rejection_message:             # error returned when result is rejected (%d = tokens, limit)
     >-

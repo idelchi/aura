@@ -103,6 +103,11 @@ func (f *Features) MergeFrom(overlay Features) error {
 	return merge.Merge(f, overlay)
 }
 
+// ValidateResolved checks semantic feature constraints after defaults and overlays.
+func (f Features) ValidateResolved() error {
+	return f.ToolExecution.ValidateResolved()
+}
+
 // Load populates Features from YAML files. Each file may contain one or more
 // top-level keys that dispatch to the corresponding struct field.
 func (f *Features) Load(ff files.Files) error {

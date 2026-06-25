@@ -88,7 +88,7 @@ reindex:
 | `post`         | []string | `[]`         | Shell commands to run after the assistant                                                                                           |
 | `foreach`      | object   | `nil`        | Iteration source — `file:` or `shell:`                                                                                              |
 | `finally`      | []string | `[]`         | Commands to run once after the foreach loop (requires `foreach`)                                                                    |
-| `on_max_steps` | []string | `[]`         | Shell commands executed when the task hits its `max_steps` limit. Runs outside the LLM loop — useful for sending alerts or cleanup. |
+| `on_max_steps` | []string | `[]`         | Shell commands executed when the task exceeds its `max_steps` limit. Runs outside the LLM loop — useful for sending alerts or cleanup. |
 
 ### Schedule Syntax
 

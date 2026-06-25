@@ -279,6 +279,10 @@ func (a *Assistant) rebuildState() error {
 		effective = scratch.Features
 	}
 
+	if err := effective.ValidateResolved(); err != nil {
+		return fmt.Errorf("validating features: %w", err)
+	}
+
 	// Runtime toggles (/sandbox, /readbefore) are written to cfg.Features
 	// AFTER this and still win over CLI flags.
 

@@ -272,7 +272,7 @@ The repository includes examples under `.aura/plugins/` (not installed by `aura 
 | Plugin                    | Timing             | What                                               |
 | ------------------------- | ------------------ | -------------------------------------------------- |
 | `todo-reminder`           | BeforeChat         | Reminds about pending todos every N iterations     |
-| `max-steps`               | BeforeChat         | Disables tools when iteration limit reached        |
+| `max-steps`               | BeforeChat         | Disables tools after the iteration limit is reached |
 | `session-stats`           | BeforeChat         | Shows session stats every 5 turns                  |
 | `todo-not-finished`       | AfterResponse      | Warns if todos incomplete and no tool calls        |
 | `empty-response`          | AfterResponse      | Handles empty LLM responses                        |

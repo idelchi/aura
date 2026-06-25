@@ -9,7 +9,7 @@ import (
 )
 
 func BeforeChat(_ context.Context, ctx sdk.BeforeChatContext) (sdk.Result, error) {
-	if ctx.Iteration < ctx.MaxSteps {
+	if ctx.Iteration <= ctx.MaxSteps {
 		return sdk.Result{}, nil
 	}
 

@@ -85,7 +85,7 @@ Two sections are supported:
 - `features.*` — all 14 feature sub-structs (~80 fields): tools, compaction, guardrail, sandbox, thinking, vision, etc.
 - `model.*` — name, provider, think, context, generation params (temperature, top_p, etc.)
 
-Unknown fields produce a clear error at startup. Zero values work correctly (`features.tools.max_steps=0` sets max_steps to 0, not "unset").
+Unknown fields produce a clear error at startup. Zero values work correctly for fields where zero is valid; for example, `features.tools.token_budget=0` disables the token budget instead of being treated as unset.
 
 ## Environment Variables
 

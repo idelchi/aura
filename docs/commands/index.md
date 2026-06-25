@@ -60,7 +60,7 @@ aura run --agent high "Hello"
 | `--exclude-tools`   |       |               | Glob patterns for tools to exclude (e.g. `Bash,Patch`)                                                                                                |
 | `--include-mcps`    |       |               | Glob patterns for MCP servers to connect (e.g. `context7,git*`)                                                                                       |
 | `--exclude-mcps`    |       |               | Glob patterns for MCP servers to skip (e.g. `portainer`)                                                                                              |
-| `--max-steps`       |       | `0`           | Maximum tool-use iterations (overrides config)                                                                                                        |
+| `--max-steps`       |       | `0`           | Maximum normal LLM iterations before text-only wrap-up (must be at least 1 when set)                                                                  |
 | `--token-budget`    |       | `0`           | Cumulative token limit (overrides config)                                                                                                             |
 | `--workdir`         | `-w`  |               | Working directory for tool execution and path resolution                                                                                              |
 | `--resume`          |       |               | Resume a saved session by ID prefix                                                                                                                   |

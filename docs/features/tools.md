@@ -322,7 +322,7 @@ bash:
 
 ## Max Steps
 
-After `max_steps` iterations (default: 50), tools are disabled and the LLM must respond with text only. Override with `--max-steps`, `--override features.tools.max_steps=N`, or `max_steps:` in task definitions.
+After `max_steps` normal LLM iterations (default: 50), one final text-only wrap-up iteration is allowed with tools disabled. Override with `--max-steps`, `--override features.tools.max_steps=N`, or `max_steps:` in task definitions.
 
 ## Token Budget
 

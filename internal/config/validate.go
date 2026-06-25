@@ -81,6 +81,10 @@ func (c Config) Validate(loaded map[Part]struct{}) error {
 		if err := validate.Struct(c.Features); err != nil {
 			return fmt.Errorf("features: %w", err)
 		}
+
+		if err := c.Features.ValidateResolved(); err != nil {
+			return fmt.Errorf("features: %w", err)
+		}
 	}
 
 	if has(PartMCPs) {

@@ -178,7 +178,7 @@ Injectors are plugins that fire at specific points in the assistant loop and inj
 | Plugin                    | Timing             | Purpose                                                                                 |
 | ------------------------- | ------------------ | --------------------------------------------------------------------------------------- |
 | `todo-reminder`           | BeforeChat         | Reminds about pending todos every N iterations                                          |
-| `max-steps`               | BeforeChat         | Disables tools when iteration limit reached                                             |
+| `max-steps`               | BeforeChat         | Disables tools after the iteration limit is reached                                      |
 | `session-stats`           | BeforeChat         | Shows session stats summary (turns, tool calls, context usage, top tools) every 5 turns |
 | `todo-not-finished`       | AfterResponse      | Warns if todos incomplete and no tool calls                                             |
 | `empty-response`          | AfterResponse      | Handles empty LLM responses                                                             |

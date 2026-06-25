@@ -81,7 +81,7 @@ daily-review:
       Write the report to $[[ .Workdir ]]/reports/review-$[[ .Date ]].md
     - /export $[[ .Workdir ]]/reports/review-$[[ .Date ]].md
 
-  # Shell commands to run when the assistant hits max_steps.
+  # Shell commands to run when the assistant exceeds max_steps.
   on_max_steps:
     - echo "Review task hit max steps on $[[ .Date ]]" >> /tmp/alerts.log
 

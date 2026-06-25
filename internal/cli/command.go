@@ -270,7 +270,7 @@ func buildApp(version string) (*cli.Command, *core.Flags) {
 				Name:        "max-steps",
 				Local:       true,
 				Category:    "Limits:",
-				Usage:       "Maximum tool-use iterations",
+				Usage:       "Maximum normal LLM iterations before text-only wrap-up",
 				Sources:     cli.EnvVars("AURA_MAX_STEPS"),
 				Destination: &flags.MaxSteps,
 			},

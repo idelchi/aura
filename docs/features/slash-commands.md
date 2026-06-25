@@ -216,7 +216,7 @@ Plugins can register slash commands by exporting `Command()` and `ExecuteCommand
 
 ## Auto Mode
 
-Auto mode enables continuous execution without requiring user confirmation between iterations. The assistant loop continues automatically as long as there are pending or in-progress todo items, or the LLM is making tool calls. It stops when all todos are completed, the LLM calls the **Done** tool, `max_steps` is reached, `token_budget` is exhausted, or the user cancels with `Ctrl+C`.
+Auto mode enables continuous execution without requiring user confirmation between iterations. The assistant loop continues automatically as long as there are pending or in-progress todo items, or the LLM is making tool calls. It stops when all todos are completed, the LLM calls the **Done** tool, the `max_steps` cap stops further automatic turns, `token_budget` is exhausted, or the user cancels with `Ctrl+C`.
 
 ### Todo State
 

@@ -149,6 +149,61 @@ func TestFeaturesMergeFromNilSliceInherits(t *testing.T) {
 	}
 }
 
+func TestFeaturesValidateResolvedToolExecution(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		feature config.Features
+		wantErr bool
+	}{
+		{
+			name: "valid max steps",
+			feature: config.Features{
+				ToolExecution: config.ToolExecution{MaxSteps: 1},
+			},
+		},
+		{
+			name: "zero max steps invalid",
+			feature: config.Features{
+				ToolExecution: config.ToolExecution{MaxSteps: 0},
+			},
+			wantErr: true,
+		},
+		{
+			name: "negative max steps invalid",
+			feature: config.Features{
+				ToolExecution: config.ToolExecution{MaxSteps: -1},
+			},
+			wantErr: true,
+		},
+		{
+			name: "zero token budget valid",
+			feature: config.Features{
+				ToolExecution: config.ToolExecution{MaxSteps: 1, TokenBudget: 0},
+			},
+		},
+		{
+			name: "negative token budget invalid",
+			feature: config.Features{
+				ToolExecution: config.ToolExecution{MaxSteps: 1, TokenBudget: -1},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := tt.feature.ValidateResolved()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("ValidateResolved() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestSandboxEffectiveRestrictions(t *testing.T) {
 	t.Parallel()
 
