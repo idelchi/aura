@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/idelchi/aura/pkg/llm/model"
+	"github.com/idelchi/aura/pkg/llm/thinking"
 	"github.com/idelchi/aura/pkg/providers/capabilities"
 )
 
@@ -73,11 +74,24 @@ func (c *Client) Models(ctx context.Context) (model.Models, error) {
 			caps.Add(capabilities.Thinking)
 		}
 
+		var reasoningEfforts []thinking.Effort
+
+		for _, level := range m.SupportedReasoningLevels {
+			if effort, ok := thinking.ParseEffort(level.Effort); ok {
+				reasoningEfforts = append(reasoningEfforts, effort)
+			}
+		}
+
+		if len(reasoningEfforts) > 0 {
+			caps.Add(capabilities.ThinkingLevels)
+		}
+
 		models = append(models, model.Model{
-			Name:           m.Slug,
-			ParameterCount: model.ParseParameterName(m.Slug),
-			ContextLength:  model.ContextLength(m.ContextWindow),
-			Capabilities:   caps,
+			Name:             m.Slug,
+			ParameterCount:   model.ParseParameterName(m.Slug),
+			ContextLength:    model.ContextLength(m.ContextWindow),
+			Capabilities:     caps,
+			ReasoningEfforts: reasoningEfforts,
 		})
 	}
 

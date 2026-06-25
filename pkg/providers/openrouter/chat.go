@@ -6,6 +6,7 @@ import (
 	"github.com/idelchi/aura/pkg/llm/message"
 	"github.com/idelchi/aura/pkg/llm/request"
 	"github.com/idelchi/aura/pkg/llm/stream"
+	"github.com/idelchi/aura/pkg/llm/thinking"
 	"github.com/idelchi/aura/pkg/llm/usage"
 	"github.com/idelchi/aura/pkg/providers/adapter"
 
@@ -44,7 +45,7 @@ func (c *Client) Chat(
 
 // buildProviderOptions sets OpenRouter-specific options (reasoning).
 func buildProviderOptions(req request.Request) fantasy.ProviderOptions {
-	if req.Think == nil || !req.Think.Bool() {
+	if req.Think == nil || req.Think.IsUnset() || req.Think.IsOff() {
 		return nil
 	}
 
@@ -56,13 +57,17 @@ func buildProviderOptions(req request.Request) fantasy.ProviderOptions {
 
 	if req.Generation != nil && req.Generation.ThinkBudget != nil {
 		reasoning.MaxTokens = fantasy.Opt(int64(*req.Generation.ThinkBudget))
-	} else {
-		effort := fantasyopenrouter.ReasoningEffort(req.Think.String())
+	} else if effort, ok := req.Think.Effort(); ok {
+		reasoningEffort := openRouterReasoningEffort(effort)
 
-		reasoning.Effort = &effort
+		reasoning.Effort = &reasoningEffort
 	}
 
 	opts.Reasoning = reasoning
 
 	return fantasy.ProviderOptions{fantasyopenrouter.Name: opts}
+}
+
+func openRouterReasoningEffort(effort thinking.Effort) fantasyopenrouter.ReasoningEffort {
+	return fantasyopenrouter.ReasoningEffort(effort)
 }

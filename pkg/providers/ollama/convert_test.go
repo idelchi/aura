@@ -352,6 +352,94 @@ func TestToChatRequestThinkingEnabled(t *testing.T) {
 	if got.Think == nil {
 		t.Fatal("Think = nil, want non-nil when thinking enabled")
 	}
+
+	if got.Think.Value != true {
+		t.Fatalf("Think.Value = %#v, want true", got.Think.Value)
+	}
+}
+
+func TestToChatRequestThinkingDisabled(t *testing.T) {
+	t.Parallel()
+
+	client, err := ollama.New("http://localhost", "", 0, 0)
+	if err != nil {
+		t.Fatalf("ollama.New: %v", err)
+	}
+
+	think := thinking.NewValue(false)
+	req := request.Request{
+		Model: model.Model{Name: "llama3.2"},
+		Messages: message.New(
+			message.Message{Role: roles.User, Content: "hi"},
+		),
+		Think: think.Ptr(),
+	}
+
+	got, err := client.ToChatRequest(req)
+	if err != nil {
+		t.Fatalf("ToChatRequest: %v", err)
+	}
+
+	if got.Think == nil {
+		t.Fatal("Think = nil, want non-nil when thinking disabled explicitly")
+	}
+
+	if got.Think.Value != false {
+		t.Fatalf("Think.Value = %#v, want false", got.Think.Value)
+	}
+}
+
+func TestToChatRequestThinkingEffort(t *testing.T) {
+	t.Parallel()
+
+	client, err := ollama.New("http://localhost", "", 0, 0)
+	if err != nil {
+		t.Fatalf("ollama.New: %v", err)
+	}
+
+	think := thinking.NewValue("max")
+	req := request.Request{
+		Model: model.Model{Name: "llama3.2"},
+		Messages: message.New(
+			message.Message{Role: roles.User, Content: "hi"},
+		),
+		Think: think.Ptr(),
+	}
+
+	got, err := client.ToChatRequest(req)
+	if err != nil {
+		t.Fatalf("ToChatRequest: %v", err)
+	}
+
+	if got.Think == nil {
+		t.Fatal("Think = nil, want non-nil for explicit effort")
+	}
+
+	if got.Think.Value != "max" {
+		t.Fatalf("Think.Value = %#v, want %q", got.Think.Value, "max")
+	}
+}
+
+func TestToChatRequestThinkingUnsupportedEffort(t *testing.T) {
+	t.Parallel()
+
+	client, err := ollama.New("http://localhost", "", 0, 0)
+	if err != nil {
+		t.Fatalf("ollama.New: %v", err)
+	}
+
+	think := thinking.NewValue("xhigh")
+	req := request.Request{
+		Model: model.Model{Name: "llama3.2"},
+		Messages: message.New(
+			message.Message{Role: roles.User, Content: "hi"},
+		),
+		Think: think.Ptr(),
+	}
+
+	if _, err := client.ToChatRequest(req); err == nil {
+		t.Fatal("ToChatRequest() error = nil, want error")
+	}
 }
 
 func TestToChatRequestContextLength(t *testing.T) {

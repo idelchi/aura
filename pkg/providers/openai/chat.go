@@ -2,10 +2,12 @@ package openai
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/idelchi/aura/pkg/llm/message"
 	"github.com/idelchi/aura/pkg/llm/request"
 	"github.com/idelchi/aura/pkg/llm/stream"
+	"github.com/idelchi/aura/pkg/llm/thinking"
 	"github.com/idelchi/aura/pkg/llm/usage"
 	"github.com/idelchi/aura/pkg/providers/adapter"
 
@@ -27,7 +29,12 @@ func (c *Client) Chat(
 	call := adapter.ToCall(req.Messages, req.Tools)
 	adapter.SetGeneration(&call, req.Generation)
 
-	call.ProviderOptions = buildProviderOptions(req)
+	opts, err := buildProviderOptions(req)
+	if err != nil {
+		return message.Message{}, usage.Usage{}, err
+	}
+
+	call.ProviderOptions = opts
 
 	iter, err := lm.Stream(ctx, call)
 	if err != nil {
@@ -45,16 +52,21 @@ func (c *Client) Chat(
 // buildProviderOptions sets OpenAI-specific options (reasoning effort, store).
 // Uses *ProviderOptions which works for both Chat Completions and Responses API paths.
 // Fantasy selects the API path based on model name (IsResponsesModel).
-func buildProviderOptions(req request.Request) fantasy.ProviderOptions {
+func buildProviderOptions(req request.Request) (fantasy.ProviderOptions, error) {
 	opts := &fantasyopenai.ProviderOptions{}
 
 	hasOpts := false
 
-	if req.Think != nil && req.Think.Bool() {
-		effort := fantasyopenai.ReasoningEffort(req.Think.String())
+	if req.Think != nil {
+		effort, ok, err := reasoningEffort(req.Think)
+		if err != nil {
+			return nil, err
+		}
 
-		opts.ReasoningEffort = &effort
-		hasOpts = true
+		if ok {
+			opts.ReasoningEffort = &effort
+			hasOpts = true
+		}
 	}
 
 	if req.Store != nil {
@@ -63,8 +75,32 @@ func buildProviderOptions(req request.Request) fantasy.ProviderOptions {
 	}
 
 	if !hasOpts {
-		return nil
+		return fantasy.ProviderOptions{}, nil
 	}
 
-	return fantasy.ProviderOptions{fantasyopenai.Name: opts}
+	return fantasy.ProviderOptions{fantasyopenai.Name: opts}, nil
+}
+
+func reasoningEffort(value *thinking.Value) (fantasyopenai.ReasoningEffort, bool, error) {
+	if value == nil || value.IsUnset() || value.IsAuto() {
+		return "", false, nil
+	}
+
+	if value.IsOff() {
+		return fantasyopenai.ReasoningEffortNone, true, nil
+	}
+
+	effort, ok := value.Effort()
+	if !ok {
+		return "", false, nil
+	}
+
+	switch effort {
+	case thinking.None, thinking.Minimal, thinking.Low, thinking.Medium, thinking.High, thinking.XHigh:
+		return fantasyopenai.ReasoningEffort(effort), true, nil
+	case thinking.Max:
+		return "", false, fmt.Errorf("openai thinking effort %q is not supported", effort)
+	default:
+		return "", false, fmt.Errorf("openai thinking effort %q is not supported", effort)
+	}
 }

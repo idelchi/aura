@@ -33,8 +33,8 @@ func (ms Messages) PruneToolResultsInPlace(protectTokens, argThreshold int, esti
 func pruneToolResults(msgs []Message, protectTokens, argThreshold int, estimate func(string) int) {
 	var accumulated int
 
-	for _, v := range slices.Backward(msgs) {
-		msg := v
+	for i := len(msgs) - 1; i >= 0; i-- {
+		msg := msgs[i]
 
 		// Accumulate BEFORE the prune check — the current message's tokens
 		// count toward the protect window. This ensures the boundary message
@@ -53,8 +53,8 @@ func pruneToolResults(msgs []Message, protectTokens, argThreshold int, estimate 
 				msg.Tokens.Total, preview,
 			)
 
-			v.Content = pruned
-			v.Tokens = Tokens{Total: estimate(pruned)}
+			msgs[i].Content = pruned
+			msgs[i].Tokens = Tokens{Total: estimate(pruned)}
 
 		case msg.Role == roles.Assistant && len(msg.Calls) > 0:
 			calls := slices.Clone(msg.Calls)
@@ -75,7 +75,7 @@ func pruneToolResults(msgs []Message, protectTokens, argThreshold int, estimate 
 			}
 
 			if pruned {
-				v.Calls = calls
+				msgs[i].Calls = calls
 
 				// Recalculate using 31a breakdown if available.
 				// Content + Thinking are preserved, only args changed.
@@ -90,7 +90,7 @@ func pruneToolResults(msgs []Message, protectTokens, argThreshold int, estimate 
 					thinkingTokens = estimate(msg.Thinking)
 				}
 
-				v.Tokens = Tokens{
+				msgs[i].Tokens = Tokens{
 					Total: contentTokens + thinkingTokens + estimateCallArgs(calls, estimate),
 				}
 			}

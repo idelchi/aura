@@ -516,6 +516,12 @@ func (a *Assistant) ResolveModel(
 	cache **model.Model,
 ) (model.Model, error) {
 	if *cache != nil {
+		if ag == a.agent {
+			if err := a.normalizeCurrentThinkForModel((*cache).Deref(), false); err != nil {
+				return model.Model{}, err
+			}
+		}
+
 		return **cache, nil
 	}
 
@@ -527,6 +533,12 @@ func (a *Assistant) ResolveModel(
 	}
 
 	*cache = &m
+
+	if ag == a.agent {
+		if err := a.normalizeCurrentThinkForModel(m, false); err != nil {
+			return model.Model{}, err
+		}
+	}
 
 	debug.Log("[%s] resolved model: contextLength=%d", label, int(m.ContextLength))
 

@@ -25,9 +25,14 @@ func TestParseValue(t *testing.T) {
 		{name: "on", input: "on", wantDisabled: false, wantBool: true},
 		{name: "true", input: "true", wantDisabled: false, wantBool: true},
 		{name: "1", input: "1", wantDisabled: false, wantBool: true},
+		{name: "auto", input: "auto", wantDisabled: false, wantBool: true},
+		{name: "none", input: "none", wantString: "none"},
+		{name: "minimal", input: "minimal", wantString: "minimal"},
 		{name: "low", input: "low", wantString: "low"},
 		{name: "medium", input: "medium", wantString: "medium"},
 		{name: "high", input: "high", wantString: "high"},
+		{name: "xhigh", input: "xhigh", wantString: "xhigh"},
+		{name: "max", input: "max", wantString: "max"},
 		{name: "invalid", input: "invalid", wantErr: true},
 		{name: "empty string", input: "", wantErr: true},
 		{name: "uppercase OFF", input: "OFF", wantErr: true},
@@ -97,12 +102,12 @@ func TestPtr(t *testing.T) {
 		}
 	})
 
-	t.Run("disabled bool value returns nil pointer", func(t *testing.T) {
+	t.Run("disabled bool value returns non-nil pointer", func(t *testing.T) {
 		t.Parallel()
 
 		v := thinking.NewValue(false)
-		if v.Ptr() != nil {
-			t.Errorf("Ptr() = non-nil for disabled value, want nil")
+		if v.Ptr() == nil {
+			t.Errorf("Ptr() = nil for disabled value, want non-nil")
 		}
 	})
 
@@ -126,6 +131,36 @@ func TestPtr(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestModeAndString(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		value      thinking.Value
+		wantMode   thinking.Mode
+		wantString string
+	}{
+		{name: "unset", value: thinking.Value{}, wantMode: thinking.ModeUnset, wantString: "off"},
+		{name: "off", value: thinking.NewValue(false), wantMode: thinking.ModeOff, wantString: "off"},
+		{name: "auto", value: thinking.NewValue(true), wantMode: thinking.ModeAuto, wantString: "auto"},
+		{name: "effort", value: thinking.NewValue("xhigh"), wantMode: thinking.ModeEffort, wantString: "xhigh"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := tt.value.Mode(); got != tt.wantMode {
+				t.Errorf("Mode() = %q, want %q", got, tt.wantMode)
+			}
+
+			if got := tt.value.String(); got != tt.wantString {
+				t.Errorf("String() = %q, want %q", got, tt.wantString)
+			}
+		})
+	}
 }
 
 func TestCycleStates(t *testing.T) {
@@ -192,6 +227,28 @@ func TestAsString(t *testing.T) {
 			got := tt.value.AsString()
 			if got != tt.want {
 				t.Errorf("AsString() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestUnmarshalYAMLStringExtendedEfforts(t *testing.T) {
+	t.Parallel()
+
+	for _, effort := range []string{"none", "minimal", "xhigh", "max"} {
+		t.Run(effort, func(t *testing.T) {
+			t.Parallel()
+
+			var w struct {
+				Think thinking.Value `yaml:"think"`
+			}
+
+			if err := yaml.Unmarshal([]byte("think: "+effort), &w); err != nil {
+				t.Fatalf("Unmarshal: %v", err)
+			}
+
+			if got := w.Think.AsString(); got != effort {
+				t.Errorf("AsString() = %q, want %q", got, effort)
 			}
 		})
 	}
@@ -309,7 +366,7 @@ func TestUnmarshalYAMLWrongType(t *testing.T) {
 		// If no error, the value was coerced — verify it's not a valid level
 		got := w.Think.AsString()
 
-		for _, level := range []string{"low", "medium", "high"} {
+		for _, level := range thinking.Efforts {
 			if got == level {
 				t.Errorf("AsString() = %q, should not match a valid level for int input", got)
 			}

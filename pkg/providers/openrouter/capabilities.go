@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/idelchi/aura/pkg/llm/model"
+	"github.com/idelchi/aura/pkg/llm/thinking"
 	"github.com/idelchi/aura/pkg/providers/capabilities"
 )
 
@@ -18,6 +19,16 @@ func WithCapabilities(m model.Model, info SupportedParameters, inputModalities [
 
 	if slices.Contains(info, "reasoning_effort") {
 		m.Capabilities.Add(capabilities.ThinkingLevels)
+
+		m.ReasoningEfforts = []thinking.Effort{
+			thinking.None,
+			thinking.Minimal,
+			thinking.Low,
+			thinking.Medium,
+			thinking.High,
+			thinking.XHigh,
+			thinking.Max,
+		}
 	}
 
 	if slices.Contains(info, "tools") {

@@ -218,7 +218,7 @@ func buildApp(version string) (*cli.Command, *core.Flags) {
 				Name:        "think",
 				Local:       true,
 				Category:    "Agent:",
-				Usage:       "Thinking level (off, on, low, medium, high)",
+				Usage:       "Thinking mode or effort (off, on/auto, none, minimal, low, medium, high, xhigh, max)",
 				Sources:     cli.EnvVars("AURA_THINK"),
 				Destination: &flags.Think,
 			},

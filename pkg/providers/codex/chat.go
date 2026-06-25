@@ -2,12 +2,14 @@ package codex
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/idelchi/aura/pkg/llm/message"
 	"github.com/idelchi/aura/pkg/llm/request"
 	"github.com/idelchi/aura/pkg/llm/roles"
 	"github.com/idelchi/aura/pkg/llm/stream"
+	"github.com/idelchi/aura/pkg/llm/thinking"
 	"github.com/idelchi/aura/pkg/llm/usage"
 	"github.com/idelchi/aura/pkg/providers/adapter"
 
@@ -19,8 +21,6 @@ import (
 // Codex backend requires the instructions field explicitly (unlike standard OpenAI
 // which accepts system messages in the input array).
 func (c *Client) Chat(ctx context.Context, req request.Request, fn stream.Func) (message.Message, usage.Usage, error) {
-	req.Store = new(false)
-
 	lm, err := c.inner.Fantasy.LanguageModel(ctx, req.Model.Name)
 	if err != nil {
 		return message.Message{}, usage.Usage{}, adapter.MapError(err)
@@ -48,9 +48,12 @@ func (c *Client) Chat(ctx context.Context, req request.Request, fn stream.Func) 
 		opts.Instructions = &joined
 	}
 
-	if req.Think != nil && req.Think.Bool() {
-		effort := fantasyopenai.ReasoningEffort(req.Think.String())
+	effort, ok, err := reasoningEffort(req.Think)
+	if err != nil {
+		return message.Message{}, usage.Usage{}, err
+	}
 
+	if ok {
 		opts.ReasoningEffort = &effort
 	}
 
@@ -67,4 +70,28 @@ func (c *Client) Chat(ctx context.Context, req request.Request, fn stream.Func) 
 	}
 
 	return msg, u, nil
+}
+
+func reasoningEffort(value *thinking.Value) (fantasyopenai.ReasoningEffort, bool, error) {
+	if value == nil || value.IsUnset() || value.IsAuto() {
+		return "", false, nil
+	}
+
+	if value.IsOff() {
+		return fantasyopenai.ReasoningEffortNone, true, nil
+	}
+
+	effort, ok := value.Effort()
+	if !ok {
+		return "", false, nil
+	}
+
+	switch effort {
+	case thinking.None, thinking.Minimal, thinking.Low, thinking.Medium, thinking.High, thinking.XHigh:
+		return fantasyopenai.ReasoningEffort(effort), true, nil
+	case thinking.Max:
+		return "", false, fmt.Errorf("codex thinking effort %q is not supported", effort)
+	default:
+		return "", false, fmt.Errorf("codex thinking effort %q is not supported", effort)
+	}
 }

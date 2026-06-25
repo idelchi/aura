@@ -3,6 +3,7 @@ package model
 import (
 	"github.com/dustin/go-humanize"
 
+	"github.com/idelchi/aura/pkg/llm/thinking"
 	"github.com/idelchi/aura/pkg/providers/capabilities"
 	"github.com/idelchi/aura/pkg/wildcard"
 )
@@ -17,6 +18,8 @@ type Model struct {
 	ContextLength ContextLength `json:"context_length"`
 	// Capabilities lists the model's supported features.
 	Capabilities capabilities.Capabilities `json:",omitempty"`
+	// ReasoningEfforts lists explicit reasoning efforts reported for this model.
+	ReasoningEfforts []thinking.Effort `json:"reasoning_efforts,omitempty"`
 	// Family is the model family name (e.g., "gpt", "llama").
 	Family string `json:",omitempty"`
 	// Size is the model size in bytes.

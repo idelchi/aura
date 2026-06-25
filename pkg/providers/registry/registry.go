@@ -17,6 +17,7 @@ import (
 	"github.com/idelchi/aura/internal/debug"
 	"github.com/idelchi/aura/pkg/cache"
 	"github.com/idelchi/aura/pkg/llm/model"
+	"github.com/idelchi/aura/pkg/llm/thinking"
 	"github.com/idelchi/aura/pkg/providers/capabilities"
 
 	"charm.land/catwalk/pkg/catwalk"
@@ -117,6 +118,14 @@ func Enrich(providerType string, m *model.Model) {
 
 	if len(cm.ReasoningLevels) > 0 {
 		m.Capabilities.Add(capabilities.ThinkingLevels)
+
+		if len(m.ReasoningEfforts) == 0 {
+			for _, raw := range cm.ReasoningLevels {
+				if effort, ok := thinking.ParseEffort(raw); ok {
+					m.ReasoningEfforts = append(m.ReasoningEfforts, effort)
+				}
+			}
+		}
 	}
 }
 

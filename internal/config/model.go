@@ -11,7 +11,7 @@ type Model struct {
 	Name string `validate:"required"`
 	// Provider is the name of the provider hosting the model.
 	Provider string `validate:"required"`
-	// Think configures extended thinking mode (zero value=off, bool, or "low"/"medium"/"high").
+	// Think configures extended thinking mode (unset, bool off/auto, or explicit effort).
 	Think thinking.Value
 	// Context is the maximum context window size.
 	Context int

@@ -139,11 +139,14 @@ func (a *Assistant) SwitchModel(ctx context.Context, providerName, modelName str
 	a.agent.Model.Provider = providerName
 	a.resolved.model = &resolved
 
-	// Coerce thinking to match new model capabilities.
-	if !resolved.Capabilities.Thinking() {
-		a.agent.Model.Think = thinking.NewValue(false)
-	} else if !resolved.Capabilities.ThinkingLevels() && a.agent.Model.Think.IsString() {
-		a.agent.Model.Think = thinking.NewValue(true)
+	if err := a.normalizeCurrentThinkForModel(resolved, true); err != nil {
+		a.agent.Provider = prevProvider
+		a.agent.Model.Name = prevModelName
+		a.agent.Model.Provider = prevModelProvider
+		a.resolved.model = prevResolved
+		a.agent.Model.Think = prevThink
+
+		return err
 	}
 
 	if err := a.rebuildState(); err != nil {
@@ -480,6 +483,15 @@ func (a *Assistant) ToggleThink() error {
 		a.agent.Model.Think = thinking.NewValue(true)
 	}
 
+	normalized, err := a.validateThinkForResolvedModel(a.agent.Model.Think)
+	if err != nil {
+		a.agent.Model.Think = prev
+
+		return err
+	}
+
+	a.agent.Model.Think = normalized
+
 	if err := a.rebuildState(); err != nil {
 		a.agent.Model.Think = prev
 
@@ -493,7 +505,12 @@ func (a *Assistant) ToggleThink() error {
 func (a *Assistant) SetThink(t thinking.Value) error {
 	prev := a.agent.Model.Think
 
-	a.agent.Model.Think = t
+	normalized, err := a.validateThinkForResolvedModel(t)
+	if err != nil {
+		return err
+	}
+
+	a.agent.Model.Think = normalized
 
 	if err := a.rebuildState(); err != nil {
 		a.agent.Model.Think = prev
@@ -513,6 +530,15 @@ func (a *Assistant) CycleThink() error {
 	idx := (slices.Index(states, current) + 1) % len(states)
 
 	a.agent.Model.Think = thinking.NewValue(states[idx])
+
+	normalized, err := a.validateThinkForResolvedModel(a.agent.Model.Think)
+	if err != nil {
+		a.agent.Model.Think = prev
+
+		return err
+	}
+
+	a.agent.Model.Think = normalized
 
 	if err := a.rebuildState(); err != nil {
 		a.agent.Model.Think = prev

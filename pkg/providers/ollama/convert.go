@@ -11,6 +11,7 @@ import (
 	"github.com/idelchi/aura/pkg/llm/request"
 	"github.com/idelchi/aura/pkg/llm/responseformat"
 	"github.com/idelchi/aura/pkg/llm/roles"
+	"github.com/idelchi/aura/pkg/llm/thinking"
 	"github.com/idelchi/aura/pkg/llm/tool/call"
 )
 
@@ -31,8 +32,13 @@ func (c *Client) ToChatRequest(request request.Request) (*api.ChatRequest, error
 	}
 
 	// Handle thinking configuration — convert domain type to Ollama API type at the boundary.
-	if request.Think != nil && request.Think.Bool() {
-		chatReq.Think = &api.ThinkValue{Value: request.Think.Value}
+	if request.Think != nil && !request.Think.IsUnset() {
+		think, err := toAPIThinkValue(*request.Think)
+		if err != nil {
+			return nil, err
+		}
+
+		chatReq.Think = &api.ThinkValue{Value: think}
 	}
 
 	// Handle context length
@@ -100,6 +106,32 @@ func (c *Client) ToChatRequest(request request.Request) (*api.ChatRequest, error
 	}
 
 	return chatReq, nil
+}
+
+func toAPIThinkValue(value thinking.Value) (any, error) {
+	if value.IsAuto() {
+		return true, nil
+	}
+
+	if value.IsOff() {
+		return false, nil
+	}
+
+	effort, ok := value.Effort()
+	if !ok {
+		return false, nil
+	}
+
+	switch effort {
+	case thinking.None:
+		return false, nil
+	case thinking.Low, thinking.Medium, thinking.High, thinking.Max:
+		return string(effort), nil
+	case thinking.Minimal, thinking.XHigh:
+		return nil, fmt.Errorf("ollama thinking effort %q is not supported", effort)
+	default:
+		return nil, fmt.Errorf("ollama thinking effort %q is not supported", effort)
+	}
 }
 
 // ToAPIMessage converts a common message to Ollama message format.

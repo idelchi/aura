@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/idelchi/aura/pkg/llm/model"
+	"github.com/idelchi/aura/pkg/llm/thinking"
 	"github.com/idelchi/aura/pkg/providers/capabilities"
 )
 
@@ -88,6 +89,16 @@ func (c *Client) fetchModels(ctx context.Context) (model.Models, error) {
 
 		if len(entry.Capabilities.Supports.ReasoningEffort) > 0 {
 			m.Capabilities.Add(capabilities.Thinking)
+
+			for _, raw := range entry.Capabilities.Supports.ReasoningEffort {
+				if effort, ok := thinking.ParseEffort(raw); ok {
+					m.ReasoningEfforts = append(m.ReasoningEfforts, effort)
+				}
+			}
+
+			if len(m.ReasoningEfforts) > 0 {
+				m.Capabilities.Add(capabilities.ThinkingLevels)
+			}
 		}
 
 		cache[entry.ID] = modelInfo{

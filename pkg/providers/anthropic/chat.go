@@ -2,11 +2,13 @@ package anthropic
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/idelchi/aura/internal/debug"
 	"github.com/idelchi/aura/pkg/llm/message"
 	"github.com/idelchi/aura/pkg/llm/request"
 	"github.com/idelchi/aura/pkg/llm/stream"
+	"github.com/idelchi/aura/pkg/llm/thinking"
 	"github.com/idelchi/aura/pkg/llm/usage"
 	"github.com/idelchi/aura/pkg/providers/adapter"
 
@@ -43,7 +45,12 @@ func (c *Client) Chat(
 		adapter.SetGeneration(&call, &gen)
 	}
 
-	call.ProviderOptions = buildProviderOptions(req)
+	opts, err := buildProviderOptions(req)
+	if err != nil {
+		return message.Message{}, usage.Usage{}, err
+	}
+
+	call.ProviderOptions = opts
 
 	iter, err := lm.Stream(ctx, call)
 	if err != nil {
@@ -59,9 +66,9 @@ func (c *Client) Chat(
 }
 
 // buildProviderOptions sets Anthropic-specific thinking options.
-func buildProviderOptions(req request.Request) fantasy.ProviderOptions {
-	if req.Think == nil || !req.Think.Bool() {
-		return nil
+func buildProviderOptions(req request.Request) (fantasy.ProviderOptions, error) {
+	if req.Think == nil || req.Think.IsUnset() || req.Think.IsOff() {
+		return fantasy.ProviderOptions{}, nil
 	}
 
 	opts := &fanthropic.ProviderOptions{}
@@ -71,10 +78,39 @@ func buildProviderOptions(req request.Request) fantasy.ProviderOptions {
 			BudgetTokens: int64(*req.Generation.ThinkBudget),
 		}
 	} else {
-		effort := fanthropic.Effort(req.Think.String())
+		effort, ok, err := anthropicEffort(req.Think)
+		if err != nil {
+			return nil, err
+		}
+
+		if !ok {
+			return fantasy.ProviderOptions{}, nil
+		}
 
 		opts.Effort = &effort
 	}
 
-	return fantasy.ProviderOptions{fanthropic.Name: opts}
+	return fantasy.ProviderOptions{fanthropic.Name: opts}, nil
+}
+
+func anthropicEffort(value *thinking.Value) (fanthropic.Effort, bool, error) {
+	if value == nil || value.IsAuto() {
+		return fanthropic.EffortHigh, true, nil
+	}
+
+	effort, ok := value.Effort()
+	if !ok {
+		return fanthropic.EffortHigh, true, nil
+	}
+
+	switch effort {
+	case thinking.None:
+		return "", false, nil
+	case thinking.Low, thinking.Medium, thinking.High, thinking.XHigh, thinking.Max:
+		return fanthropic.Effort(effort), true, nil
+	case thinking.Minimal:
+		return "", false, fmt.Errorf("anthropic thinking effort %q is not supported", effort)
+	default:
+		return "", false, fmt.Errorf("anthropic thinking effort %q is not supported", effort)
+	}
 }

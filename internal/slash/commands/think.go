@@ -6,7 +6,6 @@ import (
 
 	"github.com/idelchi/aura/internal/slash"
 	"github.com/idelchi/aura/pkg/llm/thinking"
-	"github.com/idelchi/aura/pkg/truthy"
 )
 
 // Think creates the /think command to set thinking mode.
@@ -14,8 +13,8 @@ func Think() slash.Command {
 	return slash.Command{
 		Name:        "/think",
 		Aliases:     []string{"/effort"},
-		Description: "Set thinking level: off, on, low, medium, high",
-		Hints:       "[off|on|low|medium|high]",
+		Description: "Set thinking: off, on/auto, none, minimal, low, medium, high, xhigh, max",
+		Hints:       "[off|on|auto|none|minimal|low|medium|high|xhigh|max]",
 		Category:    "agent",
 		Execute: func(_ context.Context, c slash.Context, args ...string) (string, error) {
 			if len(args) == 0 {
@@ -23,18 +22,9 @@ func Think() slash.Command {
 				return formatThinkStatus(c.Resolved().Think), nil
 			}
 
-			var think thinking.Value
-
-			switch args[0] {
-			case string(thinking.Low), string(thinking.Medium), string(thinking.High):
-				think = thinking.NewValue(args[0])
-			default:
-				val, err := truthy.Parse(args[0])
-				if err != nil {
-					return "", fmt.Errorf("invalid value %q: %w", args[0], slash.ErrUsage)
-				}
-
-				think = thinking.NewValue(val)
+			think, err := thinking.ParseValue(args[0])
+			if err != nil {
+				return "", fmt.Errorf("%w: %w", err, slash.ErrUsage)
 			}
 
 			if err := c.SetThink(think); err != nil {
@@ -49,10 +39,10 @@ func Think() slash.Command {
 func formatThinkStatus(think thinking.Value) string {
 	if think.IsBool() {
 		if think.Bool() {
-			return "Think: true"
+			return "Think: auto"
 		}
 
-		return "Think: false"
+		return "Think: off"
 	}
 
 	return "Think: " + think.String()
