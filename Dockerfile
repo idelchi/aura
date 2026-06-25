@@ -21,8 +21,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create User (Debian/Ubuntu)
 ARG USER=user
 ARG UID=1000
-RUN groupadd -r -g ${UID} ${USER} && \
-    useradd -r -u ${UID} -g ${UID} -m -c "${USER} account" -d /home/${USER} -s /bin/bash ${USER}
+ARG GID=1000
+RUN groupadd -r -g ${GID} ${USER} && \
+    useradd -r -u ${UID} -g ${GID} -m -c "${USER} account" -d /home/${USER} -s /bin/bash ${USER}
 
 ARG CACHE_BUST=10
 RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b /usr/local/bin && \
@@ -41,8 +42,8 @@ RUN mkdir -p /home/${USER}/.local/bin
 
 COPY go.mod go.sum ./
 COPY sdk/go.mod sdk/go.mod
-RUN --mount=type=cache,target=${GOMODCACHE},uid=1000,gid=1000 \
-    --mount=type=cache,target=${GOCACHE},uid=1000,gid=1000 \
+RUN --mount=type=cache,target=${GOMODCACHE},uid=${UID},gid=${GID} \
+    --mount=type=cache,target=${GOCACHE},uid=${UID},gid=${GID} \
     go mod download
 
 ARG TARGETOS TARGETARCH
@@ -50,8 +51,8 @@ ARG TARGETOS TARGETARCH
 COPY . .
 ARG AURA_VERSION="unofficial & built by unknown"
 ARG BUILD_TAGS=""
-RUN --mount=type=cache,target=${GOMODCACHE},uid=${UID},gid=${UID},id=gomod-${TARGETARCH} \
-    --mount=type=cache,target=${GOCACHE},uid=${UID},gid=${UID},id=gocache-${TARGETARCH} \
+RUN --mount=type=cache,target=${GOMODCACHE},uid=${UID},gid=${GID},id=gomod-${TARGETARCH} \
+    --mount=type=cache,target=${GOCACHE},uid=${UID},gid=${GID},id=gocache-${TARGETARCH} \
     CGO_ENABLED=1 go build ${BUILD_TAGS} -ldflags="-s -w -X 'main.version=${AURA_VERSION}'" -o /home/${USER}/.local/bin/aura .
 
 ENV PATH=$PATH:/home/${USER}/.local/bin
@@ -88,8 +89,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create User (Debian/Ubuntu)
 ARG USER=user
 ARG UID=1000
-RUN groupadd -r -g ${UID} ${USER} && \
-    useradd -r -u ${UID} -g ${UID} -m -c "${USER} account" -d /home/${USER} -s /bin/bash ${USER}
+ARG GID=1000
+RUN groupadd -r -g ${GID} ${USER} && \
+    useradd -r -u ${UID} -g ${GID} -m -c "${USER} account" -d /home/${USER} -s /bin/bash ${USER}
 
 USER ${USER}
 WORKDIR /home/${USER}
