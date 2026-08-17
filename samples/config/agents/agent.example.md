@@ -22,7 +22,8 @@ model:
   # Model identifier at the provider.
   name: claude-sonnet-4-6
   # Extended thinking mode. Controls reasoning before responding.
-  # Values: false/off (disabled), true (enabled), "low", "medium", "high" (effort level).
+  # Values: off/false, on/true/auto, or a provider-supported effort:
+  # "none", "minimal", "low", "medium", "high", "xhigh", "max".
   think: medium
   # Max context window in tokens. Overrides the model's default context size.
   context: 128000

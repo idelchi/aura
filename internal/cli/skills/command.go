@@ -28,7 +28,7 @@ func Command(flags *core.Flags) *cli.Command {
 		Description: heredoc.Doc(`
 			Manage LLM-invocable skills.
 
-			Skills are Markdown files with YAML frontmatter in .aura/skills/.
+			Skills are packages rooted at SKILL.md or legacy standalone Markdown files in .aura/skills/.
 			The LLM invokes them via the Skill tool for multi-step instructions.
 
 			For repositories requiring authentication, the following environment variables are considered:
@@ -269,7 +269,7 @@ func addLocalFile(w io.Writer, source, skillsDir, name string) error {
 		return fmt.Errorf("reading %s: %w", source, err)
 	}
 
-	targetFile := targetDir.WithFile(file.New(source).Base()).Path()
+	targetFile := targetDir.WithFile("SKILL.md").Path()
 	if err := file.New(targetFile).Write(data, 0o644); err != nil {
 		targetDir.Remove()
 
@@ -482,24 +482,24 @@ func removeOne(w io.Writer, ss config.Collection[config.Skill], name string) err
 	return nil
 }
 
-// validateSkillDir checks that a directory contains at least one valid skill .md file.
+// validateSkillDir checks every skill discovered beneath a source directory.
 func validateSkillDir(dir string) error {
-	entries, err := folder.New(dir).ListFiles()
+	entries, err := config.DiscoverSkillFiles(folder.New(dir))
 	if err != nil {
 		return fmt.Errorf("reading directory %s: %w", dir, err)
 	}
 
-	for _, e := range entries {
-		if e.Extension() != "md" {
-			continue
-		}
+	if len(entries) == 0 {
+		return errors.New("no skills found (need SKILL.md or a standalone .md file with name + description frontmatter)")
+	}
 
-		if err := validateSkillFile(e.Path()); err == nil {
-			return nil
+	for _, e := range entries {
+		if err := validateSkillFile(e.Path()); err != nil {
+			return err
 		}
 	}
 
-	return errors.New("no valid skill files found (need .md with name + description frontmatter)")
+	return nil
 }
 
 // validateSkillFile checks that a .md file has valid skill frontmatter.

@@ -76,7 +76,7 @@ func (t *Tool) Execute(_ context.Context, args map[string]any) (string, error) {
 		return "", fmt.Errorf("unknown skill %q, available: %s", params.Name, strings.Join(t.skills.Names(), ", "))
 	}
 
-	return skill.Body, nil
+	return skill.Instructions(), nil
 }
 
 // Sandboxable returns false as this tool has no filesystem operations.

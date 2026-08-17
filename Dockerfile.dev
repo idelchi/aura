@@ -2,7 +2,7 @@
 # Description : Docker image containing the aura binary
 #]=======================================================================]
 
-ARG GO_VERSION=1.26.2
+ARG GO_VERSION=1.26.6
 ARG DISTRO=trixie
 
 #### ---- Build ---- ####

@@ -47,21 +47,33 @@ Aura includes built-in tools that the LLM can invoke during conversations. Most 
 
 ## Skills
 
-Skills are LLM-invocable capabilities defined as Markdown files in `.aura/skills/`. Unlike slash commands (user-typed), skills are invoked by the LLM via the `Skill` tool.
+Skills are LLM-invocable capabilities defined as packages under `.aura/skills/`. Unlike slash commands (user-typed), skills are invoked by the LLM via the `Skill` tool.
 
 Only skill names and one-line descriptions are visible in the tool schema. The full body is returned only when invoked — token overhead stays flat regardless of how many skills exist.
 
-```yaml
+```text
+.aura/skills/commit/
+├── SKILL.md
+├── references/
+│   └── conventions.md
+└── scripts/
+    └── verify.sh
+```
+
+```markdown
 ---
 name: commit
 description: Review staged changes and create a git commit with a meaningful message
 ---
 Review all staged and unstaged changes using git status and git diff.
+Read `{{ .Skill.Dir }}/references/conventions.md` when repository conventions are needed.
 Draft a concise commit message that summarizes the changes.
 Create the commit.
 ```
 
-The `Skill` tool registers when at least one skill file exists and deregisters on `/reload` if all are removed. Skills load from `.aura/skills/**/*.md`.
+`SKILL.md` defines the package root. Other Markdown beneath that root is bundled material rather than another skill; a nested `SKILL.md` defines another package. `{{ .Skill.Dir }}` resolves to the absolute package directory when the skill is invoked. No other template expressions in the body are expanded.
+
+Loose Markdown files directly or recursively beneath `.aura/skills/` remain supported as standalone skills when they are not inside a `SKILL.md` package. The `Skill` tool registers when at least one skill exists and deregisters on `/reload` if all are removed.
 
 ## Memory
 
@@ -179,13 +191,13 @@ Plugin tools are also opt-in via `opt_in: true` in `plugin.yaml`.
 
 ## Deferred Tools
 
-Tools matching `deferred` glob patterns in `features/tools.yaml`, or from an MCP server with `deferred: true`, are excluded from the active set. Their names are listed in the system prompt so the model knows they exist. Patterns work for any tool regardless of source — built-in, plugin, or MCP:
+Tools matching `deferred` glob patterns in `features/tools.yaml`, or from an MCP server with `deferred: true`, are excluded from the initial callable set. Their names are listed separately in the system prompt so the model knows they exist. Patterns work for any tool regardless of source — built-in, plugin, or MCP:
 
 ```yaml
 deferred: ["Vision", "mcp__github__*", "mcp__portainer__*"]
 ```
 
-`LoadTools` is automatically added when any deferred tools exist:
+`LoadTools` is automatically added to both the callable schemas and the prompt's currently loaded tool list whenever deferred tools exist:
 
 | Param   | Required | Description                                                      |
 | ------- | -------- | ---------------------------------------------------------------- |

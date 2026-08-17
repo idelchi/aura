@@ -25,8 +25,8 @@ inherit: [Base] # Parents. Absent = inherit; present = replace. Slices replaced.
 
 model:
   provider: ollama # Provider name (must match providers/*.yaml)
-  name: llama3:8b # Model identifier
-  think: high # false/off, true, "low", "medium", "high"
+  name: qwen3:8b # Model identifier
+  think: high # off/false, on/true/auto, or a provider-supported effort
   context: 65536 # Context window in tokens
   generation: # All pointer fields — omit to inherit
     temperature: 0.7
@@ -89,6 +89,8 @@ features: # Override global feature defaults (deep merge)
 ```
 
 The Markdown body below the frontmatter becomes the agent's prompt template. The `system` field selects a system prompt from `prompts/system/`.
+
+Aura recognizes the provider-neutral efforts `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`. The resolved provider and model determine which efforts are supported; Aura rejects an explicit effort outside that reported set. See [Thinking]({{ site.baseurl }}/features/thinking) for provider-specific behavior.
 
 ## Inheritance
 

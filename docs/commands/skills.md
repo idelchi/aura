@@ -19,7 +19,7 @@ aura skills remove <name> [name...]
 
 ## Description
 
-Skills are Markdown files with YAML frontmatter that provide multi-step instructions to the LLM. The LLM invokes them via the `Skill` tool during a conversation. The `aura skills` command manages installation, updates, and removal. Use [`aura show skills`]({{ site.baseurl }}/commands/show) to list and inspect skills.
+Skills are packages rooted at `SKILL.md` with YAML frontmatter and optional bundled resources. The LLM invokes them via the `Skill` tool during a conversation. The `aura skills` command manages installation, updates, and removal. Use [`aura show skills`]({{ site.baseurl }}/commands/show) to list and inspect skills.
 
 See [Skills]({{ site.baseurl }}/features/tools#skills) for details on writing skills.
 
@@ -65,6 +65,15 @@ Override with `--name` (single source only — `--name`, `--ref`, and `--subpath
 
 ## Skill Format
 
+```text
+my-skill/
+├── SKILL.md
+├── references/
+│   └── details.md
+└── scripts/
+    └── helper.sh
+```
+
 ```markdown
 ---
 name: my-skill
@@ -72,9 +81,12 @@ description: When and why the LLM should invoke this skill.
 ---
 
 Instructions for the LLM to follow when this skill is invoked.
+Read `{% raw %}{{ .Skill.Dir }}{% endraw %}/references/details.md` when the additional detail is needed.
 ```
 
-A skill repo can contain multiple `.md` files, each becoming a separate skill.
+`{% raw %}{{ .Skill.Dir }}{% endraw %}` resolves to the absolute directory containing `SKILL.md`. Aura substitutes only that reserved value; all other double-brace content remains literal.
+
+Markdown resources beneath a package root are not loaded as skills. A repository can contain multiple skill packages by providing multiple `SKILL.md` files. Legacy standalone `.md` skills remain supported outside package roots.
 
 ## Authentication
 
@@ -92,7 +104,7 @@ aura skills show commit
 # Install from git
 aura skills add https://github.com/user/aura-skill-commit
 
-# Install a skill pack (multiple skills in one repo)
+# Install a skill pack (multiple SKILL.md packages in one repo)
 aura skills add https://github.com/user/git-skills
 
 # Install a single .md file

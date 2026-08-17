@@ -74,6 +74,28 @@ func TestExecuteCaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestExecuteResolvesSkillDirectoryOnly(t *testing.T) {
+	t.Parallel()
+
+	skills := makeSkills()
+	greet := skills[file.File("greet.md")]
+	greet.Dir = "/tmp/aura skills/greet"
+	greet.Body = "Read {{ .Skill.Dir }}/references/details.md; keep {{ .Other.Value }} literal."
+	skills[file.File("greet.md")] = greet
+
+	tool := skill.New(skills)
+
+	got, err := tool.Execute(context.Background(), map[string]any{"name": "greet"})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	want := "Read /tmp/aura skills/greet/references/details.md; keep {{ .Other.Value }} literal."
+	if got != want {
+		t.Errorf("result = %q, want %q", got, want)
+	}
+}
+
 func TestSchemaIncludesSkillNames(t *testing.T) {
 	t.Parallel()
 

@@ -9,28 +9,40 @@ nav_order: 6
 
 Aura supports extended thinking/reasoning, allowing models to reason before responding.
 
-## Thinking Levels
+## Thinking Modes and Efforts
 
-| Level           | Description                                   |
-| --------------- | --------------------------------------------- |
-| `off` / `false` | No thinking — direct response                 |
-| `on` / `true`   | Enable thinking at the default level (medium) |
-| `low`           | Minimal reasoning                             |
-| `medium`        | Moderate reasoning                            |
-| `high`          | Maximum reasoning effort                      |
+| Value                  | Description                                                   |
+| ---------------------- | ------------------------------------------------------------- |
+| `off` / `false`        | Request that thinking be disabled, where the model supports it |
+| `on` / `true` / `auto` | Use the provider or model's default thinking behavior          |
+| `none`                 | Request no reasoning from providers that expose it as an effort |
+| `minimal`              | Minimal explicit effort                                       |
+| `low`                  | Low explicit effort                                           |
+| `medium`               | Medium explicit effort                                        |
+| `high`                 | High explicit effort                                          |
+| `xhigh`                | Extra-high explicit effort                                    |
+| `max`                  | Highest provider-defined effort                               |
 
-Higher thinking levels consume more output tokens. The thinking content counts toward the context window but is managed by the strip/rewrite strategies below.
+These are Aura's provider-neutral values, not a promise that every model supports every effort. Aura validates an explicit effort after resolving the provider and model, and reports the supported set when a value is unavailable. Higher efforts generally consume more output tokens. Thinking content counts toward the context window but is managed by the strip/rewrite strategies below.
+
+For Ollama, [most thinking models](https://docs.ollama.com/capabilities/thinking) accept booleans or `low`, `medium`, `high`, and `max`. GPT-OSS is the documented exception: it accepts only `low`, `medium`, and `high`; booleans are ignored and its trace cannot be fully disabled.
 
 Set per-agent in the agent frontmatter via `model.think`.
 
+For example, start Aura at the highest effort only when the selected model advertises it:
+
+```sh
+aura --think max
+```
+
 ## Controls
 
-| Method                        | Description                                             |
-| ----------------------------- | ------------------------------------------------------- |
-| `/think [level]` or `/effort` | Set thinking level (off, on, low, medium, high)         |
-| `Ctrl+R`                      | Toggle thinking off ↔ on (true)                         |
-| `Ctrl+E`                      | Cycle all levels (off → on → low → medium → high → off) |
-| `--think` flag                | Set starting level from CLI                             |
+| Method                         | Description                                                    |
+| ------------------------------ | -------------------------------------------------------------- |
+| `/think [value]` or `/effort`  | Set any mode or provider-supported explicit effort listed above |
+| `Ctrl+R`                       | Toggle thinking off ↔ auto                                     |
+| `Ctrl+E`                       | Cycle common values: off → auto → low → medium → high → off   |
+| `--think <value>`              | Set the starting mode or effort from the CLI                    |
 
 ## Thinking Display
 

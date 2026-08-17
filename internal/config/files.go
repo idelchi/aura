@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/idelchi/aura/internal/debug"
+	"github.com/idelchi/aura/pkg/frontmatter"
 	"github.com/idelchi/aura/pkg/glob"
 	"github.com/idelchi/godyl/pkg/path/file"
 	"github.com/idelchi/godyl/pkg/path/files"
@@ -46,6 +47,59 @@ func excludeExamples(ff files.Files) files.Files {
 	}
 
 	return result
+}
+
+// DiscoverSkillFiles finds package-style and legacy standalone skills.
+// A SKILL.md file defines a package root, so other Markdown below that root is
+// treated as bundled material rather than another skill. Nested SKILL.md files
+// still define their own packages. Loose Markdown with frontmatter remains a
+// standalone skill.
+func DiscoverSkillFiles(root folder.Folder) (files.Files, error) {
+	candidates, err := glob.Glob(root, "**/*.md")
+	if err != nil {
+		return nil, err
+	}
+
+	candidates = excludeExamples(candidates)
+
+	var packageDirs []string
+	for _, candidate := range candidates {
+		if candidate.Base() == "SKILL.md" {
+			packageDirs = append(packageDirs, candidate.Dir())
+		}
+	}
+
+	var result files.Files
+	for _, candidate := range candidates {
+		if candidate.Base() == "SKILL.md" {
+			result = append(result, candidate)
+
+			continue
+		}
+
+		bundled := false
+		for _, packageDir := range packageDirs {
+			rel, err := filepath.Rel(packageDir, candidate.Path())
+			if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				bundled = true
+
+				break
+			}
+		}
+
+		if !bundled {
+			yamlBytes, _, err := frontmatter.LoadRaw(candidate)
+			if err != nil {
+				return nil, fmt.Errorf("reading potential standalone skill %s: %w", candidate, err)
+			}
+
+			if yamlBytes != nil {
+				result = append(result, candidate)
+			}
+		}
+	}
+
+	return result, nil
 }
 
 // ResolvePluginDir returns the plugin directory for a given config home.
@@ -207,10 +261,10 @@ func (fs *Files) Load(cwd, launchDir string, homes ...string) error {
 		}
 
 		if skillsDir := folder.New(home, "skills"); skillsDir.Exists() {
-			if files, err := glob.Glob(skillsDir, "**/*.md"); err != nil {
+			if files, err := DiscoverSkillFiles(skillsDir); err != nil {
 				return fmt.Errorf("discovering skills config: %w", err)
 			} else {
-				fs.Skills = append(fs.Skills, excludeExamples(files)...)
+				fs.Skills = append(fs.Skills, files...)
 				debug.Log("[config]     skills: %d files", len(files))
 			}
 		}

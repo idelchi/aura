@@ -37,8 +37,8 @@ The body is rendered as a Go template before being sent to the LLM. Sprig functi
 | `{{ .Provider }}`            | Active provider name                          |
 | `{{ .Agent }}`               | Active agent name                             |
 | `{{ .Mode.Name }}`           | Active mode name                              |
-| `{{ .Tools.Eager }}`         | Resolved eager tool names (range-iterable)    |
-| `{{ .Tools.Deferred }}`      | XML block listing deferred tools              |
+| `{{ .Tools.Eager }}`         | Currently callable tool names (range-iterable); includes `LoadTools` when deferred tools exist |
+| `{{ .Tools.Deferred }}`      | Pre-rendered index of available deferred tools |
 | `{{ .Files }}`               | Autoloaded file entries from agent `files:`   |
 | `{{ .Workspace }}`           | Injected AGENTS.md workspace instructions     |
 | `{{ .Sandbox.Enabled }}`     | Sandbox enforcing (bool)                      |

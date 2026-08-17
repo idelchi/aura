@@ -24,12 +24,12 @@ description: |
 You are now in ask mode.
 
 {{ if .Tools.Eager -}}
-You have access to the following:
+You have access to the following currently loaded tools:
 
 tools:
 {{ range .Tools.Eager }}- {{ . }}
 {{ end }}
-No other tools exist.
+{{ if not .Tools.Deferred }}No other tools exist.{{ end }}
 {{ else -}}
 You have NO tools available. Do not attempt to make tool calls.
 {{ end -}}

@@ -23,7 +23,7 @@ type ToggleThink struct{}
 
 func (ToggleThink) isAction() {}
 
-// CycleThink cycles through: off → on → low → medium → high → off.
+// CycleThink cycles through the common values: off → auto → low → medium → high → off.
 type CycleThink struct{}
 
 func (CycleThink) isAction() {}

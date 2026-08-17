@@ -231,6 +231,7 @@ See [Directives]({{ site.baseurl }}/features/directives) for full reference.
 ## Skills
 
 See [aura skills]({{ site.baseurl }}/commands/skills) for installation.
+Save a package skill as `.aura/skills/commit/SKILL.md`.
 
 ```markdown
 ---

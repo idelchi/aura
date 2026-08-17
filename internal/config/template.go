@@ -51,8 +51,24 @@ type ModeData struct {
 // ToolsData holds eager and deferred tool information for template consumption.
 // Templates use {{ .Tools.Eager }} and {{ .Tools.Deferred }}.
 type ToolsData struct {
-	Eager    []string // resolved eager tool names
-	Deferred string   // pre-rendered deferred tool index XML (empty = none)
+	Eager    []string // currently callable tool names, including LoadTools when deferred tools exist
+	Deferred string   // pre-rendered deferred tool index (empty = none)
+}
+
+// NewToolsData creates the tool context exposed to prompt templates.
+// LoadTools is injected by the assistant after prompt composition, so it must
+// also be represented here whenever deferred tools exist.
+func NewToolsData(eager []string, deferred string) ToolsData {
+	data := ToolsData{
+		Eager:    slices.Clone(eager),
+		Deferred: deferred,
+	}
+
+	if deferred != "" && !slices.Contains(data.Eager, "LoadTools") {
+		data.Eager = append(data.Eager, "LoadTools")
+	}
+
+	return data
 }
 
 // FileEntry represents an autoloaded file registered as a named template.

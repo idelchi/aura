@@ -525,7 +525,7 @@ func (a *Assistant) SetThink(t thinking.Value) error {
 	return nil
 }
 
-// CycleThink cycles through: false -> true -> low -> medium -> high -> false.
+// CycleThink cycles through the common values: off -> auto -> low -> medium -> high -> off.
 func (a *Assistant) CycleThink() error {
 	prev := a.agent.Model.Think
 

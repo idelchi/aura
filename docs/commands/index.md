@@ -55,7 +55,7 @@ aura run --agent high "Hello"
 | `--auto`            |       | `false`       | Enable auto mode                                                                                                                                      |
 | `--mode`            |       |               | Starting mode (ask, edit, plan)                                                                                                                       |
 | `--system`          |       |               | System prompt name (overrides agent config; matches `name:` from prompt files in `config/prompts/`)                                                   |
-| `--think`           |       |               | Thinking level (off, on, low, medium, high)                                                                                                           |
+| `--think`           |       |               | Thinking mode or effort (off, on/auto, none, minimal, low, medium, high, xhigh, max; provider/model validated)                                        |
 | `--include-tools`   |       |               | Glob patterns for tools to include (e.g. `Read,Glob,Rg`)                                                                                              |
 | `--exclude-tools`   |       |               | Glob patterns for tools to exclude (e.g. `Bash,Patch`)                                                                                                |
 | `--include-mcps`    |       |               | Glob patterns for MCP servers to connect (e.g. `context7,git*`)                                                                                       |

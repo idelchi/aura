@@ -107,8 +107,8 @@ Ghost text shows autocomplete suggestions for directives (@File, @Image, etc.) a
 | `Esc`       | Cancel current streaming                                                |
 | `Shift+Tab` | Cycle to next agent                                                     |
 | `Ctrl+T`    | Toggle thinking visibility in UI                                        |
-| `Ctrl+R`    | Toggle thinking off ↔ on (true)                                         |
-| `Ctrl+E`    | Cycle think levels (off → true → low → medium → high → off)             |
+| `Ctrl+R`    | Toggle thinking off ↔ auto                                              |
+| `Ctrl+E`    | Cycle common think values (off → auto → low → medium → high → off)       |
 | `Ctrl+A`    | Toggle auto mode                                                        |
 | `Ctrl+S`    | Toggle sandbox                                                          |
 | `Ctrl+O`    | Open full output of last completed tool call in pager                   |

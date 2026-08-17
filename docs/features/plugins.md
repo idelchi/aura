@@ -14,7 +14,7 @@ Plugins are Go modules that hook into the conversation lifecycle. They run real 
 | I want to...                                                           | Use               | Where                          |
 | ---------------------------------------------------------------------- | ----------------- | ------------------------------ |
 | Add a command the user types (`/foo`)                                  | Custom command    | `.aura/config/commands/foo.md` |
-| Add a capability the LLM invokes autonomously                          | Skill             | `.aura/skills/foo.md`          |
+| Add a capability the LLM invokes autonomously                          | Skill             | `.aura/skills/foo/SKILL.md`    |
 | Override a tool's description, usage, or examples                      | Tool definition   | `.aura/config/tools/foo.yaml`  |
 | Run a shell script before/after tool execution                         | Hook              | `.aura/config/hooks/foo.yaml`  |
 | React to events, modify tool args/output, inject messages, track state | Plugin (injector) | `.aura/plugins/foo/`           |

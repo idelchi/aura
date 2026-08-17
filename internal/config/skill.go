@@ -19,6 +19,7 @@ type Skill struct {
 		Description string `validate:"required"`
 	}
 	Body string
+	Dir  string
 }
 
 // Name returns the skill's identifier.
@@ -27,6 +28,13 @@ func (s Skill) Name() string { return s.Metadata.Name }
 // Display returns a one-line summary for listing.
 func (s Skill) Display() string {
 	return fmt.Sprintf("%-20s  %s", s.Metadata.Name, s.Metadata.Description)
+}
+
+// Instructions returns the skill body with its package directory resolved.
+// Skill bodies are otherwise left untouched so examples containing Go templates
+// or other double-brace syntax remain literal.
+func (s Skill) Instructions() string {
+	return strings.ReplaceAll(s.Body, "{{ .Skill.Dir }}", s.Dir)
 }
 
 // loadSkills parses skill Markdown files and returns a Collection keyed by source file.
@@ -42,6 +50,7 @@ func loadSkills(ff files.Files) (Collection[Skill], error) {
 		}
 
 		skill.Body = strings.TrimSpace(body)
+		skill.Dir = file.Dir()
 
 		// Filter by origin subpath (git-sourced skills with --subpath).
 		skillDir := folder.New(file.Dir())

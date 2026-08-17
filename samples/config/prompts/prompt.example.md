@@ -57,8 +57,8 @@ The following variables are available in agent, mode, and prompt templates:
 - `{{ "{{ .Model.Name }}" }}` — model name
 - `{{ "{{ .Provider }}" }}` — provider name
 - `{{ "{{ .Agent }}" }}` / `{{ "{{ .Mode.Name }}" }}` — current agent/mode name
-- `{{ "{{ .Tools.Eager }}" }}` — resolved tool names (range-iterable)
-- `{{ "{{ .Tools.Deferred }}" }}` — XML block of deferred tools
+- `{{ "{{ .Tools.Eager }}" }}` — currently callable tool names (range-iterable), including `LoadTools` when needed
+- `{{ "{{ .Tools.Deferred }}" }}` — pre-rendered index of available deferred tools
 - `{{ "{{ .Sandbox.Enabled }}" }}` / `{{ "{{ .Sandbox.Display }}" }}` — sandbox state
 - `{{ "{{ .ToolPolicy.Display }}" }}` — rendered tool policy
 - `{{ "{{ .Memories.Local }}" }}` / `{{ "{{ .Memories.Global }}" }}` — memory entries

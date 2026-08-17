@@ -1,7 +1,8 @@
 ---
 # EXAMPLE — This file lives under config/skills/ for reference only — it is NOT loaded from here.
-# To create a skill, rename to <name>.md and place in <home>/skills/ (one level above config/).
+# To create a skill, save this as <home>/skills/<name>/SKILL.md (one level above config/).
 # Full reference of all skill frontmatter fields.
+# Optional resources can live beside SKILL.md and be referenced through {{ .Skill.Dir }}.
 
 # Unique identifier. The LLM invokes this skill by name.
 name: refactor

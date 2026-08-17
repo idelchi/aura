@@ -267,12 +267,12 @@ func (c Config) BuildAgent(
 		return "", Model{}, nil, nil, err
 	}
 
-	data.Tools = ToolsData{Eager: eager.Names()}
-
-	// Build deferred tool index for system prompt rendering.
+	deferredIndex := ""
 	if len(deferred) > 0 {
-		data.Tools.Deferred = NewDeferredToolIndex(deferred).Render()
+		deferredIndex = NewDeferredToolIndex(deferred).Render()
 	}
+
+	data.Tools = NewToolsData(eager.Names(), deferredIndex)
 
 	// Sandbox data — BuildAgent uses config-level values (no runtime toggle here).
 	// When called from the assistant layer, TemplateData() overwrites these with runtime state.
