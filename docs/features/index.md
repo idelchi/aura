@@ -11,7 +11,7 @@ has_children: true
 | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | [Tools]({{ site.baseurl }}/features/tools)                                       | Built-in tools + custom tools via Go plugins                                    |
 | [Slash Commands]({{ site.baseurl }}/features/slash-commands)                     | Built-in commands + user-defined custom commands                                |
-| [Skills]({{ site.baseurl }}/features/tools#skills)                               | LLM-invocable capabilities with progressive disclosure                          |
+| [Skills]({{ site.baseurl }}/features/tools#skills)                               | Model- and user-invocable capabilities with progressive disclosure               |
 | [Sessions]({{ site.baseurl }}/features/sessions)                                 | Save, resume, and fork conversations                                            |
 | [Embeddings]({{ site.baseurl }}/features/embeddings)                             | Embedding-based codebase search with AST-aware chunking                         |
 | [Compaction]({{ site.baseurl }}/features/compaction)                             | Automatic context compression via dedicated agent                               |

@@ -47,7 +47,8 @@ Aura includes built-in tools that the LLM can invoke during conversations. Most 
 
 ## Skills
 
-Skills are LLM-invocable capabilities defined as packages under `.aura/skills/`. Unlike slash commands (user-typed), skills are invoked by the LLM via the `Skill` tool.
+Skills are capabilities defined as packages under `.aura/skills/`. The LLM can invoke them through the `Skill` tool,
+and users can invoke one deterministically with `/skill <name>`.
 
 Only skill names and one-line descriptions are visible in the tool schema. The full body is returned only when invoked — token overhead stays flat regardless of how many skills exist.
 

@@ -26,10 +26,10 @@ func Command(flags *core.Flags) *cli.Command {
 		Name:  "skills",
 		Usage: "Manage skills",
 		Description: heredoc.Doc(`
-			Manage LLM-invocable skills.
+			Manage skills available to the model and /skill command.
 
 			Skills are packages rooted at SKILL.md or legacy standalone Markdown files in .aura/skills/.
-			The LLM invokes them via the Skill tool for multi-step instructions.
+			The LLM invokes them via the Skill tool, and users invoke them via /skill.
 
 			For repositories requiring authentication, the following environment variables are considered:
 

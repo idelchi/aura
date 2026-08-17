@@ -29,7 +29,7 @@ aura show <entity> <name>              # Detail view of one entity
 | `hooks`     | Shell hooks (pre/post tool execution)                             |
 | `features`  | Feature configuration (compaction, thinking, tools, vision, etc.) |
 | `plugins`   | Go plugins                                                        |
-| `skills`    | LLM-invocable skills                                              |
+| `skills`    | Configured skills                                                 |
 | `tasks`     | Scheduled task definitions                                        |
 
 ## Flags

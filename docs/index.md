@@ -85,7 +85,7 @@ Everything is file-based YAML and Markdown. Agents, modes, prompts, hooks, and t
 | Modes           | Tool availability and bash command restrictions            |
 | Guardrails      | Secondary LLM validation of tool calls and user messages   |
 | Slash Commands  | Built-in + user-defined as Markdown files                  |
-| Skills          | LLM-invocable capabilities with progressive disclosure     |
+| Skills          | Model- and user-invocable capabilities with progressive disclosure |
 | Compaction      | Automatic context compression via dedicated agent          |
 | Embeddings      | Embedding-based codebase search with AST-aware chunking    |
 | Sessions        | Save, resume, and fork conversations                       |

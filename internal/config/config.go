@@ -37,7 +37,7 @@ type Config struct {
 	Features Features
 	// Commands contains all loaded custom slash commands.
 	Commands Collection[CustomCommand]
-	// Skills contains all loaded LLM-invocable skill definitions.
+	// Skills contains all loaded model- and user-invocable skill definitions.
 	Skills Collection[Skill]
 	// ToolDefs holds unified tool definitions loaded from .aura/config/tools/**/*.yaml.
 	// Entries are text-only overrides for tool descriptions, usage, examples, and metadata (disabled, condition,

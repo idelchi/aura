@@ -4,7 +4,7 @@
 # Full reference of all skill frontmatter fields.
 # Optional resources can live beside SKILL.md and be referenced through {{ .Skill.Dir }}.
 
-# Unique identifier. The LLM invokes this skill by name.
+# Unique identifier. The LLM or `/skill <name>` invokes this skill by name.
 name: refactor
 
 # Human-readable description. Visible in the tool schema (progressive disclosure).

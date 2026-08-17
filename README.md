@@ -133,7 +133,7 @@ Everything lives under `.aura/`:
 │   ├── tasks/        # Scheduled task definitions
 │   └── tools/        # Optional tool text overrides (any tool type)
 ├── plugins/          # Go plugins (recursive discovery, organize into subdirs freely)
-├── skills/           # LLM-invocable SKILL.md packages and bundled resources
+├── skills/           # LLM- and user-invocable SKILL.md packages and bundled resources
 ├── sessions/         # Saved sessions (JSON snapshots)
 ├── embeddings/       # Embeddings index (created on-demand when embeddings search is used)
 ├── cache/            # Cached data (catwalk metadata, model lists)

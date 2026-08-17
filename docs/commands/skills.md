@@ -7,7 +7,7 @@ nav_order: 13
 
 # aura skills
 
-Manage LLM-invocable skills.
+Manage skills available to the model and `/skill` command.
 
 ## Syntax
 
@@ -19,7 +19,10 @@ aura skills remove <name> [name...]
 
 ## Description
 
-Skills are packages rooted at `SKILL.md` with YAML frontmatter and optional bundled resources. The LLM invokes them via the `Skill` tool during a conversation. The `aura skills` command manages installation, updates, and removal. Use [`aura show skills`]({{ site.baseurl }}/commands/show) to list and inspect skills.
+Skills are packages rooted at `SKILL.md` with YAML frontmatter and optional bundled resources. The LLM invokes them via
+the `Skill` tool during a conversation, while users can invoke one with `/skill <name>`. The `aura skills` command
+manages installation, updates, and removal. Use [`aura show skills`]({{ site.baseurl }}/commands/show) to list and
+inspect skills.
 
 See [Skills]({{ site.baseurl }}/features/tools#skills) for details on writing skills.
 

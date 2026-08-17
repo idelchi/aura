@@ -40,6 +40,7 @@ Aura includes built-in slash commands for runtime control, plus support for user
 | `/plugins` |             |
 | `/policy`  |             |
 | `/sandbox` | `/landlock` |
+| `/skill`   |             |
 | `/skills`  |             |
 | `/tools`   |             |
 
@@ -93,6 +94,19 @@ Aura includes built-in slash commands for runtime control, plus support for user
 | ------- | -------- |
 | `/exit` | `/quit`  |
 | `/help` |          |
+
+---
+
+## /skill — Invoke a Skill
+
+Loads one configured skill and forwards its complete instructions to the model as the next user message:
+
+```text
+/skill <name>
+```
+
+Skill lookup is case-insensitive. Package-local `{{ .Skill.Dir }}` references are resolved before the workflow is
+forwarded. Use `/skills` to list the available names without invoking one.
 
 ---
 

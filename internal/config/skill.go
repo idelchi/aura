@@ -10,9 +10,9 @@ import (
 	"github.com/idelchi/godyl/pkg/path/folder"
 )
 
-// Skill represents a user-defined LLM-invocable capability loaded from a Markdown file.
-// Skills are invoked by the LLM via the Skill meta-tool. The description is visible
-// in the tool schema for progressive disclosure; the full body is returned on invocation.
+// Skill represents a user-defined capability loaded from a Markdown file.
+// Skills are invoked by the LLM via the Skill meta-tool or explicitly by the user through /skill.
+// The description is visible in the tool schema for progressive disclosure; the full body is returned on invocation.
 type Skill struct {
 	Metadata struct {
 		Name        string `validate:"required"`

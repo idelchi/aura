@@ -37,7 +37,7 @@ aura init
 │   └── tools/            # Optional tool text overrides (any tool type)
 ├── plugins/              # Go plugins (recursive: organize into subdirs freely)
 ├── sessions/             # Saved sessions ({uuid}.json)
-├── skills/               # LLM-invocable SKILL.md packages and bundled resources
+├── skills/               # LLM- and user-invocable SKILL.md packages and bundled resources
 ├── embeddings/           # Embeddings index
 ├── memory/               # Persistent key-value memory files
 └── debug.log             # Debug log (when --debug is enabled)

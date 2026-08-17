@@ -38,6 +38,7 @@ var All = []slash.Command{
 	Stats(),
 	Policy(),
 	Plugins(),
+	Skill(),
 	Skills(),
 	Window(),
 }
