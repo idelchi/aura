@@ -106,7 +106,8 @@ Loads one configured skill and forwards its complete instructions to the model a
 ```
 
 Skill lookup is case-insensitive. Package-local `{{ .Skill.Dir }}` references are resolved before the workflow is
-forwarded. Use `/skills` to list the available names without invoking one.
+forwarded. This command can invoke every loaded skill, including skills configured with `explicit: true`. Use `/skills`
+to list the available names and their invocation policy without invoking one.
 
 ---
 

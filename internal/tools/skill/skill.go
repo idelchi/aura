@@ -28,6 +28,8 @@ type Tool struct {
 
 // New creates a Skill tool with a dynamic description built from all skill descriptions.
 func New(skills config.Collection[config.Skill]) *Tool {
+	skills = skills.Filter(config.Skill.IsModelInvocable)
+
 	var desc strings.Builder
 
 	desc.WriteString(heredoc.Doc(`

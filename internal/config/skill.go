@@ -17,6 +17,7 @@ type Skill struct {
 	Metadata struct {
 		Name        string `validate:"required"`
 		Description string `validate:"required"`
+		Explicit    bool
 	}
 	Body string
 	Dir  string
@@ -28,6 +29,20 @@ func (s Skill) Name() string { return s.Metadata.Name }
 // Display returns a one-line summary for listing.
 func (s Skill) Display() string {
 	return fmt.Sprintf("%-20s  %s", s.Metadata.Name, s.Metadata.Description)
+}
+
+// Invocation describes how a skill can be invoked.
+func (s Skill) Invocation() string {
+	if s.Metadata.Explicit {
+		return "/skill only"
+	}
+
+	return "model + /skill"
+}
+
+// IsModelInvocable reports whether the skill is exposed through the Skill tool.
+func (s Skill) IsModelInvocable() bool {
+	return !s.Metadata.Explicit
 }
 
 // Instructions returns the skill body with its package directory resolved.

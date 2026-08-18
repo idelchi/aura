@@ -11,21 +11,26 @@ import (
 )
 
 func makeSkills() config.Collection[config.Skill] {
+	var greet config.Skill
+	greet.Metadata.Name = "greet"
+	greet.Metadata.Description = "Say hello"
+	greet.Body = "Hello, world!"
+
+	var commit config.Skill
+	commit.Metadata.Name = "commit"
+	commit.Metadata.Description = "Make a commit"
+	commit.Body = "git add && git commit"
+
+	var explicit config.Skill
+	explicit.Metadata.Name = "dangerous"
+	explicit.Metadata.Description = "Perform a user-directed operation"
+	explicit.Metadata.Explicit = true
+	explicit.Body = "Do exactly what the user requested."
+
 	return config.Collection[config.Skill]{
-		file.File("greet.md"): config.Skill{
-			Metadata: struct {
-				Name        string `validate:"required"`
-				Description string `validate:"required"`
-			}{Name: "greet", Description: "Say hello"},
-			Body: "Hello, world!",
-		},
-		file.File("commit.md"): config.Skill{
-			Metadata: struct {
-				Name        string `validate:"required"`
-				Description string `validate:"required"`
-			}{Name: "commit", Description: "Make a commit"},
-			Body: "git add && git commit",
-		},
+		file.File("greet.md"):     greet,
+		file.File("commit.md"):    commit,
+		file.File("dangerous.md"): explicit,
 	}
 }
 
@@ -107,5 +112,20 @@ func TestSchemaIncludesSkillNames(t *testing.T) {
 		if !strings.Contains(desc, name) {
 			t.Errorf("Schema description missing skill %q, got: %s", name, desc)
 		}
+	}
+
+	if strings.Contains(desc, "dangerous") {
+		t.Errorf("schema exposes explicit-only skill, got: %s", desc)
+	}
+}
+
+func TestExecuteRejectsExplicitOnlySkill(t *testing.T) {
+	t.Parallel()
+
+	tool := skill.New(makeSkills())
+
+	_, err := tool.Execute(context.Background(), map[string]any{"name": "dangerous"})
+	if err == nil || !strings.Contains(err.Error(), "unknown skill") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

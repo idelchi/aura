@@ -459,7 +459,7 @@ func skillsCommand(flags *core.Flags) *cli.Command {
 	return entityCommand("skills", "List or inspect skills", flags,
 		[]config.Part{config.PartSkills},
 		func(cfg *config.Config, filters []string) error {
-			t := newTable("NAME", "DESCRIPTION")
+			t := newTable("NAME", "INVOCATION", "DESCRIPTION")
 
 			for _, s := range cfg.Skills.Values() {
 				ok, err := filter.Match(s, filters)
@@ -468,7 +468,7 @@ func skillsCommand(flags *core.Flags) *cli.Command {
 				}
 
 				if ok {
-					t.add(s.Name(), s.Metadata.Description)
+					t.add(s.Name(), s.Invocation(), s.Metadata.Description)
 				}
 			}
 
@@ -485,6 +485,7 @@ func skillsCommand(flags *core.Flags) *cli.Command {
 			d := newDetail(12)
 			d.Field("Name", s.Metadata.Name)
 			d.Field("Description", s.Metadata.Description)
+			d.Field("Invocation", s.Invocation())
 			d.Field("Source", f.Path())
 
 			dir := f.Dir()

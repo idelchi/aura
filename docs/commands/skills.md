@@ -81,6 +81,7 @@ my-skill/
 ---
 name: my-skill
 description: When and why the LLM should invoke this skill.
+explicit: false
 ---
 
 Instructions for the LLM to follow when this skill is invoked.
@@ -90,6 +91,9 @@ Read `{% raw %}{{ .Skill.Dir }}{% endraw %}/references/details.md` when the addi
 `{% raw %}{{ .Skill.Dir }}{% endraw %}` resolves to the absolute directory containing `SKILL.md`. Aura substitutes only that reserved value; all other double-brace content remains literal.
 
 Markdown resources beneath a package root are not loaded as skills. A repository can contain multiple skill packages by providing multiple `SKILL.md` files. Legacy standalone `.md` skills remain supported outside package roots.
+
+`explicit` defaults to `false`. Set it to `true` to exclude the skill from the model-facing `Skill` tool while keeping it
+listed and available through `/skill <name>`.
 
 ## Authentication
 

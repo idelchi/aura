@@ -38,6 +38,26 @@ func TestSkillPrompt(t *testing.T) {
 	}
 }
 
+func TestSkillPromptIncludesExplicitOnlySkill(t *testing.T) {
+	t.Parallel()
+
+	var configured config.Skill
+	configured.Metadata.Name = "dangerous"
+	configured.Metadata.Description = "Perform a user-directed operation"
+	configured.Metadata.Explicit = true
+	configured.Body = "Follow the user's explicit instructions."
+
+	skills := config.Collection[config.Skill]{file.File("dangerous/SKILL.md"): configured}
+	prompt, err := skillPrompt(skills, "dangerous")
+	if err != nil {
+		t.Fatalf("invoking explicit-only skill: %v", err)
+	}
+
+	if !strings.Contains(prompt, configured.Body) {
+		t.Fatalf("unexpected prompt: %q", prompt)
+	}
+}
+
 func TestSkillPromptRejectsUnknownSkill(t *testing.T) {
 	t.Parallel()
 

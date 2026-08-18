@@ -50,6 +50,9 @@ Aura includes built-in tools that the LLM can invoke during conversations. Most 
 Skills are capabilities defined as packages under `.aura/skills/`. The LLM can invoke them through the `Skill` tool,
 and users can invoke one deterministically with `/skill <name>`.
 
+Set `explicit: true` in a skill's frontmatter to keep it out of the model-facing `Skill` tool while retaining explicit
+user invocation through `/skill <name>`. The default is `false`, so existing skills remain available through both paths.
+
 Only skill names and one-line descriptions are visible in the tool schema. The full body is returned only when invoked — token overhead stays flat regardless of how many skills exist.
 
 ```text
@@ -65,6 +68,7 @@ Only skill names and one-line descriptions are visible in the tool schema. The f
 ---
 name: commit
 description: Review staged changes and create a git commit with a meaningful message
+explicit: false
 ---
 Review all staged and unstaged changes using git status and git diff.
 Read `{{ .Skill.Dir }}/references/conventions.md` when repository conventions are needed.

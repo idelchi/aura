@@ -12,7 +12,7 @@ import (
 func Skills() slash.Command {
 	return slash.Command{
 		Name:        "/skills",
-		Description: "List loaded skills",
+		Description: "List loaded skills and invocation policies",
 		Category:    "tools",
 		Execute: func(_ context.Context, c slash.Context, _ ...string) (string, error) {
 			skills := c.Cfg().Skills
@@ -28,7 +28,7 @@ func Skills() slash.Command {
 
 			for _, name := range names {
 				skill := skills.Get(name)
-				fmt.Fprintf(&b, "- %s — %s\n", name, skill.Metadata.Description)
+				fmt.Fprintf(&b, "- %s (%s) — %s\n", name, skill.Invocation(), skill.Metadata.Description)
 			}
 
 			return strings.TrimRight(b.String(), "\n"), nil

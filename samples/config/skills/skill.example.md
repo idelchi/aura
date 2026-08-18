@@ -13,6 +13,10 @@ description: >
   Invoke when you need to refactor code — rename symbols, extract functions, restructure modules,
   or simplify complex logic. Use this skill instead of ad-hoc edits when the change touches
   multiple files or requires understanding caller/callee relationships.
+
+# Optional. When true, only the user can invoke this skill through `/skill <name>`.
+# The skill remains listed but is excluded from the model-facing Skill tool. Defaults to false.
+explicit: false
 ---
 
 # Refactoring Skill

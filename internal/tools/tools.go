@@ -95,8 +95,9 @@ func All(
 		qt,
 	}
 
-	if len(cfg.Skills) > 0 {
-		tools = append(tools, skilltool.New(cfg.Skills))
+	modelSkills := cfg.Skills.Filter(config.Skill.IsModelInvocable)
+	if len(modelSkills) > 0 {
+		tools = append(tools, skilltool.New(modelSkills))
 	}
 
 	pluginCount := len(pluginCache.Tools())
