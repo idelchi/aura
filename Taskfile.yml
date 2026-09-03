@@ -69,7 +69,6 @@ tasks:
   format:
     deps:
       - generate
-      - task: format:yaml
       - task: format:json
       - task: format:docker
       - task: format:md
@@ -81,7 +80,6 @@ tasks:
     deps:
       - generate
       - task: lint:ws
-      - task: lint:yaml
       - task: lint:json
     cmds:
       - task: go:lint
