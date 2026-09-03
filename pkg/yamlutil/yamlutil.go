@@ -19,9 +19,8 @@ func filterNoDocuments(err error) error {
 		return nil
 	}
 
-	var le *yaml.LoadErrors
-
-	if !errors.As(err, &le) {
+	le, ok := errors.AsType[*yaml.LoadErrors](err)
+	if !ok {
 		return err
 	}
 

@@ -326,9 +326,7 @@ func (t *Tool) Execute(ctx context.Context, args map[string]any) (string, error)
 		}
 
 		// command exited with a non-zero code (normal situation)
-		var exitStatus interp.ExitStatus
-
-		if errors.As(err, &exitStatus) {
+		if exitStatus, ok := errors.AsType[interp.ExitStatus](err); ok {
 			output += fmt.Sprintf("\nEXIT CODE: %d", uint8(exitStatus))
 
 			return t.truncateOutput(output, t.Truncation), nil

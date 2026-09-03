@@ -42,9 +42,7 @@ func NetworkError(host string, err error) error {
 		return fmt.Errorf("request to %s timed out", host)
 	}
 
-	var dnsErr *net.DNSError
-
-	if errors.As(err, &dnsErr) {
+	if _, ok := errors.AsType[*net.DNSError](err); ok {
 		return fmt.Errorf("cannot reach %s: host not found", host)
 	}
 
@@ -74,9 +72,7 @@ func HTTPError(host string, statusCode int) error {
 // path from the message.
 func innerError(err error) error {
 	for {
-		var pe *os.PathError
-
-		if errors.As(err, &pe) {
+		if pe, ok := errors.AsType[*os.PathError](err); ok {
 			return pe.Err
 		}
 

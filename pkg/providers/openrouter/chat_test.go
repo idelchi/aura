@@ -23,25 +23,25 @@ func TestBuildProviderOptionsThinking(t *testing.T) {
 		{
 			name:       "none maps through",
 			think:      thinking.NewValue("none"),
-			wantEffort: openRouterEffortPtr(fantasyopenrouter.ReasoningEffortNone),
+			wantEffort: new(fantasyopenrouter.ReasoningEffortNone),
 			wantOpts:   true,
 		},
 		{
 			name:       "minimal maps through",
 			think:      thinking.NewValue("minimal"),
-			wantEffort: openRouterEffortPtr(fantasyopenrouter.ReasoningEffortMinimal),
+			wantEffort: new(fantasyopenrouter.ReasoningEffortMinimal),
 			wantOpts:   true,
 		},
 		{
 			name:       "xhigh maps through",
 			think:      thinking.NewValue("xhigh"),
-			wantEffort: openRouterEffortPtr(fantasyopenrouter.ReasoningEffortXHigh),
+			wantEffort: new(fantasyopenrouter.ReasoningEffortXHigh),
 			wantOpts:   true,
 		},
 		{
 			name:       "max maps through",
 			think:      thinking.NewValue("max"),
-			wantEffort: openRouterEffortPtr(fantasyopenrouter.ReasoningEffort("max")),
+			wantEffort: new(fantasyopenrouter.ReasoningEffort("max")),
 			wantOpts:   true,
 		},
 	}
@@ -81,8 +81,4 @@ func TestBuildProviderOptionsThinking(t *testing.T) {
 			}
 		})
 	}
-}
-
-func openRouterEffortPtr(e fantasyopenrouter.ReasoningEffort) *fantasyopenrouter.ReasoningEffort {
-	return &e
 }

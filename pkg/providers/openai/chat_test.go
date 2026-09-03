@@ -23,13 +23,13 @@ func TestBuildProviderOptionsThinking(t *testing.T) {
 		{
 			name:       "off maps to none",
 			think:      thinking.NewValue(false),
-			wantEffort: effortPtr(fantasyopenai.ReasoningEffortNone),
+			wantEffort: new(fantasyopenai.ReasoningEffortNone),
 			wantOpts:   true,
 		},
 		{
 			name:       "xhigh maps through",
 			think:      thinking.NewValue("xhigh"),
-			wantEffort: effortPtr(fantasyopenai.ReasoningEffortXHigh),
+			wantEffort: new(fantasyopenai.ReasoningEffortXHigh),
 			wantOpts:   true,
 		},
 		{name: "max is rejected", think: thinking.NewValue("max"), wantErr: true},
@@ -70,8 +70,4 @@ func TestBuildProviderOptionsThinking(t *testing.T) {
 			}
 		})
 	}
-}
-
-func effortPtr(e fantasyopenai.ReasoningEffort) *fantasyopenai.ReasoningEffort {
-	return &e
 }

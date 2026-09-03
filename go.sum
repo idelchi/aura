@@ -233,8 +233,8 @@ github.com/hexops/gotextdiff v1.0.3 h1:gitA9+qJrrTCsiCl7+kh75nPqQt1cx4ZkudSTLoUq
 github.com/hexops/gotextdiff v1.0.3/go.mod h1:pSWU5MAI3yDq+fZBTazCSJysOMbxWL1BSow5/V2vxeg=
 github.com/idelchi/go-gitignore v0.0.3 h1:A0+HX0ivogN/QARPE4uy5fE/5MHTknNua46aFqJbh/Y=
 github.com/idelchi/go-gitignore v0.0.3/go.mod h1:hjk9ni2UrSV7L1dk80MeEo/NNVWlrBSnU7v7IIkbFL8=
-github.com/idelchi/godyl v0.2.2 h1:OEhOvUqT2wt/KJwJsov+/qhZK4aZHW6SDx4HetFVlmA=
-github.com/idelchi/godyl v0.2.2/go.mod h1:cJMr8QqHC9ajDMD6wExanoEiSC2WncPy4itNRbx3uVs=
+github.com/idelchi/godyl v0.2.3 h1:y2YrJCVV1N/qnDKIFY6Qcc2GV0PJLzNb4qJsMBRHgrY=
+github.com/idelchi/godyl v0.2.3/go.mod h1:cJMr8QqHC9ajDMD6wExanoEiSC2WncPy4itNRbx3uVs=
 github.com/invopop/jsonschema v0.14.0 h1:MHQqLhvpNUZfw+hM3AZDYK7jxO8FZoQeQM77g8iyZjg=
 github.com/invopop/jsonschema v0.14.0/go.mod h1:ygm6C2EaVNMBDPpaPlnOA2pFAxBnxGjFlMZABxm9n2I=
 github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 h1:BQSFePA1RWJOlocH6Fxy8MmwDt+yVQYULKfN0RoTN8A=

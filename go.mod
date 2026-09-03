@@ -1,6 +1,6 @@
 module github.com/idelchi/aura
 
-go 1.26.5
+go 1.27.1
 
 require (
 	charm.land/bubbles/v2 v2.1.0
@@ -32,10 +32,9 @@ require (
 	github.com/go-task/slim-sprig/v3 v3.0.0
 	github.com/gofrs/flock v0.13.0
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
-	github.com/google/uuid v1.6.0
 	github.com/idelchi/aura/sdk v0.0.0-beta
 	github.com/idelchi/go-gitignore v0.0.3
-	github.com/idelchi/godyl v0.2.2
+	github.com/idelchi/godyl v0.2.3
 	github.com/invopop/jsonschema v0.14.0
 	github.com/joho/godotenv v1.5.1
 	github.com/landlock-lsm/go-landlock v0.8.0
@@ -117,6 +116,7 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/jsonschema-go v0.4.2 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.20 // indirect
 	github.com/googleapis/gax-go/v2 v2.23.0 // indirect
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect

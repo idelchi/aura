@@ -25,13 +25,13 @@ func TestBuildProviderOptionsThinking(t *testing.T) {
 		{
 			name:      "minimal maps through",
 			think:     thinking.NewValue("minimal"),
-			wantLevel: stringPtr(fantasygoogle.ThinkingLevelMinimal),
+			wantLevel: new(fantasygoogle.ThinkingLevelMinimal),
 			wantOpts:  true,
 		},
 		{
 			name:      "high maps through",
 			think:     thinking.NewValue("high"),
-			wantLevel: stringPtr(fantasygoogle.ThinkingLevelHigh),
+			wantLevel: new(fantasygoogle.ThinkingLevelHigh),
 			wantOpts:  true,
 		},
 		{name: "xhigh is rejected", think: thinking.NewValue("xhigh"), wantErr: true},
@@ -85,8 +85,4 @@ func TestBuildProviderOptionsThinking(t *testing.T) {
 			}
 		})
 	}
-}
-
-func stringPtr(s string) *string {
-	return &s
 }

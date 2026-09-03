@@ -22,7 +22,7 @@ func TestBuildProviderOptionsThinking(t *testing.T) {
 		{
 			name:       "auto maps to high adaptive effort",
 			think:      thinking.NewValue(true),
-			wantEffort: anthropicEffortPtr(fanthropic.EffortHigh),
+			wantEffort: new(fanthropic.EffortHigh),
 			wantOpts:   true,
 		},
 		{name: "off omits options", think: thinking.NewValue(false), wantOpts: false},
@@ -30,13 +30,13 @@ func TestBuildProviderOptionsThinking(t *testing.T) {
 		{
 			name:       "xhigh maps through",
 			think:      thinking.NewValue("xhigh"),
-			wantEffort: anthropicEffortPtr(fanthropic.Effort("xhigh")),
+			wantEffort: new(fanthropic.Effort("xhigh")),
 			wantOpts:   true,
 		},
 		{
 			name:       "max maps through",
 			think:      thinking.NewValue("max"),
-			wantEffort: anthropicEffortPtr(fanthropic.EffortMax),
+			wantEffort: new(fanthropic.EffortMax),
 			wantOpts:   true,
 		},
 		{name: "minimal is rejected", think: thinking.NewValue("minimal"), wantErr: true},
@@ -77,8 +77,4 @@ func TestBuildProviderOptionsThinking(t *testing.T) {
 			}
 		})
 	}
-}
-
-func anthropicEffortPtr(e fanthropic.Effort) *fanthropic.Effort {
-	return &e
 }

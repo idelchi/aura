@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"uuid"
 
 	"github.com/dustin/go-humanize"
-	"github.com/google/uuid"
 
 	"github.com/idelchi/aura/internal/stats"
 	"github.com/idelchi/aura/internal/todo"
@@ -151,5 +151,5 @@ func (s Session) ShortDisplay() string {
 
 // newID generates a new UUID for a session.
 func newID() string {
-	return uuid.NewString()
+	return uuid.New().String()
 }

@@ -291,9 +291,7 @@ func (r *Runner) executeToolCall(ctx context.Context, builder *conversation.Buil
 	}
 
 	if execErr != nil {
-		var se *tools.SetupError
-
-		if errors.As(execErr, &se) {
+		if se, ok := errors.AsType[*tools.SetupError](execErr); ok {
 			debug.Log("[subagent] %s setup error: %v", tc.Name, se.Err)
 			builder.AddEphemeralToolResult(ctx, tc.Name, tc.ID,
 				"Tool unavailable due to configuration error.", 0)

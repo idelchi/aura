@@ -99,9 +99,7 @@ func (h *Hook) PanicCount() int         { return h.panicCount }
 // trackPanic inspects err for a recovered panic and, if found, increments the
 // panic counter and logs the event.
 func (h *Hook) trackPanic(err error) {
-	var pe *pluginPanic
-
-	if errors.As(err, &pe) {
+	if pe, ok := errors.AsType[*pluginPanic](err); ok {
 		h.panicCount++
 		debug.Log("[plugin] %s panicked: %v", h.Name(), pe.value)
 	}

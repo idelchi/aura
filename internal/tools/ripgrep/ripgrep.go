@@ -115,8 +115,7 @@ func (t *Tool) Execute(ctx context.Context, args map[string]any) (string, error)
 	// Handle errors
 	if err != nil {
 		// Exit code 1 means no matches (not an error)
-		exitErr := &exec.ExitError{}
-		if errors.As(err, &exitErr) {
+		if _, ok := errors.AsType[*exec.ExitError](err); ok {
 			return "", nil
 		}
 

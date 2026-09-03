@@ -72,9 +72,7 @@ func (r *RetryProvider) Chat(
 
 		// Honor server-supplied Retry-After as minimum delay.
 		// Total wait = RetryAfter + backoff delay (conservative — more polite to the API).
-		var rle *RateLimitError
-
-		if errors.As(err, &rle) && rle.RetryAfter > 0 {
+		if rle, ok := errors.AsType[*RateLimitError](err); ok && rle.RetryAfter > 0 {
 			time.Sleep(rle.RetryAfter)
 		}
 

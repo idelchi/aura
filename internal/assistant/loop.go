@@ -880,9 +880,7 @@ func isFailoverEligible(err error) bool {
 func providerErrorMessage(err error) string {
 	switch {
 	case errors.Is(err, providers.ErrRateLimit):
-		var rle *providers.RateLimitError
-
-		if errors.As(err, &rle) && rle.RetryAfter > 0 {
+		if rle, ok := errors.AsType[*providers.RateLimitError](err); ok && rle.RetryAfter > 0 {
 			return fmt.Sprintf("Rate limited. Retry after %s.", rle.RetryAfter.Round(time.Second))
 		}
 

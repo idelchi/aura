@@ -21,9 +21,7 @@ func handleError(err error) error {
 		return providers.WrapNetworkError(err)
 	}
 
-	var ae api.AuthorizationError
-
-	if errors.As(err, &ae) {
+	if ae, ok := errors.AsType[api.AuthorizationError](err); ok {
 		msg := ae.Status
 		if msg == "" {
 			msg = http.StatusText(ae.StatusCode)
@@ -32,9 +30,7 @@ func handleError(err error) error {
 		return fmt.Errorf("%w: ollama: %d %s", providers.ErrAuth, ae.StatusCode, msg)
 	}
 
-	var se api.StatusError
-
-	if errors.As(err, &se) {
+	if se, ok := errors.AsType[api.StatusError](err); ok {
 		if strings.Contains(se.ErrorMessage, "input length exceeds") {
 			return fmt.Errorf("%w: ollama: %d %s", providers.ErrContextExhausted, se.StatusCode, se.ErrorMessage)
 		}

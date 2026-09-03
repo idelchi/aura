@@ -52,7 +52,7 @@ services:
       - -c
 
   goreleaser:
-    image: goreleaser/goreleaser-cross:v1.26.0
+    image: goreleaser/goreleaser-cross:v1.27.0
     container_name: goreleaser
     hostname: goreleaser
     env_file:

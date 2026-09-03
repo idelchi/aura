@@ -286,9 +286,8 @@ func MapError(err error) error {
 		return nil
 	}
 
-	var pe *fantasy.ProviderError
-
-	if !errors.As(err, &pe) {
+	pe, ok := errors.AsType[*fantasy.ProviderError](err)
+	if !ok {
 		if providers.IsNetworkError(err) {
 			return providers.WrapNetworkError(err)
 		}

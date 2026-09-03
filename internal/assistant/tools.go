@@ -346,9 +346,7 @@ func (a *Assistant) executeTools(ctx context.Context, toolCalls []call.Call) {
 		t := pc.tool
 
 		// Setup errors are infrastructure problems the LLM cannot fix — route to user.
-		var se *tools.SetupError
-
-		if res.err != nil && errors.As(res.err, &se) {
+		if se, ok := errors.AsType[*tools.SetupError](res.err); ok {
 			debug.Log("[tool] %s setup error in %v: %v", tc.Name, res.duration, se.Err)
 			a.send(ui.CommandResult{
 				Message: fmt.Sprintf("warning: sandboxed tool setup failed: %v", se.Err),
@@ -661,9 +659,7 @@ func (a *Assistant) executeSandboxed(ctx context.Context, toolName string, args 
 	output := stdoutBuf.Bytes()
 
 	if err != nil {
-		var exitErr *exec.ExitError
-
-		if errors.As(err, &exitErr) {
+		if _, ok := errors.AsType[*exec.ExitError](err); ok {
 			// Safety net: try parsing stdout before falling back to stderr.
 			// After the child fix, setup errors exit 0, so ExitError should
 			// only happen for truly unexpected crashes.

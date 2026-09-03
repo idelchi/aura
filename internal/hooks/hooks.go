@@ -305,9 +305,7 @@ func (r Runner) execute(ctx context.Context, entry Entry, eventJSON string, file
 	exitCode := 0
 
 	if err != nil {
-		var exitStatus interp.ExitStatus
-
-		if errors.As(err, &exitStatus) {
+		if exitStatus, ok := errors.AsType[interp.ExitStatus](err); ok {
 			exitCode = int(exitStatus)
 		} else if ctx.Err() != nil {
 			if ctx.Err() == context.DeadlineExceeded {
