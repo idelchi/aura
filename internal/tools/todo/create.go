@@ -32,14 +32,13 @@ type Create struct {
 // NewCreate creates a new TodoCreate tool with the given list.
 func NewCreate(list *todo.List) *Create {
 	return &Create{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: heredoc.Doc(`
+		Text: tool.Text{
+			Description: heredoc.Doc(`
 					Create or update a todo list for multi-step tasks.
 
 					Items start as pending. First item is auto-set to in_progress.
 				`),
-				Usage: heredoc.Doc(`
+			Usage: heredoc.Doc(`
 					Creates or updates a todo list.
 
 					Parameters:
@@ -53,12 +52,11 @@ func NewCreate(list *todo.List) *Create {
 
 					First item is automatically marked as in_progress.
 				`),
-				Examples: heredoc.Doc(`
+			Examples: heredoc.Doc(`
 					{"summary": "Implement user auth", "items": [{"content": "Add login endpoint"}, {"content": "Add JWT validation"}]}
 					{"summary": "Refactoring the config system"}
 					{"items": [{"content": "Parse config"}, {"content": "Validate schema"}]}
 				`),
-			},
 		},
 		list: list,
 	}

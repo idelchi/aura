@@ -53,16 +53,15 @@ type Tool struct {
 // New creates a Query tool with the given configuration.
 func New(cfg config.Config, paths config.Paths, rt *config.Runtime) *Tool {
 	return &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: heredoc.Doc(`
+		Text: tool.Text{
+			Description: heredoc.Doc(`
 					Embedding-based CHUNK-LEVEL search across the CURRENT codebase using natural language.
 					Uses token-aware chunking with embedding similarity and optional reranking.
 					Results are deduplicated by file path.
 
 					Best for: component/module names, architectural concepts, feature areas, function-level search.
 				`),
-				Usage: heredoc.Doc(`
+			Usage: heredoc.Doc(`
 					ONLY use this tool to explore the CURRENT codebase, not for searching generic or external information.
 
 					Query with component names or purposes.
@@ -73,13 +72,12 @@ func New(cfg config.Config, paths config.Paths, rt *config.Runtime) *Tool {
 					Use k=3-5 for targeted searches, k=10 for exploration.
 					Use full_content=true only when you need chunk contents.
 				`),
-				Examples: heredoc.Doc(`
+			Examples: heredoc.Doc(`
 					{"query": "ollama client implementation", "k": 5}
 					{"query": "token counting", "k": 3}
 					{"query": "configuration loading", "k": 10}
 					{"query": "file reading tool", "k": 3, "full_content": true}
 				`),
-			},
 		},
 		Cfg:   cfg,
 		Paths: paths,

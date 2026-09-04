@@ -30,9 +30,8 @@ type Tool struct {
 // New creates a new Write tool.
 func New() *Tool {
 	return &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: heredoc.Doc(`
+		Text: tool.Text{
+			Description: heredoc.Doc(`
 					Write complete content to a file. Creates parent directories if needed.
 
 					Use this for new files or full rewrites. For targeted string replacements,
@@ -40,17 +39,16 @@ func New() *Tool {
 
 					If the file already exists, you must Read it first.
 				`),
-				Usage: heredoc.Doc(`
+			Usage: heredoc.Doc(`
 					Provide a file path and the complete file content.
 
 					For new files, just provide path and content.
 					For existing files, Read the file first, then Write with the full replacement content.
 				`),
-				Examples: heredoc.Doc(`
+			Examples: heredoc.Doc(`
 					{"path": "cmd/main.go", "content": "package main\n\nfunc main() {\n}\n"}
 					{"path": "config/settings.yaml", "content": "debug: true\nport: 8080\n"}
 				`),
-			},
 		},
 	}
 }

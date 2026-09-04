@@ -29,10 +29,9 @@ type Tool struct {
 // New creates a new Glob tool with documentation.
 func New() *Tool {
 	return &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: `Find files by filename/path pattern matching (not content search). Uses glob syntax with ** recursive support.`,
-				Usage: heredoc.Doc(`
+		Text: tool.Text{
+			Description: `Find files by filename/path pattern matching (not content search). Uses glob syntax with ** recursive support.`,
+			Usage: heredoc.Doc(`
 					Matches against file PATHS, not file contents. Not a search/grep tool.
 					Use ** for recursive directory matching, * for filename wildcards, ? for single char.
 					Pattern must be a valid glob, not a plain substring.
@@ -42,13 +41,12 @@ func New() *Tool {
 					  src/**/test_*.py - test files under src/
 					  *.{json,yaml}    - json or yaml in current dir
 				`),
-				Examples: heredoc.Doc(`
+			Examples: heredoc.Doc(`
 					{"pattern": "**/*.go"}
 					{"pattern": "src/**/*_test.py"}
 					{"pattern": "*.{json,yaml}"}
 					{"pattern": "**/README.md"}
 				`),
-			},
 		},
 	}
 }

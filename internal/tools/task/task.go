@@ -47,16 +47,14 @@ type Tool struct {
 // separately before the tool is usable.
 func New(agents []AgentInfo) *Tool {
 	t := &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Usage: heredoc.Doc(`
+		Text: tool.Text{
+			Usage: heredoc.Doc(`
 					Use this tool to delegate complex or independent subtasks to a subagent:
 					- Codebase exploration and research
 					- Multi-file code changes
 					- Any task that benefits from isolated context
 				`),
-				Examples: `{"description": "Find auth handlers", "prompt": "Find all HTTP handler functions related to authentication. List file paths and function names.", "agent": "explore"}`,
-			},
+			Examples: `{"description": "Find auth handlers", "prompt": "Find all HTTP handler functions related to authentication. List file paths and function names.", "agent": "explore"}`,
 		},
 		Agents: agents,
 	}

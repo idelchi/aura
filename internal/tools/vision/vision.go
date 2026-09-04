@@ -44,23 +44,21 @@ type Tool struct {
 // New creates a Vision tool with the given configuration.
 func New(cfg config.Config, paths config.Paths, rt *config.Runtime) *Tool {
 	return &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: heredoc.Doc(`
+		Text: tool.Text{
+			Description: heredoc.Doc(`
 					Reads an image or PDF file and sends it to a vision-capable LLM for analysis.
 					Returns the LLM's text response describing or extracting content from the image.
 				`),
-				Usage: heredoc.Doc(`
+			Usage: heredoc.Doc(`
 					Provide a file path to an image (PNG, JPG, GIF) or PDF.
 					Optionally provide an instruction describing what to extract or analyze.
 					If no instruction is given, the tool extracts text or describes visual content.
 				`),
-				Examples: heredoc.Doc(`
+			Examples: heredoc.Doc(`
 					{"path": "screenshot.png"}
 					{"path": "diagram.jpg", "instruction": "Describe the architecture shown in this diagram"}
 					{"path": "document.pdf", "instruction": "Extract all text from this document"}
 				`),
-			},
 		},
 		Cfg:      cfg,
 		CfgPaths: paths,

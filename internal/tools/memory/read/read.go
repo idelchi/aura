@@ -36,16 +36,14 @@ type Tool struct {
 // New creates a MemoryRead tool rooted at the given config and global home directories.
 func New(configDir, globalHome string) *Tool {
 	return &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: "Read persistent memory entries from disk. Retrieve specific entries by key, list all entries, or search by keyword.",
-				Usage:       "Read a memory entry by key, list all keys (omit key), or search across entries with query. Use local scope (default) for project notes, global for cross-project.",
-				Examples: heredoc.Doc(`
+		Text: tool.Text{
+			Description: "Read persistent memory entries from disk. Retrieve specific entries by key, list all entries, or search by keyword.",
+			Usage:       "Read a memory entry by key, list all keys (omit key), or search across entries with query. Use local scope (default) for project notes, global for cross-project.",
+			Examples: heredoc.Doc(`
 					{"key": "architecture", "scope": "local"}
 					{"scope": "local"}
 					{"query": "database", "scope": "local"}
 				`),
-			},
 		},
 		localDir:  folder.New(configDir, "memory").Path(),
 		globalDir: memory.GlobalMemoryDir(globalHome),

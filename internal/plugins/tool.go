@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 
 	"github.com/idelchi/aura/internal/config"
 	"github.com/idelchi/aura/internal/debug"
@@ -171,7 +172,7 @@ func (p *Plugin) probeTool(cfg config.Plugin) error {
 		return nil // no tool export — that's fine
 	}
 
-	schemaFn, ok := schemaVal.Interface().(func() sdk.ToolSchema)
+	schemaFn, ok := reflect.TypeAssert[func() sdk.ToolSchema](schemaVal)
 	if !ok {
 		return fmt.Errorf("plugin %q: Schema has wrong signature, expected func() sdk.ToolSchema", p.name)
 	}
@@ -181,7 +182,7 @@ func (p *Plugin) probeTool(cfg config.Plugin) error {
 		return fmt.Errorf("plugin %q: exports Schema but no Execute function", p.name)
 	}
 
-	execFn, ok := execVal.Interface().(func(context.Context, sdk.Context, map[string]any) (string, error))
+	execFn, ok := reflect.TypeAssert[func(context.Context, sdk.Context, map[string]any) (string, error)](execVal)
 	if !ok {
 		return fmt.Errorf(
 			"plugin %q: Execute has wrong signature, expected func(context.Context, sdk.Context, map[string]any) (string, error)",
@@ -193,7 +194,7 @@ func (p *Plugin) probeTool(cfg config.Plugin) error {
 	var pathsFn func(map[string]any) (sdk.ToolPaths, error)
 
 	if v, err := p.interp.Eval(p.basePkg + ".Paths"); err == nil {
-		if fn, ok := v.Interface().(func(map[string]any) (sdk.ToolPaths, error)); ok {
+		if fn, ok := reflect.TypeAssert[func(map[string]any) (sdk.ToolPaths, error)](v); ok {
 			pathsFn = fn
 		} else {
 			fmt.Fprintf(
@@ -207,7 +208,7 @@ func (p *Plugin) probeTool(cfg config.Plugin) error {
 
 	// Optional: Init for runtime config injection.
 	if v, err := p.interp.Eval(p.basePkg + ".Init"); err == nil {
-		if fn, ok := v.Interface().(func(sdk.ToolConfig)); ok {
+		if fn, ok := reflect.TypeAssert[func(sdk.ToolConfig)](v); ok {
 			home, _ := folder.Home()
 			homeDir := home.Path()
 			fn(sdk.ToolConfig{
@@ -228,7 +229,7 @@ func (p *Plugin) probeTool(cfg config.Plugin) error {
 	available := true
 
 	if v, err := p.interp.Eval(p.basePkg + ".Available"); err == nil {
-		if fn, ok := v.Interface().(func() bool); ok {
+		if fn, ok := reflect.TypeAssert[func() bool](v); ok {
 			available = fn()
 		} else {
 			fmt.Fprintf(
@@ -244,7 +245,7 @@ func (p *Plugin) probeTool(cfg config.Plugin) error {
 	sandboxable := true
 
 	if v, err := p.interp.Eval(p.basePkg + ".Sandboxable"); err == nil {
-		if fn, ok := v.Interface().(func() bool); ok {
+		if fn, ok := reflect.TypeAssert[func() bool](v); ok {
 			sandboxable = fn()
 		} else {
 			fmt.Fprintf(
@@ -260,7 +261,7 @@ func (p *Plugin) probeTool(cfg config.Plugin) error {
 	parallel := true
 
 	if v, err := p.interp.Eval(p.basePkg + ".Parallel"); err == nil {
-		if fn, ok := v.Interface().(func() bool); ok {
+		if fn, ok := reflect.TypeAssert[func() bool](v); ok {
 			parallel = fn()
 		} else {
 			fmt.Fprintf(
@@ -275,12 +276,10 @@ func (p *Plugin) probeTool(cfg config.Plugin) error {
 	sdkSchema := schemaFn()
 
 	p.tool = &PluginTool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: sdkSchema.Description,
-				Usage:       sdkSchema.Usage,
-				Examples:    sdkSchema.Examples,
-			},
+		Text: tool.Text{
+			Description: sdkSchema.Description,
+			Usage:       sdkSchema.Usage,
+			Examples:    sdkSchema.Examples,
 		},
 		name:         sdkSchema.Name,
 		override:     cfg.Override,

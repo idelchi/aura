@@ -190,7 +190,7 @@ func (r *Registry) Handle(ctx context.Context, sctx Context, input string) (stri
 
 	msg, err := cmd.Execute(ctx, sctx, args...)
 	if errors.Is(err, ErrUsage) {
-		if err == ErrUsage { //nolint:errorlint,goerr113 // exact match = bare ErrUsage, no context
+		if err == ErrUsage { //nolint:errorlint // exact match = bare ErrUsage, no context
 			return "", true, false, fmt.Errorf("usage: %s", cmd.Usage())
 		}
 

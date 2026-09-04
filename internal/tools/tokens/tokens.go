@@ -47,20 +47,18 @@ type Tool struct {
 // New creates a Tokens tool with the given configuration.
 func New(cfg config.Config, paths config.Paths, rt *config.Runtime) *Tool {
 	return &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: `Count tokens in a file or inline content using the configured estimation method`,
-				Usage: heredoc.Doc(`
+		Text: tool.Text{
+			Description: `Count tokens in a file or inline content using the configured estimation method`,
+			Usage: heredoc.Doc(`
 					Provide either a file path or inline content to count tokens.
 					Optionally override the estimation method.
 				`),
-				Examples: heredoc.Doc(`
+			Examples: heredoc.Doc(`
 					{"path": "go.mod"}
 					{"content": "The quick brown fox jumps over the lazy dog"}
 					{"path": "README.md", "method": "rough"}
 					{"path": "main.go", "method": "tiktoken"}
 				`),
-			},
 		},
 		Cfg:      cfg,
 		CfgPaths: paths,

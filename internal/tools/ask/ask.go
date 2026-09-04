@@ -41,23 +41,21 @@ type Tool struct {
 // New creates an Ask tool with the given callback.
 func New(ask func(ctx context.Context, req Request) (string, error)) *Tool {
 	return &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: heredoc.Doc(`
+		Text: tool.Text{
+			Description: heredoc.Doc(`
 					Ask the user a question and wait for their response.
 					Use this when you need clarification, confirmation, or a choice from the user.
 					Without options, the user provides free-form text.
 					With options, the user selects from the provided choices.
 				`),
-				Usage: heredoc.Doc(`
+			Usage: heredoc.Doc(`
 					Use this tool when you need user input before proceeding:
 					- Clarifying ambiguous requirements
 					- Confirming destructive or irreversible actions
 					- Choosing between multiple valid approaches
 					- Getting preferences or configuration values
 				`),
-				Examples: `{"question": "Which database should we use?", "options": [{"label": "PostgreSQL", "description": "Relational, ACID-compliant"}, {"label": "SQLite", "description": "Embedded, zero-config"}]}`,
-			},
+			Examples: `{"question": "Which database should we use?", "options": [{"label": "PostgreSQL", "description": "Relational, ACID-compliant"}, {"label": "SQLite", "description": "Embedded, zero-config"}]}`,
 		},
 		ask: ask,
 	}

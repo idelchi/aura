@@ -26,18 +26,16 @@ type Tool struct {
 // New creates a Done tool with the given callback.
 func New(onDone func(string)) *Tool {
 	return &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: heredoc.Doc(`
+		Text: tool.Text{
+			Description: heredoc.Doc(`
 					Call this tool when you have completed all tasks and want to exit tool calling enforcement.
 					Provide a final summary of what was accomplished.
 				`),
-				Usage: heredoc.Doc(`
+			Usage: heredoc.Doc(`
 					Use this tool when you have finished all your tasks and are ready to provide a final response.
 					Before calling Done, verify that your TodoList is either non-existent, empty, or with all tasks set to complete.
 				`),
-				Examples: `{"summary": "Created the new auth package with JWT support and wired it into the HTTP middleware."}`,
-			},
+			Examples: `{"summary": "Created the new auth package with JWT support and wired it into the HTTP middleware."}`,
 		},
 		OnDone: onDone,
 	}

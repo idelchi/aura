@@ -46,11 +46,9 @@ func New(skills config.Collection[config.Skill]) *Tool {
 	}
 
 	return &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: strings.TrimSpace(desc.String()),
-				Examples:    `{"name": "commit"}`,
-			},
+		Text: tool.Text{
+			Description: strings.TrimSpace(desc.String()),
+			Examples:    `{"name": "commit"}`,
 		},
 		skills: skills,
 	}

@@ -48,9 +48,8 @@ func New(smallFileTokens int, lspManager *lsp.Manager, estimate func(string) int
 	return &Tool{
 		lspManager: lspManager,
 		estimate:   estimate,
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: heredoc.Doc(`
+		Text: tool.Text{
+			Description: heredoc.Doc(`
 					Reads the contents of a file at the specified path.
 
 					Returns the content with rows enumerated as '1: line1', '2: line2', etc.
@@ -59,7 +58,7 @@ func New(smallFileTokens int, lspManager *lsp.Manager, estimate func(string) int
 
 					Set 'count' to true to get the total number of lines in the file.
 				`),
-				Usage: heredoc.Doc(`
+			Usage: heredoc.Doc(`
 					Provide a file path to read its contents.
 
 					Use 'count' first to avoid large outputs. If the size is manageable, always read the full file.
@@ -68,12 +67,11 @@ func New(smallFileTokens int, lspManager *lsp.Manager, estimate func(string) int
 					ONLY use 'line_start' and 'line_end' for large files to read specific sections.
 					For regular files, always read the full content.
 				`),
-				Examples: heredoc.Doc(`
+			Examples: heredoc.Doc(`
 					{"path": "file.txt"}
 					{"path": "file.txt", "line_start": 10, "line_end": 20}
 					{"path": "file.txt", "count": true}
 				`),
-			},
 		},
 		SmallFileTokens: smallFileTokens,
 	}

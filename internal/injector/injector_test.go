@@ -246,12 +246,12 @@ func TestRegistry_FiredState(t *testing.T) {
 	r := newRegistry(t)
 
 	firedOne := &mockStatefulInjector{
-		mockInjector: mockInjector{name: "fired-one", timing: injector.BeforeChat, enabled: true},
-		fired:        true,
+		name: "fired-one", timing: injector.BeforeChat, enabled: true,
+		fired: true,
 	}
 	notFired := &mockStatefulInjector{
-		mockInjector: mockInjector{name: "not-fired", timing: injector.BeforeChat, enabled: true},
-		fired:        false,
+		name: "not-fired", timing: injector.BeforeChat, enabled: true,
+		fired: false,
 	}
 	nonStateful := &mockInjector{
 		name:    "non-stateful",
@@ -286,10 +286,10 @@ func TestRegistry_RestoreFiredState(t *testing.T) {
 	r := newRegistry(t)
 
 	a := &mockStatefulInjector{
-		mockInjector: mockInjector{name: "a", timing: injector.AfterResponse, enabled: true},
+		name: "a", timing: injector.AfterResponse, enabled: true,
 	}
 	b := &mockStatefulInjector{
-		mockInjector: mockInjector{name: "b", timing: injector.AfterResponse, enabled: true},
+		name: "b", timing: injector.AfterResponse, enabled: true,
 	}
 
 	r.Register(a)
@@ -315,12 +315,12 @@ func TestRegistry_FiredState_RestoreRoundTrip(t *testing.T) {
 	orig := newRegistry(t)
 
 	origA := &mockStatefulInjector{
-		mockInjector: mockInjector{name: "injA", timing: injector.BeforeChat, enabled: true},
-		fired:        true,
+		name: "injA", timing: injector.BeforeChat, enabled: true,
+		fired: true,
 	}
 	origB := &mockStatefulInjector{
-		mockInjector: mockInjector{name: "injB", timing: injector.BeforeChat, enabled: true},
-		fired:        false,
+		name: "injB", timing: injector.BeforeChat, enabled: true,
+		fired: false,
 	}
 
 	orig.Register(origA)
@@ -332,10 +332,10 @@ func TestRegistry_FiredState_RestoreRoundTrip(t *testing.T) {
 	fresh := newRegistry(t)
 
 	freshA := &mockStatefulInjector{
-		mockInjector: mockInjector{name: "injA", timing: injector.BeforeChat, enabled: true},
+		name: "injA", timing: injector.BeforeChat, enabled: true,
 	}
 	freshB := &mockStatefulInjector{
-		mockInjector: mockInjector{name: "injB", timing: injector.BeforeChat, enabled: true},
+		name: "injB", timing: injector.BeforeChat, enabled: true,
 	}
 
 	fresh.Register(freshA)
@@ -419,11 +419,9 @@ func TestRegistry_Display_DescriberIncluded(t *testing.T) {
 
 	r := newRegistry(t)
 	r.Register(&mockDescriber{
-		mockInjector: mockInjector{
-			name:    "described",
-			timing:  injector.OnError,
-			enabled: true,
-		},
+		name:        "described",
+		timing:      injector.OnError,
+		enabled:     true,
 		description: "extra-detail",
 	})
 
@@ -514,8 +512,8 @@ func TestBases_ConvertsTypedSlice(t *testing.T) {
 	t.Parallel()
 
 	items := []injector.BeforeChatInjection{
-		{Injection: injector.Injection{Name: "a", Content: "hello"}},
-		{Injection: injector.Injection{Name: "b", Content: "world"}},
+		{Name: "a", Content: "hello"},
+		{Name: "b", Content: "world"},
 	}
 
 	bases := injector.Bases(items)
@@ -546,9 +544,9 @@ func TestRegistry_RunBeforeChat(t *testing.T) {
 
 	r := newRegistry(t)
 	r.Register(&mockBeforeChatChecker{
-		mockInjector: mockInjector{name: "req-mod", timing: injector.BeforeChat, enabled: true},
+		name: "req-mod", timing: injector.BeforeChat, enabled: true,
 		result: &injector.BeforeChatInjection{
-			Injection: injector.Injection{Content: "before-chat"},
+			Content: "before-chat",
 		},
 	})
 
@@ -567,9 +565,9 @@ func TestRegistry_RunAfterResponse(t *testing.T) {
 
 	r := newRegistry(t)
 	r.Register(&mockAfterResponseChecker{
-		mockInjector: mockInjector{name: "resp-mod", timing: injector.AfterResponse, enabled: true},
+		name: "resp-mod", timing: injector.AfterResponse, enabled: true,
 		result: &injector.AfterResponseInjection{
-			Injection: injector.Injection{Content: "after-response"},
+			Content: "after-response",
 		},
 	})
 
@@ -590,10 +588,10 @@ func TestRegistry_RunAfterTool(t *testing.T) {
 
 	r := newRegistry(t)
 	r.Register(&mockAfterToolChecker{
-		mockInjector: mockInjector{name: "tool-mod", timing: injector.AfterToolExecution, enabled: true},
+		name: "tool-mod", timing: injector.AfterToolExecution, enabled: true,
 		result: &injector.AfterToolInjection{
-			Injection: injector.Injection{Content: "after-tool"},
-			Output:    &output,
+			Content: "after-tool",
+			Output:  &output,
 		},
 	})
 
@@ -612,9 +610,9 @@ func TestRegistry_RunOnError(t *testing.T) {
 
 	r := newRegistry(t)
 	r.Register(&mockOnErrorChecker{
-		mockInjector: mockInjector{name: "err-mod", timing: injector.OnError, enabled: true},
+		name: "err-mod", timing: injector.OnError, enabled: true,
 		result: &injector.OnErrorInjection{
-			Injection: injector.Injection{Content: "error-handler"},
+			Content: "error-handler",
 		},
 	})
 
@@ -633,9 +631,9 @@ func TestRegistry_RunBeforeCompaction(t *testing.T) {
 
 	r := newRegistry(t)
 	r.Register(&mockBeforeCompactionChecker{
-		mockInjector: mockInjector{name: "compact-mod", timing: injector.BeforeCompaction, enabled: true},
+		name: "compact-mod", timing: injector.BeforeCompaction, enabled: true,
 		result: &injector.BeforeCompactionInjection{
-			Injection: injector.Injection{Content: "before-compact"},
+			Content: "before-compact",
 		},
 	})
 
@@ -654,8 +652,8 @@ func TestRegistry_RunTyped_SkipsDisabled(t *testing.T) {
 
 	r := newRegistry(t)
 	r.Register(&mockBeforeChatChecker{
-		mockInjector: mockInjector{name: "disabled", timing: injector.BeforeChat, enabled: false},
-		result:       &injector.BeforeChatInjection{Injection: injector.Injection{Content: "should-not-appear"}},
+		name: "disabled", timing: injector.BeforeChat, enabled: false,
+		result: &injector.BeforeChatInjection{Content: "should-not-appear"},
 	})
 
 	results := r.RunBeforeChat(context.Background(), &injector.State{})
@@ -689,8 +687,8 @@ func TestRegistry_RunTyped_NilResult(t *testing.T) {
 
 	r := newRegistry(t)
 	r.Register(&mockBeforeChatChecker{
-		mockInjector: mockInjector{name: "nil-result", timing: injector.BeforeChat, enabled: true},
-		result:       nil, // CheckBeforeChat returns nil
+		name: "nil-result", timing: injector.BeforeChat, enabled: true,
+		result: nil, // CheckBeforeChat returns nil
 	})
 
 	results := r.RunBeforeChat(context.Background(), &injector.State{})

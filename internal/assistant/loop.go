@@ -184,6 +184,7 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 	// Resolve model eagerly so capability checks (e.g., Vision) are available.
 	// Non-fatal here: chat() will retry and surface the error properly.
 	a.send(ui.SpinnerMessage{Text: "Resolving model..."})
+
 	if _, err := a.ResolveModel(ctx, "chat", a.agent, &a.resolved.model); err != nil {
 		debug.Log("[loop] model not resolved (will retry in chat): %v", err)
 	}

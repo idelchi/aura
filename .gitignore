@@ -7,3 +7,4 @@ vendor/
 /assets/
 /tests/
 /.task/
+/.build/

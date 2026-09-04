@@ -490,7 +490,9 @@ func validateSkillDir(dir string) error {
 	}
 
 	if len(entries) == 0 {
-		return errors.New("no skills found (need SKILL.md or a standalone .md file with name + description frontmatter)")
+		return errors.New(
+			"no skills found (need SKILL.md or a standalone .md file with name + description frontmatter)",
+		)
 	}
 
 	for _, e := range entries {

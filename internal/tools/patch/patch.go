@@ -28,9 +28,8 @@ type Tool struct {
 // New creates a new Patch tool.
 func New() *Tool {
 	return &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: heredoc.Doc(`
+		Text: tool.Text{
+			Description: heredoc.Doc(`
 					Applies patches to files using a context-aware diff format.
 
 					Supports three operations:
@@ -40,7 +39,7 @@ func New() *Tool {
 
 					The patch format uses context markers (@@) to locate changes.
 				`),
-				Usage: heredoc.Doc(`
+			Usage: heredoc.Doc(`
 					Format:
 					*** Begin Patch
 					*** Add File: path/to/new.go
@@ -55,12 +54,11 @@ func New() *Tool {
 
 					Lines prefixed with + are added, - are removed, space is context for matching.
 				`),
-				Examples: heredoc.Doc(`
+			Examples: heredoc.Doc(`
 					{"patch": "*** Begin Patch\n*** Add File: hello.txt\n+Hello World\n*** End Patch"}
 					{"patch": "*** Begin Patch\n*** Update File: main.go\n@@ func main\n-    return nil\n+    return 42\n*** End Patch"}
 					{"patch": "*** Begin Patch\n*** Delete File: obsolete.txt\n*** End Patch"}
 				`),
-			},
 		},
 	}
 }

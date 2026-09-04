@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -126,7 +127,7 @@ func Load(
 
 	if _, err := i.Eval(`import "os"`); err == nil {
 		if v, err := i.Eval("os.Setenv"); err == nil {
-			if fn, ok := v.Interface().(func(string, string) error); ok {
+			if fn, ok := reflect.TypeAssert[func(string, string) error](v); ok {
 				setenvFn = fn
 			}
 		}
@@ -232,7 +233,7 @@ func (p *Plugin) probeCommand() error {
 		return nil // no command export
 	}
 
-	schemaFn, ok := schemaVal.Interface().(func() sdk.CommandSchema)
+	schemaFn, ok := reflect.TypeAssert[func() sdk.CommandSchema](schemaVal)
 	if !ok {
 		return fmt.Errorf("plugin %q: Command has wrong signature, expected func() sdk.CommandSchema", p.name)
 	}
@@ -242,7 +243,7 @@ func (p *Plugin) probeCommand() error {
 		return fmt.Errorf("plugin %q: exports Command but no ExecuteCommand function", p.name)
 	}
 
-	execFn, ok := execVal.Interface().(func(context.Context, string, sdk.Context) (sdk.CommandResult, error))
+	execFn, ok := reflect.TypeAssert[func(context.Context, string, sdk.Context) (sdk.CommandResult, error)](execVal)
 	if !ok {
 		return fmt.Errorf(
 			"plugin %q: ExecuteCommand has wrong signature, expected func(context.Context, string, sdk.Context) (sdk.CommandResult, error)",

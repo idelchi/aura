@@ -33,9 +33,8 @@ type Progress struct {
 // NewProgress creates a new TodoProgress tool with the given list.
 func NewProgress(list *todo.List) *Progress {
 	return &Progress{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: heredoc.Doc(`
+		Text: tool.Text{
+			Description: heredoc.Doc(`
 					Update the status of todo items by index. Use when:
 					- Completing a task (set to completed) - next pending task auto-starts
 					- Starting a specific task (set to in_progress)
@@ -47,7 +46,7 @@ func NewProgress(list *todo.List) *Progress {
 
 					You may ONLY mark a task as 'completed' if you are certain it is finished.
 				`),
-				Usage: heredoc.Doc(`
+			Usage: heredoc.Doc(`
 					Updates todo items by their 1-based index. Supports batch updates.
 					When completing a task, the next pending task auto-starts.
 
@@ -56,12 +55,11 @@ func NewProgress(list *todo.List) *Progress {
 					- Start specific task: {"updates": [{"index": 3, "status": "in_progress"}]}
 					- Batch update: {"updates": [{"index": 1, "status": "completed"}, {"index": 2, "status": "completed"}]}
 				`),
-				Examples: heredoc.Doc(`
+			Examples: heredoc.Doc(`
 					Complete task 1: {"updates": [{"index": 1, "status": "completed"}]}
 					Start task 2: {"updates": [{"index": 2, "status": "in_progress"}]}
 					Complete tasks 1 and 2: {"updates": [{"index": 1, "status": "completed"}, {"index": 2, "status": "completed"}]}
 				`),
-			},
 		},
 		list: list,
 	}

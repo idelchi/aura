@@ -47,7 +47,7 @@ func TestFormatResultNoTools(t *testing.T) {
 	})
 
 	// Extract header line (first line)
-	header := strings.SplitN(got, "\n", 2)[0]
+	header, _, _ := strings.Cut(got, "\n")
 	if strings.Contains(header, "(") {
 		t.Errorf("no tools should have no parenthetical, got header: %s", header)
 	}

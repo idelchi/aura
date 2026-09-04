@@ -147,10 +147,9 @@ func New(truncation config.BashTruncation, rewrite string) *Tool {
 	return &Tool{
 		Truncation: truncation,
 		Rewrite:    rewrite,
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: `Execute shell commands inside a bash session.`,
-				Usage: heredoc.Doc(`
+		Text: tool.Text{
+			Description: `Execute shell commands inside a bash session.`,
+			Usage: heredoc.Doc(`
 					Use for general shell commands when no dedicated tool fits.
 					Avoid using Bash for file reading, writing, or editing.
 					NEVER prefix the command with 'bash', 'bash -lc', or anything similar.
@@ -163,12 +162,11 @@ func New(truncation config.BashTruncation, rewrite string) *Tool {
 					The full output is saved to a temp file shown in the truncation message.
 					Use Read or Rg on that file to access the complete output.
 				`),
-				Examples: heredoc.Doc(`
+			Examples: heredoc.Doc(`
 					{"command": "go build ."}
 					{"command": "npm run build", "workdir": "frontend"}
 					{"command": "go run .", "timeout_ms": 10000}
 				`),
-			},
 		},
 	}
 }

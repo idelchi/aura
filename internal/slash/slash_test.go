@@ -51,37 +51,65 @@ func (s *stubContext) Reload(_ context.Context) error                   { panic(
 func (s *stubContext) ResumeSession(_ context.Context, _ *session.Session) []string {
 	panic("not implemented")
 }
-func (s *stubContext) Resolved() config.Resolved                         { panic("not implemented") }
-func (s *stubContext) Status() ui.Status                                 { panic("not implemented") }
-func (s *stubContext) DisplayHints() ui.DisplayHints                     { panic("not implemented") }
-func (s *stubContext) SandboxDisplay() string                            { panic("not implemented") }
-func (s *stubContext) SystemPrompt() string                              { panic("not implemented") }
-func (s *stubContext) ToolNames() []string                               { panic("not implemented") }
-func (s *stubContext) LoadedTools() []string                             { panic("not implemented") }
-func (s *stubContext) ResolvedModel() model.Model                        { panic("not implemented") }
-func (s *stubContext) ToolPolicy() *config.ToolPolicy                    { panic("not implemented") }
-func (s *stubContext) Cfg() config.Config                                { panic("not implemented") }
-func (s *stubContext) Paths() config.Paths                               { panic("not implemented") }
-func (s *stubContext) Runtime() *config.Runtime                          { panic("not implemented") }
-func (s *stubContext) Builder() *conversation.Builder                    { panic("not implemented") }
-func (s *stubContext) SessionManager() *session.Manager                  { panic("not implemented") }
-func (s *stubContext) TodoList() *todo.List                              { panic("not implemented") }
-func (s *stubContext) SessionStats() *stats.Stats                        { panic("not implemented") }
-func (s *stubContext) InjectorRegistry() *injector.Registry              { panic("not implemented") }
-func (s *stubContext) MCPSessions() []*mcp.Session                       { panic("not implemented") }
-func (s *stubContext) RegisterMCPSession(_ *mcp.Session) error           { panic("not implemented") }
-func (s *stubContext) SnapshotManager() *snapshot.Manager                { panic("not implemented") }
-func (s *stubContext) RequestExit()                                      { panic("not implemented") }
-func (s *stubContext) SetVerbose(_ bool)                                 { panic("not implemented") }
-func (s *stubContext) SetDone(_ bool) error                              { panic("not implemented") }
+
+func (s *stubContext) Resolved() config.Resolved { panic("not implemented") }
+
+func (s *stubContext) Status() ui.Status { panic("not implemented") }
+
+func (s *stubContext) DisplayHints() ui.DisplayHints { panic("not implemented") }
+
+func (s *stubContext) SandboxDisplay() string { panic("not implemented") }
+
+func (s *stubContext) SystemPrompt() string { panic("not implemented") }
+
+func (s *stubContext) ToolNames() []string { panic("not implemented") }
+
+func (s *stubContext) LoadedTools() []string { panic("not implemented") }
+
+func (s *stubContext) ResolvedModel() model.Model { panic("not implemented") }
+
+func (s *stubContext) ToolPolicy() *config.ToolPolicy { panic("not implemented") }
+
+func (s *stubContext) Cfg() config.Config { panic("not implemented") }
+
+func (s *stubContext) Paths() config.Paths { panic("not implemented") }
+
+func (s *stubContext) Runtime() *config.Runtime { panic("not implemented") }
+
+func (s *stubContext) Builder() *conversation.Builder { panic("not implemented") }
+
+func (s *stubContext) SessionManager() *session.Manager { panic("not implemented") }
+
+func (s *stubContext) TodoList() *todo.List { panic("not implemented") }
+
+func (s *stubContext) SessionStats() *stats.Stats { panic("not implemented") }
+
+func (s *stubContext) InjectorRegistry() *injector.Registry { panic("not implemented") }
+
+func (s *stubContext) MCPSessions() []*mcp.Session { panic("not implemented") }
+
+func (s *stubContext) RegisterMCPSession(_ *mcp.Session) error { panic("not implemented") }
+
+func (s *stubContext) SnapshotManager() *snapshot.Manager { panic("not implemented") }
+
+func (s *stubContext) RequestExit() { panic("not implemented") }
+
+func (s *stubContext) SetVerbose(_ bool) { panic("not implemented") }
+
+func (s *stubContext) SetDone(_ bool) error { panic("not implemented") }
+
 func (s *stubContext) ReadBeforePolicy() tool.ReadBeforePolicy           { return tool.DefaultReadBeforePolicy() }
 func (s *stubContext) SetReadBeforePolicy(_ tool.ReadBeforePolicy) error { return nil }
 func (s *stubContext) ModelListCache() []slash.ProviderModels            { panic("not implemented") }
-func (s *stubContext) CacheModelList(_ []slash.ProviderModels)           { panic("not implemented") }
-func (s *stubContext) ClearModelListCache()                              { panic("not implemented") }
-func (s *stubContext) SessionMeta() session.Meta                         { panic("not implemented") }
-func (s *stubContext) PluginSummary() string                             { panic("not implemented") }
-func (s *stubContext) TemplateVars() map[string]string                   { return nil }
+
+func (s *stubContext) CacheModelList(_ []slash.ProviderModels) { panic("not implemented") }
+
+func (s *stubContext) ClearModelListCache() { panic("not implemented") }
+
+func (s *stubContext) SessionMeta() session.Meta { panic("not implemented") }
+
+func (s *stubContext) PluginSummary() string           { panic("not implemented") }
+func (s *stubContext) TemplateVars() map[string]string { return nil }
 
 // drainEvents reads all buffered events from the stub's channel without blocking.
 func drainEvents(s *stubContext) []ui.Event {

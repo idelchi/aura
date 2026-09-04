@@ -32,16 +32,14 @@ type Tool struct {
 // New creates a new Rg tool.
 func New() *Tool {
 	return &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: "Fast regex search through files using ripgrep. Returns matching lines with file paths and line numbers.",
-				Usage:       "Search for regex patterns across files. Results are printed as path:line:match. Omit path to search the current directory recursively. For advanced options (globs, file types, context lines) use Bash with rg flags directly.",
-				Examples: heredoc.Doc(`
+		Text: tool.Text{
+			Description: "Fast regex search through files using ripgrep. Returns matching lines with file paths and line numbers.",
+			Usage:       "Search for regex patterns across files. Results are printed as path:line:match. Omit path to search the current directory recursively. For advanced options (globs, file types, context lines) use Bash with rg flags directly.",
+			Examples: heredoc.Doc(`
 					{"pattern": "TODO", "path": "./src"}
 					{"pattern": "func.*Error", "path": "./internal"}
 					{"pattern": "import.*context"}
 				`),
-			},
 		},
 	}
 }

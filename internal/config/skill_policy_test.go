@@ -5,6 +5,7 @@ import (
 
 	"github.com/idelchi/aura/internal/config"
 	"github.com/idelchi/godyl/pkg/path/file"
+
 	"go.yaml.in/yaml/v4"
 )
 
@@ -12,9 +13,11 @@ func TestSkillInvocationPolicy(t *testing.T) {
 	t.Parallel()
 
 	var automatic config.Skill
+
 	automatic.Metadata.Name = "automatic"
 
 	var explicit config.Skill
+
 	explicit.Metadata.Name = "explicit"
 	explicit.Metadata.Explicit = true
 
@@ -41,7 +44,11 @@ func TestSkillExplicitFrontmatter(t *testing.T) {
 	t.Parallel()
 
 	var skill config.Skill
-	if err := yaml.Unmarshal([]byte("name: user-only\ndescription: Run only when requested\nexplicit: true\n"), &skill.Metadata); err != nil {
+
+	if err := yaml.Unmarshal(
+		[]byte("name: user-only\ndescription: Run only when requested\nexplicit: true\n"),
+		&skill.Metadata,
+	); err != nil {
 		t.Fatalf("unmarshal skill metadata: %v", err)
 	}
 

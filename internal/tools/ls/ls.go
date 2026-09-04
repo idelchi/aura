@@ -31,17 +31,15 @@ type Tool struct {
 // New creates a new Ls tool with documentation.
 func New() *Tool {
 	return &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: `List directory contents with optional recursive depth control`,
-				Usage:       `Provide a directory path to list its contents, or omit for current directory. Use depth to recurse into subdirectories`,
-				Examples: heredoc.Doc(`
+		Text: tool.Text{
+			Description: `List directory contents with optional recursive depth control`,
+			Usage:       `Provide a directory path to list its contents, or omit for current directory. Use depth to recurse into subdirectories`,
+			Examples: heredoc.Doc(`
 					{}
 					{"path": "/home/user/projects"}
 					{"path": "./src", "depth": 2}
 					{"path": "/tmp", "depth": 3}
 				`),
-			},
 		},
 	}
 }

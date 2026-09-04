@@ -36,6 +36,7 @@ func (m Model) renderChatHistory() string {
 	}
 
 	m.renderUserEchoes(&b, &currentLine, m.processingMessages)
+
 	if m.currentMessage == nil {
 		m.renderUserEchoes(&b, &currentLine, m.pendingMessages)
 	}
@@ -72,6 +73,7 @@ func (m Model) renderUserEchoes(b *strings.Builder, currentLine *int, texts []st
 	for _, text := range texts {
 		if b.Len() > 0 && !strings.HasSuffix(b.String(), "\n\n") {
 			b.WriteString("\n\n")
+
 			*currentLine += 2
 		}
 

@@ -5,13 +5,15 @@ linters:
   disable:
     # No restrictions on packages
     - depguard
-    # overly strict
-    - exhaustruct
+    # Overly strict
+    - exhaustruct_v5
     # Use named returns when it makes sense
     - nonamedreturns
     # Favor inline errors
     - noinlineerr
     # Deprecated
+    - exhaustruct
+    - gomodguard
     - wsl
     # Occasional dynamic errors are fine
     - err113
@@ -171,7 +173,6 @@ formatters:
   enable:
     - gci
     - gofmt
-    - gofumpt
     - goimports
     - golines
 
@@ -195,9 +196,6 @@ formatters:
           replacement: "any"
         - pattern: "a[b:len(a)]"
           replacement: "a[b:]"
-
-    gofumpt:
-      extra-rules: true
 
     golines:
       max-len: 120

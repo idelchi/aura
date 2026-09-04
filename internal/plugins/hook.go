@@ -235,11 +235,9 @@ func (h *Hook) CheckBeforeChat(ctx context.Context, state *injector.State) *inje
 		debug.Log("[plugin] %s hook error: %v", h.Name(), err)
 
 		return &injector.BeforeChatInjection{
-			Injection: injector.Injection{
-				Name:        h.Name(),
-				Content:     fmt.Sprintf("plugin hook %q failed: %v", h.Name(), err),
-				DisplayOnly: true,
-			},
+			Name:        h.Name(),
+			Content:     fmt.Sprintf("plugin hook %q failed: %v", h.Name(), err),
+			DisplayOnly: true,
 		}
 	}
 
@@ -272,11 +270,9 @@ func (h *Hook) CheckAfterResponse(ctx context.Context, state *injector.State) *i
 		debug.Log("[plugin] %s hook error: %v", h.Name(), err)
 
 		return &injector.AfterResponseInjection{
-			Injection: injector.Injection{
-				Name:        h.Name(),
-				Content:     fmt.Sprintf("plugin hook %q failed: %v", h.Name(), err),
-				DisplayOnly: true,
-			},
+			Name:        h.Name(),
+			Content:     fmt.Sprintf("plugin hook %q failed: %v", h.Name(), err),
+			DisplayOnly: true,
 		}
 	}
 
@@ -309,11 +305,9 @@ func (h *Hook) CheckAfterTool(ctx context.Context, state *injector.State) *injec
 		debug.Log("[plugin] %s hook error: %v", h.Name(), err)
 
 		return &injector.AfterToolInjection{
-			Injection: injector.Injection{
-				Name:        h.Name(),
-				Content:     fmt.Sprintf("plugin hook %q failed: %v", h.Name(), err),
-				DisplayOnly: true,
-			},
+			Name:        h.Name(),
+			Content:     fmt.Sprintf("plugin hook %q failed: %v", h.Name(), err),
+			DisplayOnly: true,
 		}
 	}
 
@@ -346,11 +340,9 @@ func (h *Hook) CheckOnError(ctx context.Context, state *injector.State) *injecto
 		debug.Log("[plugin] %s hook error: %v", h.Name(), err)
 
 		return &injector.OnErrorInjection{
-			Injection: injector.Injection{
-				Name:        h.Name(),
-				Content:     fmt.Sprintf("plugin hook %q failed: %v", h.Name(), err),
-				DisplayOnly: true,
-			},
+			Name:        h.Name(),
+			Content:     fmt.Sprintf("plugin hook %q failed: %v", h.Name(), err),
+			DisplayOnly: true,
 		}
 	}
 
@@ -383,11 +375,9 @@ func (h *Hook) CheckBeforeCompaction(ctx context.Context, state *injector.State)
 		debug.Log("[plugin] %s hook error: %v", h.Name(), err)
 
 		return &injector.BeforeCompactionInjection{
-			Injection: injector.Injection{
-				Name:        h.Name(),
-				Content:     fmt.Sprintf("plugin hook %q failed: %v", h.Name(), err),
-				DisplayOnly: true,
-			},
+			Name:        h.Name(),
+			Content:     fmt.Sprintf("plugin hook %q failed: %v", h.Name(), err),
+			DisplayOnly: true,
 		}
 	}
 

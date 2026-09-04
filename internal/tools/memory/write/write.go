@@ -31,15 +31,13 @@ type Tool struct {
 // New creates a MemoryWrite tool rooted at the given config and global home directories.
 func New(configDir, globalHome string) *Tool {
 	return &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: "Persist a memory entry to disk. Use this to save notes, decisions, patterns, or context that should survive beyond the current conversation or compaction.",
-				Usage:       "Write a key-value memory entry. Key becomes the filename, content is markdown. Use local scope (default) for project-specific notes, global for cross-project preferences.",
-				Examples: heredoc.Doc(`
+		Text: tool.Text{
+			Description: "Persist a memory entry to disk. Use this to save notes, decisions, patterns, or context that should survive beyond the current conversation or compaction.",
+			Usage:       "Write a key-value memory entry. Key becomes the filename, content is markdown. Use local scope (default) for project-specific notes, global for cross-project preferences.",
+			Examples: heredoc.Doc(`
 					{"key": "architecture", "content": "# Architecture\n\nEvent-driven with message queue.", "scope": "local"}
 					{"key": "preferences", "content": "# Preferences\n\n- Always use dark mode\n- Prefer concise output", "scope": "global"}
 				`),
-			},
 		},
 		localDir:  folder.New(configDir, "memory").Path(),
 		globalDir: memory.GlobalMemoryDir(globalHome),

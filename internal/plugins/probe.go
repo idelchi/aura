@@ -3,6 +3,7 @@ package plugins
 import (
 	"fmt"
 	"path"
+	"reflect"
 	"strings"
 
 	"github.com/cogentcore/yaegi/interp"
@@ -52,7 +53,7 @@ func probeSDKVersion(i *interp.Interpreter) string {
 		return ""
 	}
 
-	s, ok := v.Interface().(string)
+	s, ok := reflect.TypeAssert[string](v)
 	if !ok {
 		return ""
 	}
@@ -117,14 +118,14 @@ func ProbeCapabilities(dir string) (Capabilities, error) {
 
 	// Probe tool.
 	if v, err := i.Eval(basePkg + ".Schema"); err == nil {
-		if fn, ok := v.Interface().(func() sdk.ToolSchema); ok {
+		if fn, ok := reflect.TypeAssert[func() sdk.ToolSchema](v); ok {
 			caps.ToolName = fn().Name
 		}
 	}
 
 	// Probe command.
 	if v, err := i.Eval(basePkg + ".Command"); err == nil {
-		if fn, ok := v.Interface().(func() sdk.CommandSchema); ok {
+		if fn, ok := reflect.TypeAssert[func() sdk.CommandSchema](v); ok {
 			caps.CommandName = fn().Name
 		}
 	}

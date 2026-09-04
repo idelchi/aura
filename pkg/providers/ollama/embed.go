@@ -35,9 +35,9 @@ func (c *Client) Embed(ctx context.Context, req embedding.Request) (embedding.Re
 	}
 
 	return embedding.Response{
-			Model:      resp.Model,
-			Embeddings: embeddings,
-		}, usage.Usage{
-			Input: resp.PromptEvalCount,
-		}, nil
+		Model:      resp.Model,
+		Embeddings: embeddings,
+	}, usage.Usage{
+		Input: resp.PromptEvalCount,
+	}, nil
 }

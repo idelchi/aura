@@ -39,24 +39,22 @@ type Tool struct {
 // New creates a Transcribe tool with the given configuration.
 func New(cfg config.Config, paths config.Paths, rt *config.Runtime) *Tool {
 	return &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: heredoc.Doc(`
+		Text: tool.Text{
+			Description: heredoc.Doc(`
 					Transcribes an audio file to text using a speech-to-text server.
 					Supports common audio formats: mp3, wav, ogg, flac, m4a, webm.
 					Returns the transcribed text content.
 				`),
-				Usage: heredoc.Doc(`
+			Usage: heredoc.Doc(`
 					Provide a file path to an audio file.
 					Optionally provide a language hint in ISO-639-1 format to improve accuracy.
 					If no language is given, the server auto-detects the language.
 				`),
-				Examples: heredoc.Doc(`
+			Examples: heredoc.Doc(`
 					{"path": "recording.mp3"}
 					{"path": "meeting.wav", "language": "en"}
 					{"path": "notes.ogg", "language": "ja"}
 				`),
-			},
 		},
 		Cfg:      cfg,
 		CfgPaths: paths,

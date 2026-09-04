@@ -33,9 +33,8 @@ type Tool struct {
 // New creates a new Edit tool.
 func New() *Tool {
 	return &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: heredoc.Doc(`
+		Text: tool.Text{
+			Description: heredoc.Doc(`
 					Performs exact string replacements in files.
 
 					Use this for targeted edits to existing files — changing a variable name,
@@ -45,18 +44,17 @@ func New() *Tool {
 					The file must have been Read first. The edit fails if old_string is not found,
 					or if multiple matches exist without replace_all.
 				`),
-				Usage: heredoc.Doc(`
+			Usage: heredoc.Doc(`
 					Provide file_path, old_string (exact text to find), and new_string (replacement).
 					Set replace_all to true to replace every occurrence.
 
 					Include enough surrounding context in old_string to ensure a unique match.
 				`),
-				Examples: heredoc.Doc(`
+			Examples: heredoc.Doc(`
 					{"file_path": "/home/user/main.go", "old_string": "func main() {}", "new_string": "func main() {\n\tfmt.Println(\"hello\")\n}"}
 					{"file_path": "/home/user/config.yaml", "old_string": "port: 8080", "new_string": "port: 9090"}
 					{"file_path": "/home/user/main.go", "old_string": "oldName", "new_string": "newName", "replace_all": true}
 				`),
-			},
 		},
 	}
 }

@@ -55,26 +55,24 @@ type Tool struct {
 func New(maxBodySize int64) *Tool {
 	return &Tool{
 		maxBodySize: maxBodySize,
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: heredoc.Doc(`
+		Text: tool.Text{
+			Description: heredoc.Doc(`
 					Fetches a web page and returns its content as markdown, plain text, or raw HTML.
 					Use this after WebSearch to read the full content of a specific result,
 					or directly with a known URL for documentation, API references, etc.
 				`),
-				Usage: fmt.Sprintf(heredoc.Doc(`
+			Usage: fmt.Sprintf(heredoc.Doc(`
 					Provide a URL (http or https). Optionally set format:
 					- "markdown" (default): HTML converted to clean markdown with noise removed
 					- "text": plain text extracted from the page
 					- "html": raw HTML body content
 					Response is capped at %s. Oversized results are rejected by the tool guard.
 				`), humanize.IBytes(uint64(maxBodySize))),
-				Examples: heredoc.Doc(`
+			Examples: heredoc.Doc(`
 					{"url": "https://pkg.go.dev/net/http"}
 					{"url": "https://example.com", "format": "text"}
 					{"url": "https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API", "format": "markdown"}
 				`),
-			},
 		},
 	}
 }

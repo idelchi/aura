@@ -40,6 +40,7 @@ func TestDiscoverSkillFiles(t *testing.T) {
 	}
 
 	var got []string
+
 	for _, file := range discovered {
 		rel, err := filepath.Rel(root, file.Path())
 		if err != nil {
@@ -48,6 +49,7 @@ func TestDiscoverSkillFiles(t *testing.T) {
 
 		got = append(got, filepath.ToSlash(rel))
 	}
+
 	slices.Sort(got)
 
 	want := []string{"pack/SKILL.md", "pack/nested/SKILL.md", "standalone.md"}

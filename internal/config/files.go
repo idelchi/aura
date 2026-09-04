@@ -63,6 +63,7 @@ func DiscoverSkillFiles(root folder.Folder) (files.Files, error) {
 	candidates = excludeExamples(candidates)
 
 	var packageDirs []string
+
 	for _, candidate := range candidates {
 		if candidate.Base() == "SKILL.md" {
 			packageDirs = append(packageDirs, candidate.Dir())
@@ -70,6 +71,7 @@ func DiscoverSkillFiles(root folder.Folder) (files.Files, error) {
 	}
 
 	var result files.Files
+
 	for _, candidate := range candidates {
 		if candidate.Base() == "SKILL.md" {
 			result = append(result, candidate)
@@ -78,6 +80,7 @@ func DiscoverSkillFiles(root folder.Folder) (files.Files, error) {
 		}
 
 		bundled := false
+
 		for _, packageDir := range packageDirs {
 			rel, err := filepath.Rel(packageDir, candidate.Path())
 			if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {

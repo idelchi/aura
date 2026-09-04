@@ -40,23 +40,21 @@ type Tool struct {
 // New creates a Speak tool with the given configuration.
 func New(cfg config.Config, paths config.Paths, rt *config.Runtime) *Tool {
 	return &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: heredoc.Doc(`
+		Text: tool.Text{
+			Description: heredoc.Doc(`
 					Converts text to speech audio using a TTS server.
 					Writes the audio output to the specified file path.
 					Returns the output file path on success.
 				`),
-				Usage: heredoc.Doc(`
+			Usage: heredoc.Doc(`
 					Provide the text to convert and an output file path.
 					Optionally provide a voice identifier to override the default.
 					The output format is determined by the config (default: mp3).
 				`),
-				Examples: heredoc.Doc(`
+			Examples: heredoc.Doc(`
 					{"text": "Hello, world!", "output_path": "hello.mp3"}
 					{"text": "This is a test.", "output_path": "test.wav", "voice": "af_heart"}
 				`),
-			},
 		},
 		Cfg:      cfg,
 		CfgPaths: paths,

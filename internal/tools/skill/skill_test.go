@@ -12,16 +12,19 @@ import (
 
 func makeSkills() config.Collection[config.Skill] {
 	var greet config.Skill
+
 	greet.Metadata.Name = "greet"
 	greet.Metadata.Description = "Say hello"
 	greet.Body = "Hello, world!"
 
 	var commit config.Skill
+
 	commit.Metadata.Name = "commit"
 	commit.Metadata.Description = "Make a commit"
 	commit.Body = "git add && git commit"
 
 	var explicit config.Skill
+
 	explicit.Metadata.Name = "dangerous"
 	explicit.Metadata.Description = "Perform a user-directed operation"
 	explicit.Metadata.Explicit = true
@@ -84,6 +87,7 @@ func TestExecuteResolvesSkillDirectoryOnly(t *testing.T) {
 
 	skills := makeSkills()
 	greet := skills[file.File("greet.md")]
+
 	greet.Dir = "/tmp/aura skills/greet"
 	greet.Body = "Read {{ .Skill.Dir }}/references/details.md; keep {{ .Other.Value }} literal."
 	skills[file.File("greet.md")] = greet

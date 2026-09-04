@@ -26,16 +26,14 @@ type Tool struct {
 // New creates a new Mkdir tool with documentation.
 func New() *Tool {
 	return &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: `Create directories, including parent directories if needed`,
-				Usage:       `Provide one or more directory paths to create. Parent directories are created automatically.`,
-				Examples: heredoc.Doc(`
+		Text: tool.Text{
+			Description: `Create directories, including parent directories if needed`,
+			Usage:       `Provide one or more directory paths to create. Parent directories are created automatically.`,
+			Examples: heredoc.Doc(`
 					{"paths": ["/tmp/newdir"]}
 					{"paths": ["./build/output", "./build/cache"]}
 					{"paths": ["/home/user/projects/new/deeply/nested"]}
 				`),
-			},
 		},
 	}
 }

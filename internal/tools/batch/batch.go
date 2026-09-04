@@ -53,9 +53,8 @@ type Tool struct {
 // New creates a Batch tool. The Run callback must be set separately before the tool is usable.
 func New() *Tool {
 	return &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: heredoc.Doc(`
+		Text: tool.Text{
+			Description: heredoc.Doc(`
 					Executes multiple independent tool calls concurrently for faster results.
 
 					Use this when you need to perform several independent operations — reading
@@ -76,11 +75,10 @@ func New() *Tool {
 					1-25 tool calls per batch. All calls start in parallel; ordering is NOT
 					guaranteed. Partial failures do not stop other calls.
 				`),
-				Examples: heredoc.Doc(`
+			Examples: heredoc.Doc(`
 					{"calls": [{"name": "Read", "arguments": {"file_path": "/tmp/a.go"}}, {"name": "Read", "arguments": {"file_path": "/tmp/b.go"}}]}
 					{"calls": [{"name": "Glob", "arguments": {"pattern": "**/*.go"}}, {"name": "Bash", "arguments": {"command": "go mod tidy"}}]}
 				`),
-			},
 		},
 	}
 }

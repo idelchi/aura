@@ -23,9 +23,8 @@ type List struct {
 // NewList creates a new TodoList tool with the given list.
 func NewList(list *todo.List) *List {
 	return &List{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: heredoc.Doc(`
+		Text: tool.Text{
+			Description: heredoc.Doc(`
 					Read the current todo list. Use this tool proactively and frequently:
 					- At the start of work to see pending tasks
 					- Before starting a new task
@@ -33,14 +32,13 @@ func NewList(list *todo.List) *List {
 					- After completing tasks to see remaining work
 					- Every few tool calls to stay on track
 				`),
-				Usage: heredoc.Doc(`
+			Usage: heredoc.Doc(`
 					Returns the current todo list with status for each item.
 					No parameters required - just call the tool.
 
 					Use this frequently to maintain awareness of task progress.
 				`),
-				Examples: `{}`,
-			},
+			Examples: `{}`,
 		},
 		list: list,
 	}

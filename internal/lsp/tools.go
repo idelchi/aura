@@ -24,20 +24,18 @@ type DiagnosticsTool struct {
 // NewDiagnosticsTool creates a Diagnostics tool backed by the given manager.
 func NewDiagnosticsTool(manager *Manager) *DiagnosticsTool {
 	return &DiagnosticsTool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: `Get compiler diagnostics (errors, warnings) from running LSP servers.`,
-				Usage: heredoc.Doc(`
+		Text: tool.Text{
+			Description: `Get compiler diagnostics (errors, warnings) from running LSP servers.`,
+			Usage: heredoc.Doc(`
 					Returns diagnostics from all active LSP servers.
 					If path is provided, only diagnostics for that file are returned.
 					If path is omitted, returns diagnostics for all open files.
 					LSP servers are lazily started when a file path is provided.
 				`),
-				Examples: heredoc.Doc(`
+			Examples: heredoc.Doc(`
 					{"path": "internal/server/handler.go"}
 					{}
 				`),
-			},
 		},
 		manager: manager,
 	}
@@ -86,18 +84,16 @@ type RestartTool struct {
 // NewRestartTool creates an LspRestart tool backed by the given manager.
 func NewRestartTool(manager *Manager) *RestartTool {
 	return &RestartTool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: `Restart LSP servers. Use after configuration changes or if diagnostics seem stale.`,
-				Usage: heredoc.Doc(`
+		Text: tool.Text{
+			Description: `Restart LSP servers. Use after configuration changes or if diagnostics seem stale.`,
+			Usage: heredoc.Doc(`
 					Restarts a single named server or all servers if no name is given.
 					Use when LSP servers are misbehaving or after changing project configuration.
 				`),
-				Examples: heredoc.Doc(`
+			Examples: heredoc.Doc(`
 					{}
 					{"server": "gopls"}
 				`),
-			},
 		},
 		manager: manager,
 	}

@@ -21,12 +21,14 @@ func TestSkillPrompt(t *testing.T) {
 	t.Parallel()
 
 	var configured config.Skill
+
 	configured.Metadata.Name = "greet"
 	configured.Metadata.Description = "Greet someone"
 	configured.Body = "Read {{ .Skill.Dir }}/references/greeting.md."
 	configured.Dir = "/tmp/aura skills/greet"
 
 	skills := config.Collection[config.Skill]{file.File("greet/SKILL.md"): configured}
+
 	prompt, err := skillPrompt(skills, "GREET")
 	if err != nil {
 		t.Fatalf("invoking skill: %v", err)
@@ -42,12 +44,14 @@ func TestSkillPromptIncludesExplicitOnlySkill(t *testing.T) {
 	t.Parallel()
 
 	var configured config.Skill
+
 	configured.Metadata.Name = "dangerous"
 	configured.Metadata.Description = "Perform a user-directed operation"
 	configured.Metadata.Explicit = true
 	configured.Body = "Follow the user's explicit instructions."
 
 	skills := config.Collection[config.Skill]{file.File("dangerous/SKILL.md"): configured}
+
 	prompt, err := skillPrompt(skills, "dangerous")
 	if err != nil {
 		t.Fatalf("invoking explicit-only skill: %v", err)

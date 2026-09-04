@@ -268,6 +268,7 @@ func (c Config) BuildAgent(
 	}
 
 	deferredIndex := ""
+
 	if len(deferred) > 0 {
 		deferredIndex = NewDeferredToolIndex(deferred).Render()
 	}

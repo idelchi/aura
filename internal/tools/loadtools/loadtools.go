@@ -32,22 +32,20 @@ type Tool struct {
 // onLoad is called with the resolved tool names — it must update the loaded set and rebuild state.
 func New(deferred tool.Tools, onLoad func([]string) error) *Tool {
 	return &Tool{
-		Base: tool.Base{
-			Text: tool.Text{
-				Description: heredoc.Doc(`
+		Text: tool.Text{
+			Description: heredoc.Doc(`
 					Load deferred tools by name or server so they become available for use.
 					Call this when you need a tool listed as available but not yet loaded.
 				`),
-				Usage: heredoc.Doc(`
+			Usage: heredoc.Doc(`
 					After loading, tool schemas are included in subsequent requests and you
 					can call them normally. Supports glob patterns with *.
 				`),
-				Examples: heredoc.Doc(`
+			Examples: heredoc.Doc(`
 					{"tools": ["Vision"]}
 					{"tools": ["mcp__portainer__*"]}
 					{"tools": ["Vision", "Query"]}
 				`),
-			},
 		},
 		deferred: deferred,
 		onLoad:   onLoad,
