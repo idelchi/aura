@@ -242,6 +242,8 @@ func runCommands(
 			continue
 		}
 
+		iterationsBefore := asst.SessionStats().Iterations
+
 		if err := asst.ProcessInput(ctx, cmd); err != nil {
 			return fmt.Errorf("task %q command %d (%s): %w", taskName, i+1, cmd, err)
 		}
@@ -256,6 +258,16 @@ func runCommands(
 				case <-ctx.Done():
 				}
 			case <-ctx.Done():
+			}
+		}
+
+		// A budget-exhausted turn may finish normally with one text-only response.
+		// Tasks still need to run on_max_steps; slash commands that did not run
+		// the model must not inherit the previous turn's exhausted counter.
+		if asst.SessionStats().Iterations > iterationsBefore {
+			steps := asst.Status().Steps
+			if steps.Current > steps.Max {
+				return fmt.Errorf("task %q command %d: %w (%d)", taskName, i+1, assistant.ErrMaxSteps, steps.Max)
 			}
 		}
 	}
@@ -438,7 +450,7 @@ func runTask(
 
 		// Local signal handler for SIGINT during fresh-context mode.
 		// When continue_on_error is true and the parent context is cancelled
-		// programmatically, fresh per-item contexts are created from Background().
+		// programmatically, fresh per-item contexts retain its values and deadline.
 		// Those fresh contexts can't detect a late SIGINT through the parent chain,
 		// so this channel provides an independent abort signal.
 		var abortCh <-chan struct{}
@@ -478,23 +490,29 @@ func runTask(
 				}
 			}
 
-			// Cause-aware context guard: SIGINT = hard-abort, programmatic = fall through
-			// when continue_on_error is set, creating a fresh per-item context below.
+			// Interrupts and deadlines stop the task. Other cancellations can recover
+			// per item when continue_on_error is set, without extending the deadline.
 			if ctx.Err() != nil {
-				if errors.Is(context.Cause(ctx), core.ErrUserAbort) || !t.ForEach.ContinueOnError {
-					return fmt.Errorf("task %q cancelled at item %d/%d", t.Name, i+1, len(items))
+				if errors.Is(ctx.Err(), context.DeadlineExceeded) ||
+					errors.Is(context.Cause(ctx), core.ErrUserAbort) || !t.ForEach.ContinueOnError {
+					return fmt.Errorf("task %q cancelled at item %d/%d: %w", t.Name, i+1, len(items), ctx.Err())
 				}
 			}
 
-			// Build per-item context: fresh from Background() when parent is cancelled,
-			// otherwise inherit the parent context.
+			// Detach recoverable cancellation while preserving values and deadline;
+			// otherwise use the parent context directly.
 			var (
 				itemCtx    context.Context
 				itemCancel context.CancelFunc
 			)
 
 			if ctx.Err() != nil {
-				itemCtx, itemCancel = context.WithTimeout(context.Background(), t.Timeout)
+				// Recoverable cancellation must not renew the task's time budget.
+				if deadline, ok := ctx.Deadline(); ok {
+					itemCtx, itemCancel = context.WithDeadline(context.WithoutCancel(ctx), deadline)
+				} else {
+					itemCtx, itemCancel = context.WithTimeout(context.WithoutCancel(ctx), t.Timeout)
+				}
 
 				if len(taskEnv) > 0 {
 					itemCtx = task.WithEnv(itemCtx, taskEnv)
@@ -616,7 +634,11 @@ func runTask(
 			)
 
 			if ctx.Err() != nil {
-				finallyCtx, finallyCancel = context.WithTimeout(context.Background(), t.Timeout)
+				if deadline, ok := ctx.Deadline(); ok {
+					finallyCtx, finallyCancel = context.WithDeadline(context.WithoutCancel(ctx), deadline)
+				} else {
+					finallyCtx, finallyCancel = context.WithTimeout(context.WithoutCancel(ctx), t.Timeout)
+				}
 
 				if len(taskEnv) > 0 {
 					finallyCtx = task.WithEnv(finallyCtx, taskEnv)
