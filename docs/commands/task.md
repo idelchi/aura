@@ -230,6 +230,10 @@ logs:
 | `continue_on_error:` | Log per-item errors and continue instead of aborting; the task's original timeout still applies |
 | `retries:`           | Additional attempts per failed item (0 = no retry)          |
 
+A child task's `foreach` block replaces the entire inherited block. Omit it to inherit the parent's
+source and options. When overriding it, repeat any options you want to keep, such as
+`continue_on_error: true`; a new `file` source does not retain an inherited `shell` source.
+
 `finally:` runs once after all iterations through the assistant.
 
 ## Concurrency

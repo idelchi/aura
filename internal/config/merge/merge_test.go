@@ -209,3 +209,41 @@ func TestMergePointerNonNilOverrides(t *testing.T) {
 		t.Errorf("Enabled = %v, want &false", dst.Enabled)
 	}
 }
+
+// TestMergeStructPointer verifies replacement, inheritance and explicit empty overrides.
+func TestMergeStructPointer(t *testing.T) {
+	t.Parallel()
+
+	type options struct {
+		Command string
+		Retries int
+	}
+	type config struct {
+		Options *options
+	}
+
+	for _, test := range []struct {
+		name string
+		src  *options
+		want options
+	}{
+		{name: "nil inherits", want: options{Command: "parent", Retries: 2}},
+		{name: "non-nil replaces", src: &options{Command: "child"}, want: options{Command: "child"}},
+		{name: "empty replaces", src: &options{}, want: options{}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			parent := options{Command: "parent", Retries: 2}
+			dst := config{Options: &parent}
+			if err := merge.Merge(&dst, config{Options: test.src}); err != nil {
+				t.Fatal(err)
+			}
+			if dst.Options == nil || *dst.Options != test.want {
+				t.Errorf("Options = %+v, want %+v", dst.Options, test.want)
+			}
+			if parent != (options{Command: "parent", Retries: 2}) {
+				t.Errorf("merge changed parent: %+v", parent)
+			}
+		})
+	}
+}

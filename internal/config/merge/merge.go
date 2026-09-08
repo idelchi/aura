@@ -10,24 +10,14 @@ import (
 	"dario.cat/mergo"
 )
 
-// overrideTransformer distinguishes nil from non-nil for slices and maps.
+// overrideTransformer distinguishes nil from non-nil for pointers, slices and maps.
 // nil = inherit from parent, non-nil (including empty) = override parent.
-// mergo treats empty slices/maps as zero-value and skips them; this fixes that.
+// It also replaces pointers to structs, which WithoutDereference alone leaves unchanged.
 type overrideTransformer struct{}
 
 func (overrideTransformer) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
 	switch typ.Kind() {
-	case reflect.Slice:
-		return func(dst, src reflect.Value) error {
-			if src.IsNil() {
-				return nil
-			}
-
-			dst.Set(src)
-
-			return nil
-		}
-	case reflect.Map:
+	case reflect.Ptr, reflect.Slice, reflect.Map:
 		return func(dst, src reflect.Value) error {
 			if src.IsNil() {
 				return nil
@@ -44,7 +34,7 @@ func (overrideTransformer) Transformer(typ reflect.Type) func(dst, src reflect.V
 
 // Merge applies src on top of dst using the project's canonical merge semantics:
 //   - Non-zero src values replace dst values (WithOverride)
-//   - Pointer fields are not dereferenced (WithoutDereference) — nil pointer = inherit
+//   - Pointer fields: nil = inherit, non-nil = replace the entire value (including structs)
 //   - Slices and maps: nil = inherit, empty = clear parent (overrideTransformer)
 func Merge(dst, src any) error {
 	return mergo.Merge(dst, src,
