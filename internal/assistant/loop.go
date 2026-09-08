@@ -55,8 +55,8 @@ func (a *Assistant) Loop(
 
 			a.session.stats.RecordInteraction()
 
-			if a.handleSlash != nil {
-				msg, handled, forward, err := a.handleSlash(ctx, a, input.Text)
+			if a.slashRegistry != nil {
+				msg, handled, forward, err := a.slashRegistry.Handle(ctx, a, input.Text)
 				if handled {
 					if err != nil {
 						a.send(ui.CommandResult{Error: err})
@@ -628,8 +628,8 @@ func (a *Assistant) ProcessInput(ctx context.Context, input string) error {
 	a.session.stats.RecordInteraction()
 
 	// Try slash command first
-	if a.handleSlash != nil {
-		msg, handled, forward, err := a.handleSlash(ctx, a, input)
+	if a.slashRegistry != nil {
+		msg, handled, forward, err := a.slashRegistry.Handle(ctx, a, input)
 		if handled {
 			if err != nil {
 				a.send(ui.CommandResult{Error: err})

@@ -247,11 +247,11 @@ func (a *Assistant) applyUIAction(ctx context.Context, action ui.Action) {
 		})
 		a.EmitStatus()
 	case ui.RunCommand:
-		if a.handleSlash == nil {
+		if a.slashRegistry == nil {
 			return
 		}
 
-		msg, _, forward, err := a.handleSlash(ctx, a, act.Name)
+		msg, _, forward, err := a.slashRegistry.Handle(ctx, a, act.Name)
 		if err != nil {
 			a.send(ui.CommandResult{Error: err})
 

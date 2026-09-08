@@ -2,6 +2,8 @@ package plugins
 
 import (
 	"fmt"
+	"reflect"
+	"slices"
 
 	"github.com/idelchi/aura/internal/config"
 	"github.com/idelchi/aura/internal/config/merge"
@@ -15,12 +17,23 @@ import (
 // Cache holds all loaded plugins for a session. It owns a shared temp GOPATH
 // used by all plugin interpreters (following Traefik's Manager pattern).
 type Cache struct {
-	plugins []*Plugin
-	goPath  string
+	definitions config.StringCollection[config.Plugin] // Definitions retained for lazy selection.
+	loaded      map[string]*Plugin                     // Interpreters retained across temporary exclusion.
+	settings    map[string]loadSettings                // Initialization inputs for each loaded interpreter.
+	active      []*Plugin                              // Current effective selection, sorted by plugin name.
+	goPath      string                                 // Shared temporary dependency workspace.
+	configDir   string                                 // Config home passed to plugin initialization.
+}
+
+// loadSettings identifies interpreter initialization inputs that require reloading.
+type loadSettings struct {
+	unsafe bool           // Access to restricted interpreter imports.
+	config map[string]any // Merged default, global and per-plugin settings.
 }
 
 // LoadAll creates a Cache by loading all enabled plugins from config.
-// Returns a nil Cache if no plugins are configured or all are disabled.
+// Returns a nil Cache only when no plugins are configured. Inactive definitions
+// remain available for later agent or mode selections without loading their code.
 // The features parameter controls unsafe mode and include/exclude filtering.
 // configDir is the project .aura/ directory, passed to plugin Init() as ToolConfig.ConfigDir.
 func LoadAll(
@@ -45,48 +58,76 @@ func LoadAll(
 		return nil, fmt.Errorf("creating plugin GOPATH src: %w", err)
 	}
 
-	var loaded []*Plugin
-
-	for name, cfg := range cfgPlugins {
-		if !cfg.IsEnabled() {
-			debug.Log("[plugin] %q: disabled, skipping", name)
-
-			continue
-		}
-
-		if !matchesFilters(name, features.Include, features.Exclude) {
-			debug.Log("[plugin] %q: excluded by filter, skipping", name)
-
-			continue
-		}
-
-		merged, err := mergePluginConfig(cfg.Config, features.Config.Global, features.Config.Local[name])
-		if err != nil {
-			goDir.Remove()
-
-			return nil, fmt.Errorf("merging config for plugin %q: %w", name, err)
-		}
-
-		p, err := Load(name, cfg, goPath, features.Unsafe, configDir, merged)
-		if err != nil {
-			goDir.Remove()
-
-			return nil, fmt.Errorf("loading plugin: %w", err)
-		}
-
-		loaded = append(loaded, p)
+	c := &Cache{
+		definitions: cfgPlugins,
+		loaded:      make(map[string]*Plugin),
+		settings:    make(map[string]loadSettings),
+		goPath:      goPath,
+		configDir:   configDir,
 	}
-
-	if len(loaded) == 0 {
-		goDir.Remove()
-
-		return nil, nil
+	if _, err := c.Select(features); err != nil {
+		c.Close()
+		return nil, err
 	}
-
-	return &Cache{plugins: loaded, goPath: goPath}, nil
+	return c, nil
 }
 
-// Tools returns all tool exports from loaded plugins.
+// Select activates the effective plugin set. Unchanged interpreters keep their
+// state, including across temporary exclusion. New code loads only when selected.
+// A failed load leaves the previous selection and its interpreters intact.
+func (c *Cache) Select(features config.PluginConfig) (bool, error) {
+	if c == nil {
+		return false, nil
+	}
+	var active []*Plugin
+	created := make(map[string]*Plugin)
+	settings := make(map[string]loadSettings)
+	committed := false
+	defer func() {
+		if !committed {
+			for _, p := range created {
+				p.Close()
+			}
+		}
+	}()
+	for _, name := range c.definitions.Names() {
+		cfg := c.definitions[name]
+		if !cfg.IsEnabled() || !matchesFilters(name, features.Include, features.Exclude) {
+			continue
+		}
+		merged, err := mergePluginConfig(cfg.Config, features.Config.Global, features.Config.Local[name])
+		if err != nil {
+			return false, fmt.Errorf("merging config for plugin %q: %w", name, err)
+		}
+		wanted := loadSettings{unsafe: features.Unsafe, config: merged}
+		p := c.loaded[name]
+		if p == nil || !reflect.DeepEqual(c.settings[name], wanted) {
+			p, err = Load(name, cfg, c.goPath, features.Unsafe, c.configDir, merged)
+			if err != nil {
+				return false, fmt.Errorf("loading plugin: %w", err)
+			}
+			created[name] = p
+			settings[name] = wanted
+		}
+		active = append(active, p)
+	}
+	changed := !slices.Equal(c.active, active)
+	for name, p := range created {
+		if old := c.loaded[name]; old != nil {
+			old.Close()
+		}
+		c.loaded[name] = p
+		c.settings[name] = settings[name]
+	}
+	c.active = active
+	committed = true
+	if changed {
+		debug.Log("[plugin] selected %d plugins", len(active))
+	}
+	return changed, nil
+}
+
+// Tools returns tool exports from the active selection.
 func (c *Cache) Tools() []*PluginTool {
 	if c == nil {
 		return nil
@@ -94,7 +135,7 @@ func (c *Cache) Tools() []*PluginTool {
 
 	var tools []*PluginTool
 
-	for _, p := range c.plugins {
+	for _, p := range c.active {
 		if p.tool != nil {
 			tools = append(tools, p.tool)
 		}
@@ -103,7 +144,7 @@ func (c *Cache) Tools() []*PluginTool {
 	return tools
 }
 
-// Commands returns all command exports from loaded plugins as slash commands.
+// Commands returns command exports from the active selection as slash commands.
 func (c *Cache) Commands() []slash.Command {
 	if c == nil {
 		return nil
@@ -111,7 +152,7 @@ func (c *Cache) Commands() []slash.Command {
 
 	var cmds []slash.Command
 
-	for _, p := range c.plugins {
+	for _, p := range c.active {
 		if p.command != nil {
 			cmds = append(cmds, p.command.ToSlashCommand())
 		}
@@ -131,7 +172,7 @@ func matchesFilters(name string, include, exclude []string) bool {
 	return !wildcard.MatchAny(name, exclude...)
 }
 
-// Hooks returns all hook injectors from all loaded plugins.
+// Hooks returns hook injectors from the active selection.
 func (c *Cache) Hooks() []injector.Injector {
 	if c == nil {
 		return nil
@@ -139,7 +180,7 @@ func (c *Cache) Hooks() []injector.Injector {
 
 	var hooks []injector.Injector
 
-	for _, p := range c.plugins {
+	for _, p := range c.active {
 		for _, h := range p.Hooks() {
 			hooks = append(hooks, h)
 		}
@@ -183,7 +224,7 @@ func (c *Cache) Close() {
 		return
 	}
 
-	for _, p := range c.plugins {
+	for _, p := range c.loaded {
 		p.Close()
 	}
 

@@ -382,16 +382,26 @@ Pack plugins cannot be removed individually — set `disabled: true` in `plugin.
 
 | Event     | What happens                                                         |
 | --------- | -------------------------------------------------------------------- |
-| Startup   | Source loaded, interpreter created, hooks + tools probed, registered |
+| Startup   | Effective agent/mode filters select which plugin code is loaded and registered |
 | Each turn | Hooks fire at their timing point; condition evaluated first if set   |
+| Agent/mode/task feature change | Hooks, tools, slash commands, help and hints follow the effective selection |
 | `/reload` | Old interpreter destroyed, new one created from current files        |
 | Shutdown  | Interpreter released                                                 |
 
-Package-level variables persist across hook invocations but reset on `/reload`.
+Plugin filters follow the normal feature precedence: global → agent → mode → task → CLI overrides.
+Exclusion removes all exports, not just tool visibility. A selected plugin loads lazily;
+deselecting and reselecting it preserves its interpreter state. Changed plugin initialization
+config or unsafe mode recreates the affected interpreter. `/reload` recreates the cache
+from current files using the current selection. A plugin marked `disabled: true` in its
+definition cannot be enabled by an include filter. These are session-agent rules;
+standalone `aura tools` inspection uses global configuration.
+
+Package-level variables persist across hook invocations and temporary exclusion, but reset
+when the interpreter is recreated.
 
 ## Visibility
 
-`/plugins` lists all loaded plugin hooks grouped by timing:
+`/plugins` lists currently active plugin hooks grouped by timing, plus active tools and commands:
 
 ```
 BeforeChat:

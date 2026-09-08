@@ -299,7 +299,33 @@ func NewAssistant(
 		flags.Agent = resolved.Metadata.Name
 	}
 
-	// Load plugins early so plugin tools are available in the tool registry.
+	// Resolve invocation overrides before loading plugin code, including task agents.
+	overrides, err := buildOverrides(flags)
+	if err != nil {
+		return nil, nil, err
+	}
+	var overrideTarget config.OverrideTarget
+	overrideNodes, err := override.Cache(&overrideTarget, allOverrides)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid --override: %w", err)
+	}
+	mode := ""
+	if selected := cfg.Agents.Get(flags.Agent); selected != nil {
+		mode = selected.Metadata.Mode
+	}
+	if overrides.Mode != nil {
+		mode = *overrides.Mode
+	}
+	initialFeatures, err := cfg.ResolveFeatures(cfg.Features, flags.Agent, mode)
+	if err != nil {
+		return nil, nil, err
+	}
+	scratch := config.OverrideTarget{Features: initialFeatures}
+	if err := overrideNodes.Apply(&scratch); err != nil {
+		return nil, nil, err
+	}
+
+	// Load only effective plugins so excluded hooks, tools and commands never start.
 	var pluginCache *plugins.Cache
 
 	if opts.WithPlugins {
@@ -307,7 +333,7 @@ func NewAssistant(
 
 		donePlugins := debug.Span("  loading plugins")
 
-		pluginCache, err = plugins.LoadAll(cfg.Plugins, cfg.Features.PluginConfig, paths.Home)
+		pluginCache, err = plugins.LoadAll(cfg.Plugins, scratch.Features.PluginConfig, paths.Home)
 		if err != nil {
 			return nil, nil, fmt.Errorf("loading plugins: %w", err)
 		}
@@ -346,21 +372,6 @@ func NewAssistant(
 	taskTool, batchTool, err := buildToolRegistry(&cfg, paths, rt, flags, todoList, events, pluginCache, lspManager)
 	if err != nil {
 		return nil, nil, err
-	}
-
-	// Build CLI overrides for agent construction.
-	overrides, err := buildOverrides(flags)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Parse + validate all overrides (--max-steps, --token-budget, --override)
-	// into cached YAML nodes against OverrideTarget. One validation path.
-	var overrideTarget config.OverrideTarget
-
-	overrideNodes, err := override.Cache(&overrideTarget, allOverrides)
-	if err != nil {
-		return nil, nil, fmt.Errorf("invalid --override: %w", err)
 	}
 
 	// Extract model fields for agent.Overrides (provider reconstruction in agent.New).
@@ -454,7 +465,7 @@ func NewAssistant(
 		Events:        events,
 		Todo:          todoList,
 		Sessions:      sessionMgr,
-		Slash:         slashRegistry.Handle,
+		Slash:         slashRegistry,
 		Auto:          flags.Auto,
 		SetVars:       flags.Set,
 		ConfigOpts:    opts,

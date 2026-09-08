@@ -35,10 +35,6 @@ import (
 	"github.com/idelchi/aura/pkg/tokens"
 )
 
-// SlashHandler handles slash command input.
-// When forward is true, msg should be sent to the LLM as a user message.
-type SlashHandler func(ctx context.Context, sctx slash.Context, input string) (msg string, handled, forward bool, err error)
-
 // loopState holds fields that are reset at the start of each processInputs() call.
 // Separating these from persistent Assistant state makes the lifecycle explicit.
 type loopState struct {
@@ -159,13 +155,13 @@ type tokenState struct {
 // and invalidates all 5 feature model caches (compact, title, thinking, guardrail×2).
 type Assistant struct {
 	// Core dependencies
-	agent       *agent.Agent
-	cfg         config.Config
-	paths       config.Paths    // filesystem context (immutable)
-	rt          *config.Runtime // mutable runtime state (persists across reloads)
-	events      chan<- ui.Event
-	handleSlash SlashHandler
-	builder     *conversation.Builder
+	agent         *agent.Agent
+	cfg           config.Config
+	paths         config.Paths    // filesystem context (immutable)
+	rt            *config.Runtime // mutable runtime state (persists across reloads)
+	events        chan<- ui.Event
+	slashRegistry *slash.Registry
+	builder       *conversation.Builder
 
 	// Cached/derived state — invalidated by rebuildState()
 	resolved resolvedState
@@ -230,7 +226,7 @@ type Params struct {
 	Todo          *todo.List
 	Plugins       *plugins.Cache
 	LSP           *lsp.Manager
-	Slash         SlashHandler
+	Slash         *slash.Registry
 	Auto          bool
 	SetVars       map[string]string
 	ConfigOpts    config.Options
@@ -285,7 +281,7 @@ func New(p Params) (*Assistant, error) {
 		rt:             p.Runtime,
 		globalFeatures: globalFeatures,
 		events:         p.Events,
-		handleSlash:    p.Slash,
+		slashRegistry:  p.Slash,
 		resolved: resolvedState{
 			sandbox:    buildSandbox(cfg.Features.Sandbox.IsEnabled(), cfg.EffectiveRestrictions(), p.Paths.Work),
 			toolPolicy: new(cfg.EffectiveToolPolicy(p.Agent.Name, p.Agent.Mode)),

@@ -259,16 +259,16 @@ func (a *Assistant) RebuildState() error {
 	return a.rebuildState()
 }
 
-func (a *Assistant) rebuildState() error {
-	// 1. Recompute effective features FIRST so BuildAgent reads correct state.
-	effective, err := a.cfg.ResolveFeatures(a.globalFeatures, a.agent.Name, a.agent.Mode)
+// effectiveFeatures resolves agent, mode, task and invocation layers without changing config.
+func (a *Assistant) effectiveFeatures(cfg config.Config, global config.Features) (config.Features, error) {
+	effective, err := cfg.ResolveFeatures(global, a.agent.Name, a.agent.Mode)
 	if err != nil {
-		return err
+		return config.Features{}, err
 	}
 
 	if a.tools.extraFeatures != nil {
 		if err := effective.MergeFrom(*a.tools.extraFeatures); err != nil {
-			return fmt.Errorf("merging extra features: %w", err)
+			return config.Features{}, fmt.Errorf("merging extra features: %w", err)
 		}
 	}
 
@@ -277,20 +277,39 @@ func (a *Assistant) rebuildState() error {
 	if len(a.overrideNodes) > 0 {
 		scratch := config.OverrideTarget{Features: effective}
 		if err := a.overrideNodes.Apply(&scratch); err != nil {
-			return fmt.Errorf("applying overrides: %w", err)
+			return config.Features{}, fmt.Errorf("applying overrides: %w", err)
 		}
 
 		effective = scratch.Features
 	}
 
 	if err := effective.ValidateResolved(); err != nil {
-		return fmt.Errorf("validating features: %w", err)
+		return config.Features{}, fmt.Errorf("validating features: %w", err)
+	}
+	return effective, nil
+}
+
+// rebuildState recomputes the active agent's resolved configuration and registries.
+func (a *Assistant) rebuildState() error {
+	effective, err := a.effectiveFeatures(a.cfg, a.globalFeatures)
+	if err != nil {
+		return err
+	}
+	changed, err := a.tools.plugins.Select(effective.PluginConfig)
+	if err != nil {
+		return err
 	}
 
 	// Runtime toggles (/sandbox, /readbefore) are written to cfg.Features
 	// AFTER this and still win over CLI flags.
 
 	a.cfg.Features = effective
+	if changed {
+		if err := a.rebuildTools(a.cfg); err != nil {
+			return err
+		}
+	}
+	a.rebuildSlash()
 
 	// Recompute opt-in tools from resolved features + plugin flags.
 	a.rt.OptInTools = slices.Clone(a.cfg.Features.ToolExecution.OptIn)

@@ -20,7 +20,6 @@ import (
 // Preserves MCP tools from existing sessions without reconnecting.
 // Called per-turn from processInputs() and as the first phase of Reload().
 func (a *Assistant) reloadConfig(existing *config.Config) error {
-	// === Phase 1: Build (can fail, no side effects) ===
 	var (
 		newCfg config.Config
 		err    error
@@ -35,15 +34,14 @@ func (a *Assistant) reloadConfig(existing *config.Config) error {
 		}
 	}
 
-	// Store clean global features before applying task overlay.
+	// Store the clean global base, then select plugins using all effective layers.
 	globalFeatures := newCfg.Features
-
-	// Apply task overlay so tools are constructed with merged feature values
-	// (e.g. Bash.Truncation, ReadSmallFileTokens, WebFetchMaxBodySize).
-	if a.tools.extraFeatures != nil {
-		if err := newCfg.Features.MergeFrom(*a.tools.extraFeatures); err != nil {
-			return fmt.Errorf("merging task features: %w", err)
-		}
+	newCfg.Features, err = a.effectiveFeatures(newCfg, globalFeatures)
+	if err != nil {
+		return err
+	}
+	if _, err := a.tools.plugins.Select(newCfg.Features.PluginConfig); err != nil {
+		return err
 	}
 
 	// Rebuild estimator from merged config (method/divisor/encoding may have changed,
@@ -56,17 +54,32 @@ func (a *Assistant) reloadConfig(existing *config.Config) error {
 	newEstimator.SetDebug(debug.Log)
 
 	a.rt.Estimator = newEstimator
+	a.estimator = newEstimator
+	if err := a.rebuildTools(newCfg); err != nil {
+		return err
+	}
+	a.cfg = newCfg
+	a.globalFeatures = globalFeatures
 
+	// Keep the resolved model: config reload does not change the selected agent.
+	// Unchanged plugin interpreters also retain their state across turns.
+	return a.rebuildState()
+}
+
+// rebuildTools uses the canonical assembly pipeline, preserving Task/Batch callbacks
+// and permitted MCP sessions. Reassembly restores built-ins when an overriding
+// plugin is deselected as well as removing that plugin's exported tools.
+func (a *Assistant) rebuildTools(cfg config.Config) error {
 	// Rebuild tools — re-inject existing Task/Batch rather than creating new ones.
 	if _, err := assemble.Tools(assemble.Params{
-		Config:        newCfg,
+		Config:        cfg,
 		Paths:         a.paths,
 		Runtime:       a.rt,
 		TodoList:      a.tools.todo,
 		Events:        a.events,
 		PluginCache:   a.tools.plugins,
 		LSPManager:    a.tools.lsp,
-		Estimate:      newEstimator.EstimateLocal,
+		Estimate:      a.estimator.EstimateLocal,
 		ExistingTask:  a.tools.task,
 		ExistingBatch: a.tools.batch,
 	}); err != nil {
@@ -75,8 +88,8 @@ func (a *Assistant) reloadConfig(existing *config.Config) error {
 
 	// Re-inject MCP tools from sessions that pass the current filter.
 	// Sessions excluded by the new filter are closed (resource cleanup).
-	mcpInclude, mcpExclude := newCfg.MCPFilter(a.rt)
-	filteredMCPs := config.FilterMCPs(newCfg.MCPs, mcpInclude, mcpExclude)
+	mcpInclude, mcpExclude := cfg.MCPFilter(a.rt)
+	filteredMCPs := config.FilterMCPs(cfg.MCPs, mcpInclude, mcpExclude)
 
 	var keptSessions []*mcp.Session
 
@@ -98,17 +111,23 @@ func (a *Assistant) reloadConfig(existing *config.Config) error {
 
 	if len(a.rt.DisplayProviders) > 0 {
 		providers := a.rt.DisplayProviders
-		newCfg.Agents.RemoveIf(func(a config.Agent) bool { return !a.HasProvider(providers) })
+		cfg.Agents.RemoveIf(func(a config.Agent) bool { return !a.HasProvider(providers) })
 	}
 
-	if include, exclude := newCfg.GlobalFilter(a.rt); len(include) > 0 || len(exclude) > 0 {
+	if include, exclude := cfg.GlobalFilter(a.rt); len(include) > 0 || len(exclude) > 0 {
 		a.rt.AllTools = a.rt.AllTools.Filtered(include, exclude)
 	}
+	return nil
+}
 
-	// Rebuild slash registry
+// rebuildSlash updates execution, help and UI hints from the same active command set.
+func (a *Assistant) rebuildSlash() {
+	if a.slashRegistry == nil {
+		return
+	}
 	newRegistry := slash.New(commands.All...)
 
-	for _, cmd := range slash.FromCustomCommands(newCfg.Commands) {
+	for _, cmd := range slash.FromCustomCommands(a.cfg.Commands) {
 		if _, exists := newRegistry.Lookup(cmd.Name); exists {
 			continue
 		}
@@ -125,22 +144,7 @@ func (a *Assistant) reloadConfig(existing *config.Config) error {
 		newRegistry.Register(cmd)
 	}
 
-	// === Phase 2: Swap (cannot fail) ===
-	// Note: plugin cache is NOT rebuilt per-turn — interpreters hold state
-	// (package-level vars). Plugins only reload on explicit /reload.
-
-	a.cfg = newCfg
-	a.globalFeatures = globalFeatures
-	a.estimator = newEstimator
-	a.handleSlash = newRegistry.Handle
-
-	// Don't reset a.resolved.model — reloadConfig doesn't change a.agent,
-	// so the cached model is still valid. Resetting causes a UI flicker
-	// (TokensMax=0 until re-resolved). SetAgent/SetModel reset it when needed.
-	// Feature model caches (compactModel, titleModel, thinkingModel, guardrail models)
-	// are cleared by rebuildState() below.
-
-	return a.rebuildState()
+	*a.slashRegistry = *newRegistry
 }
 
 // Reload re-reads config from disk, rebuilds all derived state, and
@@ -155,7 +159,11 @@ func (a *Assistant) Reload(ctx context.Context) error {
 
 	// Rebuild plugin cache (interpreters hold state, so only rebuild on explicit /reload).
 	if a.rt.WithPlugins {
-		newPluginCache, err := plugins.LoadAll(newCfg.Plugins, newCfg.Features.PluginConfig, a.paths.Home)
+		effective, err := a.effectiveFeatures(newCfg, newCfg.Features)
+		if err != nil {
+			return err
+		}
+		newPluginCache, err := plugins.LoadAll(newCfg.Plugins, effective.PluginConfig, a.paths.Home)
 		if err != nil {
 			return fmt.Errorf("loading plugins: %w", err)
 		}
