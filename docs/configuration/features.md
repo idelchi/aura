@@ -263,6 +263,12 @@ estimation:
   encoding: "cl100k_base"
 ```
 
+Tool-result percentage budgets are measured against `max_percentage`, not the full
+context window. Short successful replies (up to 256 estimated tokens) are retained
+even above that ceiling so completion receipts are not lost. Larger omitted outputs
+still leave an explicit acknowledgement that execution succeeded. Fixed-token mode
+continues to enforce its configured per-result limit.
+
 ## Global Tool Policy
 
 **File:** `features/tools.yaml`

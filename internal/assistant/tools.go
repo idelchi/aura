@@ -444,10 +444,12 @@ func (a *Assistant) executeTools(ctx context.Context, toolCalls []call.Call) {
 			if estVal, rejected, msg := a.CheckResult(ctx, output); rejected {
 				debug.Log("[tool] %s result rejected: too large (%d tokens)", tc.Name, estVal)
 
-				result = msg
+				// Execution already succeeded. Losing its output must not tell the
+				// model that the operation failed (and encourage repeating a mutation).
+				result = "Tool executed successfully; its output was omitted. Do not repeat an operation with side effects to recover its output.\n" + msg
 
-				a.builder.CompleteToolCall(ctx, tc.ID, msg, nil)
-				a.builder.AddToolResult(ctx, tc.Name, tc.ID, msg, 0)
+				a.builder.CompleteToolCall(ctx, tc.ID, result, nil)
+				a.builder.AddToolResult(ctx, tc.Name, tc.ID, result, 0)
 			} else {
 				result = output
 				est = estVal
@@ -704,7 +706,9 @@ func truncateArgs(args map[string]any) string {
 
 // CheckResult estimates the tool result and rejects it if it exceeds the configured limit.
 // In "tokens" mode, rejects when the result alone exceeds Result.MaxTokens.
-// In "percentage" mode, rejects when adding the result would push context usage above Result.MaxPercentage.
+// In "percentage" mode, rejects when adding the result would push context usage above Result.MaxPercentage,
+// except for short completion receipts (at most 256 tokens). They must survive an already-full context;
+// compaction handles the context pressure without erasing acknowledgement of a completed operation.
 // Returns the token estimate (always computed), whether the result was rejected, and the rejection message.
 func (a *Assistant) CheckResult(ctx context.Context, output string) (est int, rejected bool, msg string) {
 	cfg := a.cfg.Features.ToolExecution
@@ -713,6 +717,11 @@ func (a *Assistant) CheckResult(ctx context.Context, output string) (est int, re
 
 	switch cfg.Mode {
 	case "percentage":
+		const maxReceiptTokens = 256
+		if est <= maxReceiptTokens {
+			return est, false, ""
+		}
+
 		contextLen := a.ContextLength()
 		if contextLen == 0 {
 			return est, false, ""
@@ -721,8 +730,8 @@ func (a *Assistant) CheckResult(ctx context.Context, output string) (est int, re
 		current := a.Tokens()
 		projected := contextLen.PercentUsed(current + est)
 
-		remaining := int(contextLen) - current
-		remainingPct := cfg.Result.MaxPercentage - contextLen.PercentUsed(current)
+		remaining := max(0, int(float64(contextLen)*cfg.Result.MaxPercentage/100)-current)
+		remainingPct := max(0, cfg.Result.MaxPercentage-contextLen.PercentUsed(current))
 
 		if projected > cfg.Result.MaxPercentage {
 			return est, true, fmt.Sprintf(
