@@ -23,6 +23,7 @@ daily-review:
   description: Review yesterday's git commits and summarize changes.
   schedule: "daily: 09:00"
   timeout: 15m
+  post_timeout: 30s # independent total deadline for shell cleanup after execution
   agent: High
   mode: Ask
   session: daily-review
@@ -85,7 +86,7 @@ daily-review:
   on_max_steps:
     - echo "Review task hit max steps on $[[ .Date ]]" >> /tmp/alerts.log
 
-  # Shell commands to run AFTER the LLM session.
+  # Shell cleanup on success, failure, timeout or handled interruption (no LLM).
   post:
     - cat $[[ .Workdir ]]/reports/review-$[[ .Date ]].md
 

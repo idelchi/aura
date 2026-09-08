@@ -30,6 +30,7 @@ type taskDef struct {
 	Description string            `yaml:"description"`
 	Schedule    string            `yaml:"schedule"`
 	Timeout     *time.Duration    `yaml:"timeout"`
+	PostTimeout *time.Duration    `yaml:"post_timeout"` // independent cleanup deadline
 	Disabled    *bool             `yaml:"disabled"`
 	Agent       string            `yaml:"agent"`
 	Mode        string            `yaml:"mode"`
@@ -56,6 +57,7 @@ type Task struct {
 	Description string
 	Schedule    string
 	Timeout     time.Duration
+	PostTimeout time.Duration // bounds post hooks even after task cancellation
 	Disabled    *bool
 	Agent       string
 	Mode        string
@@ -85,6 +87,9 @@ func (t Task) IsDisabled() bool { return t.Disabled != nil && *t.Disabled }
 
 // Validate checks the task definition for required fields.
 func (t Task) Validate() error {
+	if t.PostTimeout < 0 {
+		return fmt.Errorf("task %q: post_timeout must be positive", t.Name)
+	}
 	if len(t.Commands) == 0 {
 		return fmt.Errorf("task %q: commands is required and must not be empty", t.Name)
 	}
@@ -178,6 +183,17 @@ func (t *Task) ApplyDefaults() {
 	if t.Timeout == 0 {
 		t.Timeout = 5 * time.Minute
 	}
+	if t.PostTimeout == 0 {
+		t.PostTimeout = 30 * time.Second
+	}
+}
+
+// PostDeadline is the independent time budget shared by this task's cleanup hooks.
+func (t Task) PostDeadline() time.Duration {
+	if t.PostTimeout == 0 {
+		return 30 * time.Second
+	}
+	return t.PostTimeout
 }
 
 // Tasks maps task names to their definitions.
@@ -324,6 +340,13 @@ func (ts *Tasks) Load(ff files.Files, vars map[string]string) error {
 		if def.Timeout != nil {
 			timeout = *def.Timeout
 		}
+		postTimeout := 30 * time.Second
+		if def.PostTimeout != nil {
+			postTimeout = *def.PostTimeout
+			if postTimeout <= 0 {
+				return fmt.Errorf("task %q: post_timeout must be positive", name)
+			}
+		}
 
 		t := Task{
 			// Metadata from expanded parse.
@@ -332,6 +355,7 @@ func (ts *Tasks) Load(ff files.Files, vars map[string]string) error {
 			Description: def.Description,
 			Schedule:    def.Schedule,
 			Timeout:     timeout,
+			PostTimeout: postTimeout,
 			Disabled:    def.Disabled,
 			Agent:       def.Agent,
 			Mode:        def.Mode,

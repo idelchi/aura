@@ -93,25 +93,53 @@ func runHooks(
 	extraEnv map[string]string,
 ) error {
 	for i, cmd := range commands {
-		if ctx.Err() != nil {
-			return fmt.Errorf("task %q %s cancelled at hook %d/%d", taskName, phase, i+1, len(commands))
-		}
-
-		expanded, err := expandCommand(cmd, vars)
-		if err != nil {
-			return fmt.Errorf("task %q %s hook %d: expanding template: %w", taskName, phase, i+1, err)
-		}
-
-		if verbose {
-			fmt.Fprintf(w, "[task:%s] [%s %d/%d] %s\n", taskName, phase, i+1, len(commands), expanded)
-		}
-
-		if err := execShell(ctx, expanded, extraEnv); err != nil {
-			return fmt.Errorf("task %q %s hook %d (%s): %w", taskName, phase, i+1, expanded, err)
+		label := fmt.Sprintf("task %q %s hook %d/%d", taskName, phase, i+1, len(commands))
+		if err := runHook(w, ctx, label, cmd, verbose, vars, extraEnv); err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+// runHook expands and executes one shell hook with an unambiguous diagnostic label.
+func runHook(w io.Writer, ctx context.Context, label, command string, verbose bool, vars, extraEnv map[string]string) error {
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("%s: %w", label, err)
+	}
+	expanded, err := expandCommand(command, vars)
+	if err != nil {
+		return fmt.Errorf("%s: expanding template: %w", label, err)
+	}
+	if verbose {
+		fmt.Fprintf(w, "[%s] %s\n", label, expanded)
+	}
+	if err := execShell(ctx, expanded, extraEnv); err != nil {
+		return fmt.Errorf("%s (%s): %w", label, expanded, err)
+	}
+	return nil
+}
+
+// runPostHooks runs every cleanup hook with a fresh, bounded context. Cleanup
+// failures are joined rather than preventing later hooks from being attempted.
+func runPostHooks(w io.Writer, ctx context.Context, t task.Task, verbose bool, vars, extraEnv map[string]string) error {
+	if len(t.Post) == 0 {
+		return nil
+	}
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), t.PostDeadline())
+	defer cancel()
+	var failures []error
+	for i, command := range t.Post {
+		if err := cleanupCtx.Err(); err != nil {
+			failures = append(failures, fmt.Errorf("task %q post deadline before hook %d: %w", t.Name, i+1, err))
+			break
+		}
+		label := fmt.Sprintf("task %q post hook %d/%d", t.Name, i+1, len(t.Post))
+		if err := runHook(w, cleanupCtx, label, command, verbose, vars, extraEnv); err != nil {
+			failures = append(failures, err)
+		}
+	}
+	return errors.Join(failures...)
 }
 
 // resolveItems reads iteration items from a foreach source.
@@ -289,7 +317,7 @@ func runTask(
 	verbose bool,
 	cliWorkdir string,
 	start int,
-) error {
+) (taskErr error) {
 	// Resume or prepare named session
 	if t.Session != "" {
 		resolved, err := asst.SessionManager().Find(t.Session)
@@ -400,6 +428,23 @@ func runTask(
 
 	// Merge expanded env into runtime template vars.
 	maps.Copy(baseVars, taskEnv)
+
+	// Cleanup belongs to this invocation, not to successful completion or the
+	// lifetime of the scheduling daemon. Capture metadata at exit, after overrides.
+	defer func() {
+		postEnv := make(map[string]string, len(taskEnv)+3)
+		maps.Copy(postEnv, taskEnv)
+		resolved := asst.Resolved()
+		postEnv["AURA_TASK_MODEL"] = resolved.Model
+		postEnv["AURA_TASK_PROVIDER"] = resolved.Provider
+		postEnv["AURA_TASK_PROVIDER_URL"] = ""
+		if provider := asst.Cfg().Providers.Get(resolved.Provider); provider != nil {
+			postEnv["AURA_TASK_PROVIDER_URL"] = provider.URL
+		}
+		postVars := maps.Clone(baseVars)
+		maps.Copy(postVars, postEnv)
+		taskErr = errors.Join(taskErr, runPostHooks(w, ctx, t, verbose, postVars, postEnv))
+	}()
 
 	// Pre hooks — abort everything on failure.
 	if err := runHooks(w, ctx, t.Name, "pre", t.Pre, verbose, baseVars, taskEnv); err != nil {
@@ -705,6 +750,5 @@ func runTask(
 		}
 	}
 
-	// Post hooks — commands already ran, but report errors.
-	return runHooks(w, ctx, t.Name, "post", t.Post, verbose, baseVars, taskEnv)
+	return nil
 }

@@ -90,7 +90,8 @@ reindex:
 | `inherit`      | list     | `[]`         | Inherit from parent task(s)                                                                                                         |
 | `pre`          | []string | `[]`         | Shell commands to run before the assistant                                                                                          |
 | `commands`     | []string | **required** | Command sequence: prompts, `/slash` commands, or `!shell` commands                                                                  |
-| `post`         | []string | `[]`         | Shell commands to run after the assistant                                                                                           |
+| `post`         | []string | `[]`         | Shell cleanup after execution, including failure, timeout and handled cancellation                                                 |
+| `post_timeout` | duration | `30s`        | Independent total time budget for post hooks; must be positive                                                                      |
 | `foreach`      | object   | `nil`        | Iteration source — `file:` or `shell:`                                                                                              |
 | `finally`      | []string | `[]`         | Commands to run once after the foreach loop (requires `foreach`)                                                                    |
 | `on_max_steps` | []string | `[]`         | Shell commands executed when a turn exhausts its `max_steps` budget, after its final text-only response. Runs outside the LLM loop — useful for sending alerts or cleanup. |
@@ -198,7 +199,36 @@ Prefix a command entry with `!` to run it as a shell command instead of sending 
 
 ## Pre/Post Hooks
 
-`pre:` runs before session/agent/mode setup; any failure aborts the task. `post:` runs after all commands complete. See [Hooks]({{ site.baseurl }}/configuration/hooks).
+`pre:` runs after session/agent/mode and task environment setup, before the task commands; a pre failure aborts
+the commands. Once setup has completed, `post:` runs exactly once when execution exits, including a pre failure,
+an item failure, task timeout, or handled cancellation. It runs after `finally:` when that section is reached.
+Configuration/setup failures before hook registration do not run cleanup.
+
+Post hooks use a fresh cancellation-independent context, bounded by `post_timeout` (30 seconds by default).
+One failed post command does not prevent the remaining post commands from running within that total deadline.
+Cleanup errors are reported alongside the original task error rather than replacing it. SIGKILL, a process crash,
+or power loss cannot execute a shell cleanup hook. `post:` never invokes the LLM.
+
+Post hooks receive these reserved environment variables, also available as `$[[ .AURA_TASK_MODEL ]]`-style
+runtime template variables. They describe the agent's resolved selection at task exit, including CLI overrides:
+
+- `AURA_TASK_MODEL`: current model name.
+- `AURA_TASK_PROVIDER`: current provider configuration name.
+- `AURA_TASK_PROVIDER_URL`: that provider's configured URL (no token is added).
+
+For a task using a local Ollama provider, unload its selected model on exit:
+
+```yaml
+post:
+  - >-
+    curl --fail --silent --show-error --connect-timeout 5 --max-time 15
+    --json "$(jq -cn --arg model "${AURA_TASK_MODEL:?}" '{model: $model, keep_alive: 0}')"
+    "${AURA_TASK_PROVIDER_URL%/}/api/generate" > /dev/null
+```
+
+This is task-owned Ollama cleanup, not a provider-independent unload API. It targets the final selected model,
+not every model used by earlier switches or subagents. Do not use it where another workload must keep that model
+loaded. `finally:` remains assistant commands after a foreach loop; it is not the unconditional cleanup hook.
 
 ## Foreach
 
