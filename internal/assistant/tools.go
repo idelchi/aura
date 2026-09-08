@@ -53,6 +53,9 @@ type execResult struct {
 // ParallelOverride interface. Used by the Batch tool to mirror the main
 // pipeline's two-pass dispatch logic.
 func (a *Assistant) IsToolParallel(name string) bool {
+	if _, limited := a.cfg.Features.ToolExecution.CallLimits[name]; limited {
+		return false
+	}
 	if !a.cfg.Features.ToolExecution.ParallelEnabled() {
 		return false
 	}
@@ -295,15 +298,7 @@ func (a *Assistant) executeTools(ctx context.Context, toolCalls []call.Call) {
 
 	if a.cfg.Features.ToolExecution.ParallelEnabled() {
 		isParallel := func(pc preparedCall) bool {
-			if override := a.cfg.ToolDefs.ParallelOverride(pc.tc.Name); override != nil {
-				return *override
-			}
-
-			if po, ok := pc.tool.(tool.ParallelOverride); ok {
-				return po.Parallel()
-			}
-
-			return true
+			return a.IsToolParallel(pc.tc.Name)
 		}
 
 		g, gCtx := errgroup.WithContext(ctx)
@@ -513,33 +508,23 @@ func (a *Assistant) executeOne(ctx context.Context, pc preparedCall) execResult 
 	})
 
 	start := time.Now()
-
-	var (
-		output string
-		err    error
-	)
-
-	sandboxable := true
-
-	if so, ok := pc.tool.(tool.SandboxOverride); ok {
-		sandboxable = so.Sandboxable()
-	}
-
-	if a.toggles.sandbox && sandboxable {
-		output, err = a.executeSandboxed(streamCtx, pc.tc.Name, pc.tc.Arguments)
-	} else {
-		output, err = func() (s string, e error) {
-			defer func() {
-				if r := recover(); r != nil {
-					e = fmt.Errorf("tool panicked: %v", r)
-				}
-			}()
-
-			return pc.tool.Execute(streamCtx, pc.tc.Arguments)
-		}()
-	}
-
+	output, err := a.executeTool(streamCtx, pc.tool, pc.tc.Arguments)
 	return execResult{output: output, err: err, duration: time.Since(start)}
+}
+
+// executeTool applies the conversation budget at the shared execution boundary.
+// Limits stay in the parent process even when tool execution uses a sandbox child.
+func (a *Assistant) executeTool(ctx context.Context, t tool.Tool, args map[string]any) (string, error) {
+	return a.session.callLimits.Run(ctx, t.Name(), a.cfg.Features.ToolExecution.CallLimits, func(ctx context.Context) (string, error) {
+		sandboxable := true
+		if so, ok := t.(tool.SandboxOverride); ok {
+			sandboxable = so.Sandboxable()
+		}
+		if a.toggles.sandbox && sandboxable {
+			return a.executeSandboxed(ctx, t.Name(), args)
+		}
+		return t.Execute(ctx, args)
+	})
 }
 
 // executeSandboxed runs a tool via self-re-exec with Landlock sandboxing.
@@ -1058,28 +1043,7 @@ func (a *Assistant) ExecuteSubTool(ctx context.Context, toolName string, args ma
 		return "", fmt.Errorf("%s", msg)
 	}
 
-	// Execute (sandboxed or direct) — panic recovery on direct path.
-	var output string
-
-	sandboxable := true
-
-	if so, ok := t.(tool.SandboxOverride); ok {
-		sandboxable = so.Sandboxable()
-	}
-
-	if a.toggles.sandbox && sandboxable {
-		output, err = a.executeSandboxed(ctx, toolName, args)
-	} else {
-		output, err = func() (s string, e error) {
-			defer func() {
-				if r := recover(); r != nil {
-					e = fmt.Errorf("tool panicked: %v", r)
-				}
-			}()
-
-			return t.Execute(execCtx, args)
-		}()
-	}
+	output, err := a.executeTool(execCtx, t, args)
 
 	if err != nil {
 		return "", err

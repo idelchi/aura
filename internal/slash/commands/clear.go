@@ -19,6 +19,7 @@ func Clear() slash.Command {
 			c.Builder().Clear()
 			c.Builder().UpdateSystemPrompt(ctx, c.SystemPrompt())
 			c.ResetTokens()
+			c.ResetToolCalls()
 
 			if mgr := c.SnapshotManager(); mgr != nil {
 				if err := mgr.Prune(); err != nil {

@@ -15,6 +15,7 @@ import (
 // Returns any non-fatal warnings encountered during restoration.
 func (a *Assistant) ResumeSession(ctx context.Context, sess *session.Session) []string {
 	var warnings []string
+	a.session.callLimits.Restore(sess.Meta.ToolCallUsage)
 
 	if a.cliOverrides.Agent != nil {
 		// ── CLI agent override: replaces session agent entirely ──

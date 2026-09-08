@@ -5,11 +5,13 @@ import (
 	"fmt"
 
 	"github.com/idelchi/aura/internal/agent"
+	"github.com/idelchi/aura/internal/calllimit"
 	"github.com/idelchi/aura/internal/config"
 	"github.com/idelchi/aura/internal/debug"
 	"github.com/idelchi/aura/internal/hooks"
 	"github.com/idelchi/aura/internal/subagent"
 	"github.com/idelchi/aura/internal/ui"
+	"github.com/idelchi/aura/pkg/llm/tool"
 	"github.com/idelchi/aura/pkg/tokens"
 )
 
@@ -90,7 +92,7 @@ func (a *Assistant) RunSubagent(ctx context.Context, agentName, prompt string) (
 		ContextLength:    contextLength,
 		Events:           nil, // subagent builder events are not rendered in TUI
 		MaxSteps:         childFeatures.Subagent.MaxSteps,
-		ExecuteOverride:  a.subagentExecuteOverride(),
+		ExecuteOverride:  a.subagentExecuteOverride(childFeatures.ToolExecution.CallLimits),
 		PathChecker:      a.PathChecker(),
 		ResultGuard:      buildResultGuard(childFeatures, a.estimator),
 		HooksRunner:      hooksRunner,
@@ -115,13 +117,15 @@ func (a *Assistant) RunSubagent(ctx context.Context, agentName, prompt string) (
 	return result, nil
 }
 
-// subagentExecuteOverride returns executeSandboxed if sandbox is enabled, nil otherwise.
-func (a *Assistant) subagentExecuteOverride() func(context.Context, string, map[string]any) (string, error) {
-	if !a.toggles.sandbox {
-		return nil
+// subagentExecuteOverride enforces child allowances and the enclosing conversation's
+// allowances before either direct or sandboxed execution.
+func (a *Assistant) subagentExecuteOverride(rules calllimit.Rules) func(context.Context, tool.Tool, map[string]any) (string, error) {
+	limits := new(calllimit.Limiter)
+	return func(ctx context.Context, t tool.Tool, args map[string]any) (string, error) {
+		return limits.Run(ctx, t.Name(), rules, func(ctx context.Context) (string, error) {
+			return a.executeTool(ctx, t, args)
+		})
 	}
-
-	return a.executeSandboxed
 }
 
 // PathChecker wraps CheckPaths for the Runner's PathChecker signature.

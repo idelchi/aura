@@ -87,6 +87,9 @@ func (a *Assistant) TodoList() *todo.List { return a.tools.todo }
 // SessionStats returns the session metrics tracker.
 func (a *Assistant) SessionStats() *stats.Stats { return a.session.stats }
 
+// ResetToolCalls starts a new conversation's execution allowances.
+func (a *Assistant) ResetToolCalls() { a.session.callLimits.Restore(nil) }
+
 // InjectorRegistry returns the synthetic message injection registry.
 func (a *Assistant) InjectorRegistry() *injector.Registry { return a.tools.injectors }
 

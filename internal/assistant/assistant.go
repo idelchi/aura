@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/idelchi/aura/internal/agent"
+	"github.com/idelchi/aura/internal/calllimit"
 	"github.com/idelchi/aura/internal/config"
 	"github.com/idelchi/aura/internal/config/override"
 	"github.com/idelchi/aura/internal/conversation"
@@ -72,11 +73,12 @@ type resolvedState struct {
 
 // sessionState groups session lifecycle state.
 type sessionState struct {
-	manager   *session.Manager
-	stats     *stats.Stats
-	usage     usage.Usage     // cumulative token usage
-	dirty     bool            // true after first user message or session resume; gates AutoSave
-	approvals map[string]bool // session-scoped tool approval patterns (in-memory only)
+	callLimits calllimit.Limiter // conversation-scoped tool usage, independent of retained messages
+	manager    *session.Manager
+	stats      *stats.Stats
+	usage      usage.Usage     // cumulative token usage
+	dirty      bool            // true after first user message or session resume; gates AutoSave
+	approvals  map[string]bool // session-scoped tool approval patterns (in-memory only)
 }
 
 // streamState groups streaming coordination state.
@@ -435,6 +437,7 @@ func (a *Assistant) SessionMeta() session.Meta {
 		SessionApprovals: a.session.approvals,
 		Stats:            a.session.stats,
 		CumulativeUsage:  &a.session.usage,
+		ToolCallUsage:    a.session.callLimits.Snapshot(),
 	}
 
 	// Only persist non-default policy (nil = use config default on resume).

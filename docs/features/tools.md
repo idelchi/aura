@@ -45,6 +45,36 @@ Aura includes built-in tools that the LLM can invoke during conversations. Most 
 | **Done**         | Explicit task completion signal             | No          | No       |
 | **Skill**        | Invoke LLM-callable skills by name          | No          | Yes      |
 
+## Conversation Call Limits
+
+Set `features.tools.call_limits` in an agent, mode or task, or `tools.call_limits` in a features file:
+
+```yaml
+features:
+  tools:
+    call_limits:
+      Gotify:
+        max: 1
+        count: success
+```
+
+Keys are exact registered tool names (including plugin and MCP names); `max` must be positive.
+Omitted tools are unlimited. `count: attempt` (the default) counts each execution, including failures;
+`count: success` counts only executions returning without an error. Rejected preflight checks and calls blocked
+by a limit do not count. Failed calls can be corrected and retried with success counting; `max_steps` remains
+the overall loop bound. A successful suppression/no-op also counts as success, not proof of a remote side effect.
+A delivery timeout followed by a retry may still duplicate a remotely completed operation.
+
+Limited calls execute serially per tool, including calls requested together or through Batch. Sandbox re-execution
+shares the parent's counters. Subagents obey both their own limits and their parent conversation's limits.
+Counters survive turns, agent/mode changes, pruning, compaction, save/resume and fork. `/new` (alias `/clear`)
+resets them. Resume of a session saved before call counters existed starts with no recorded usage.
+Standalone `aura tools` invocations and task shell hooks have no assistant conversation budget.
+
+Call-limit maps follow the normal feature override chain: a supplied map replaces the previous map;
+`call_limits: {}` removes inherited limits. Usage remains recorded even while unlimited, so changing the
+policy does not reset counters. Limits are execution budgets, not duplicate-content detection or exactly-once delivery.
+
 ## Skills
 
 Skills are capabilities defined as packages under `.aura/skills/`. The LLM can invoke them through the `Skill` tool,

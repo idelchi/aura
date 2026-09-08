@@ -146,6 +146,10 @@ tools:
     max_percentage: 95 # max context fill after result (mode: percentage)
   read_small_file_tokens: 2000
   max_steps: 50
+  # call_limits:           # exact tool names; omitted tools are unlimited
+  #   Gotify:
+  #     max: 1
+  #     count: success     # attempt (default) or success; resets on /new
   token_budget: 0 # cumulative input+output limit; 0 = disabled
   rejection_message: >-
     Error: Tool result too large (%d tokens, limit %d).

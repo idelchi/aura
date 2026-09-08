@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 
+	"github.com/idelchi/aura/internal/calllimit"
+
 	"github.com/idelchi/aura/pkg/llm/tool"
 )
 
@@ -49,6 +51,8 @@ type ToolResult struct {
 
 // ToolExecution holds configuration for tool execution guards.
 type ToolExecution struct {
+	// CallLimits applies optional per-tool conversation budgets, shared across execution paths.
+	CallLimits calllimit.Rules `yaml:"call_limits"`
 	// Mode selects the guard strategy: "tokens" (fixed limit) or "percentage" (context-fill based).
 	Mode string `validate:"omitempty,oneof=percentage tokens" yaml:"mode"`
 	// Result groups tool result size guard fields.
@@ -117,7 +121,7 @@ func (t ToolExecution) ValidateResolved() error {
 		return fmt.Errorf("tools.token_budget must be non-negative, got %d", t.TokenBudget)
 	}
 
-	return nil
+	return t.CallLimits.Validate()
 }
 
 // BashTruncation holds configuration for Bash tool output truncation.

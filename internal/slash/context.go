@@ -30,6 +30,7 @@ type Context interface {
 	ResizeContext(size int) error
 	SetAuto(val bool)
 	ResetTokens()
+	ResetToolCalls()
 
 	// Heavy operations
 	Compact(ctx context.Context, force bool) error

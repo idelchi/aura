@@ -359,7 +359,7 @@ func TestRunExecuteOverride(t *testing.T) {
 	overrideCalled := false
 	r := newRunner(p, tool.Tools{ft})
 
-	r.ExecuteOverride = func(_ context.Context, toolName string, _ map[string]any) (string, error) {
+	r.ExecuteOverride = func(_ context.Context, _ tool.Tool, _ map[string]any) (string, error) {
 		overrideCalled = true
 
 		return "override output", nil

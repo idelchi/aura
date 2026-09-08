@@ -44,6 +44,7 @@ func (s *stubContext) SetSandbox(_ bool) error                          { panic(
 func (s *stubContext) ResizeContext(_ int) error                        { panic("not implemented") }
 func (s *stubContext) SetAuto(_ bool)                                   { panic("not implemented") }
 func (s *stubContext) ResetTokens()                                     { panic("not implemented") }
+func (s *stubContext) ResetToolCalls()                                  { panic("not implemented") }
 func (s *stubContext) Compact(_ context.Context, _ bool) error          { panic("not implemented") }
 func (s *stubContext) GenerateTitle(_ context.Context) (string, error)  { panic("not implemented") }
 func (s *stubContext) ProcessInput(_ context.Context, _ string) error   { panic("not implemented") }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 
+	"github.com/idelchi/aura/internal/calllimit"
 	"github.com/idelchi/aura/internal/stats"
 	"github.com/idelchi/aura/internal/todo"
 	"github.com/idelchi/aura/pkg/llm/message"
@@ -31,9 +32,10 @@ type Meta struct {
 	Sandbox bool `json:"sandbox,omitempty"`
 
 	// Session-scoped state
-	SessionApprovals map[string]bool `json:"session_approvals,omitempty"`
-	Stats            *stats.Stats    `json:"stats,omitempty"`
-	CumulativeUsage  *usage.Usage    `json:"cumulative_usage,omitempty"`
+	SessionApprovals map[string]bool            `json:"session_approvals,omitempty"`
+	Stats            *stats.Stats               `json:"stats,omitempty"`
+	CumulativeUsage  *usage.Usage               `json:"cumulative_usage,omitempty"`
+	ToolCallUsage    map[string]calllimit.Usage `json:"tool_call_usage,omitempty"` // raw execution counts
 }
 
 // Session is a complete conversation snapshot.

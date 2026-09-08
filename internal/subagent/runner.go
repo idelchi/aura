@@ -65,9 +65,9 @@ type Runner struct {
 	Think *thinking.Value
 	// ContextLength overrides the model's default context window. Zero = use Model.ContextLength.
 	ContextLength int
-	// ExecuteOverride replaces t.Execute() for sandboxable tools (e.g. Landlock re-exec).
+	// ExecuteOverride replaces execution for all tools (including budget and sandbox policy).
 	// If nil, all tools execute directly via t.Execute().
-	ExecuteOverride func(ctx context.Context, toolName string, args map[string]any) (string, error)
+	ExecuteOverride func(ctx context.Context, t tool.Tool, args map[string]any) (string, error)
 	// PathChecker fast-fails tool calls whose declared paths fall outside sandbox bounds.
 	// If nil, no path checking is performed.
 	PathChecker PathChecker
@@ -270,14 +270,8 @@ func (r *Runner) executeToolCall(ctx context.Context, builder *conversation.Buil
 		execErr error
 	)
 
-	sandboxable := true
-
-	if so, ok := t.(tool.SandboxOverride); ok {
-		sandboxable = so.Sandboxable()
-	}
-
-	if r.ExecuteOverride != nil && sandboxable {
-		output, execErr = r.ExecuteOverride(ctx, tc.Name, tc.Arguments)
+	if r.ExecuteOverride != nil {
+		output, execErr = r.ExecuteOverride(ctx, t, tc.Arguments)
 	} else {
 		output, execErr = func() (s string, e error) {
 			defer func() {
