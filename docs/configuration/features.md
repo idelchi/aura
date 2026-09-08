@@ -244,6 +244,12 @@ guardrail:
 
 **File:** `features/estimation.yaml`
 
+Ollama's native estimator uses a chat request with thinking disabled and at most one
+generated token. Its count includes chat-template overhead, so it is conservative
+for individual content fragments and costs an inference round trip. On context
+overflow, Aura retains at least the context-window size or the local estimate,
+whichever is larger. Use `rough+tiktoken` to avoid these extra inference requests.
+
 ```yaml
 estimation:
   # rough = chars/divisor | tiktoken = tiktoken encoding

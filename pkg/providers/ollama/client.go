@@ -31,7 +31,8 @@ func handleError(err error) error {
 	}
 
 	if se, ok := errors.AsType[api.StatusError](err); ok {
-		if strings.Contains(se.ErrorMessage, "input length exceeds") {
+		if strings.Contains(se.ErrorMessage, "input length exceeds") ||
+			strings.Contains(se.ErrorMessage, "exceed_context_size_error") {
 			return fmt.Errorf("%w: ollama: %d %s", providers.ErrContextExhausted, se.StatusCode, se.ErrorMessage)
 		}
 
@@ -46,6 +47,11 @@ func handleError(err error) error {
 		}
 
 		return providers.ClassifyHTTPError(se.StatusCode, "ollama", fmt.Sprintf("%d %s", se.StatusCode, msg), 0)
+	}
+
+	// Errors reported inside a successful stream are plain SDK errors, not StatusError.
+	if strings.Contains(err.Error(), "input length exceeds") || strings.Contains(err.Error(), "exceed_context_size_error") {
+		return fmt.Errorf("%w: ollama: %w", providers.ErrContextExhausted, err)
 	}
 
 	return err

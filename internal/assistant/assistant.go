@@ -490,7 +490,9 @@ func (a *Assistant) WireEstimation() {
 		count, err := a.agent.Provider.Estimate(ctx, req, text)
 		if err != nil {
 			if errors.Is(err, providers.ErrContextExhausted) {
-				return count, nil // capped at numCtx, still valid
+				// The native count is only a lower bound when the request overflows.
+				// Never replace a larger local estimate with that capped count.
+				return max(count, a.estimator.EstimateLocal(text)), nil
 			}
 
 			debug.Log("[ERROR] provider.Estimate failed: %v — falling back to local estimator", err)

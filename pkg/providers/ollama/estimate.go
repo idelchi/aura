@@ -2,7 +2,7 @@ package ollama
 
 import (
 	"context"
-	"strings"
+	"errors"
 
 	"github.com/ollama/ollama/api"
 
@@ -13,7 +13,9 @@ import (
 // Estimate tokenizes content using Ollama's /api/chat endpoint.
 // Wraps the content as a single user message so the token count includes chat template
 // overhead (BOS, role markers, delimiters) — matching what the real chat path consumes.
-// Returns prompt_eval_count on success, or numCtx on overflow (400 "input length exceeds").
+// It generates at most one token with thinking disabled; this is an inference request,
+// not a tokenizer-only API. Returns prompt_eval_count on success, or numCtx and
+// ErrContextExhausted on overflow. The overflow count is a lower bound, not an exact size.
 func (c *Client) Estimate(ctx context.Context, req request.Request, content string) (int, error) {
 	numCtx := req.ContextLength
 	if numCtx == 0 {
@@ -32,6 +34,7 @@ func (c *Client) Estimate(ctx context.Context, req request.Request, content stri
 		Stream:   &streamOff,
 		Truncate: &truncateOff,
 		Shift:    &shiftOff,
+		Think:    &api.ThinkValue{Value: false},
 		Options: map[string]any{
 			"num_predict": 1,
 			"num_ctx":     numCtx,
@@ -50,8 +53,9 @@ func (c *Client) Estimate(ctx context.Context, req request.Request, content stri
 		return nil
 	})
 	if err != nil {
-		if strings.Contains(err.Error(), "input length exceeds") {
-			return numCtx, providers.ErrContextExhausted
+		err = handleError(err)
+		if errors.Is(err, providers.ErrContextExhausted) {
+			return numCtx, err
 		}
 
 		return 0, err
