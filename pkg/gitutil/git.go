@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 
 	"github.com/idelchi/godyl/pkg/path/folder"
 )
@@ -75,6 +76,9 @@ func Pull(dir, repoURL string) (oldCommit, newCommit string, err error) {
 	}
 
 	oldCommit = head.Hash().String()
+	if !head.Name().IsBranch() {
+		return "", "", errors.New("cannot update a detached HEAD; reinstall with a branch ref")
+	}
 
 	wt, err := repo.Worktree()
 	if err != nil {
@@ -94,8 +98,10 @@ func Pull(dir, repoURL string) (oldCommit, newCommit string, err error) {
 		}
 
 		pErr := wt.Pull(&git.PullOptions{
-			Auth:       auth,
-			RemoteName: "origin",
+			Auth:          auth,
+			RemoteName:    "origin",
+			ReferenceName: head.Name(),
+			SingleBranch:  true,
 		})
 
 		if errors.Is(pErr, git.NoErrAlreadyUpToDate) {
@@ -108,6 +114,10 @@ func Pull(dir, repoURL string) (oldCommit, newCommit string, err error) {
 		}
 
 		if pErr != nil {
+			if !errors.Is(pErr, transport.ErrAuthenticationRequired) && !errors.Is(pErr, transport.ErrAuthorizationFailed) {
+				return "", "", fmt.Errorf("pull: %w", pErr)
+			}
+
 			lastErr = fmt.Errorf("%s: %w", m.name, pErr)
 
 			continue

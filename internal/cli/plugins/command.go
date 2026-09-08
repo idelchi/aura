@@ -505,7 +505,7 @@ func updateOne(w io.Writer, pp config.StringCollection[config.Plugin], name stri
 func updateAll(w io.Writer, pp config.StringCollection[config.Plugin], vendor bool) error {
 	seen := map[string]bool{}
 
-	var updated int
+	var errs []error
 
 	for _, name := range pp.Names() {
 		p := pp[name]
@@ -516,19 +516,15 @@ func updateAll(w io.Writer, pp config.StringCollection[config.Plugin], vendor bo
 		seen[p.OriginDir] = true
 
 		if err := updateOne(w, pp, name, vendor); err != nil {
-			fmt.Fprintf(w, "Error updating %s: %v\n", name, err)
-
-			continue
+			errs = append(errs, fmt.Errorf("updating %s: %w", name, err))
 		}
-
-		updated++
 	}
 
-	if updated == 0 {
+	if len(seen) == 0 {
 		fmt.Fprintln(w, "No git-sourced plugins to update.")
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 // checkSDKCompat verifies that a plugin's vendored SDK version matches the host.

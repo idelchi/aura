@@ -65,6 +65,12 @@ github.com/user/aura-plugins/
 
 All plugins are discovered and installed together. Update and remove operate at the pack level — use `disabled: true` in `plugin.yaml` to skip individual plugins within a pack.
 
+Git installations retain their source and ref in `.origin.yaml`. Updates follow the
+installed branch (for example `dev`), not the remote's default branch. A detached
+tag/commit installation must be reinstalled with the desired ref. Local copies have
+no Git update source. `update --all` returns an error if any eligible pack fails;
+repository conflicts are reported as such, rather than retried as authentication.
+
 ## Authentication
 
 **HTTPS:** No auth (public) → `GIT_USERNAME`/`GIT_PASSWORD`, `GITHUB_TOKEN`, `GITLAB_TOKEN`, `GIT_TOKEN` → `git credential fill`
