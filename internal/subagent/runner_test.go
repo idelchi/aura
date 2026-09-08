@@ -26,12 +26,14 @@ import (
 
 type fakeProvider struct {
 	responses []message.Message
+	requests  []request.Request // Requests observed by the model, including tool outcomes.
 	usages    []usage.Usage
 	err       error
 	callIdx   int
 }
 
-func (f *fakeProvider) Chat(_ context.Context, _ request.Request, _ stream.Func) (message.Message, usage.Usage, error) {
+func (f *fakeProvider) Chat(_ context.Context, req request.Request, _ stream.Func) (message.Message, usage.Usage, error) {
+	f.requests = append(f.requests, req)
 	if f.err != nil {
 		return message.Message{}, usage.Usage{}, f.err
 	}
@@ -340,6 +342,15 @@ func TestRunResultGuardRejects(t *testing.T) {
 	// Tool was executed (ToolCalls incremented) even though the result was rejected.
 	if result.ToolCalls != 1 {
 		t.Errorf("ToolCalls = %d, want 1", result.ToolCalls)
+	}
+	var receipt string
+	for _, msg := range p.requests[1].Messages {
+		if msg.ToolCallID == "c1" {
+			receipt = msg.Content
+		}
+	}
+	if !strings.Contains(receipt, "executed successfully") || strings.HasPrefix(receipt, "Error:") || strings.Contains(receipt, "huge output") {
+		t.Fatalf("incorrect execution receipt: %s", receipt)
 	}
 }
 

@@ -268,10 +268,12 @@ estimation:
 ```
 
 Tool-result percentage budgets are measured against `max_percentage`, not the full
-context window. Short successful replies (up to 256 estimated tokens) are retained
-even above that ceiling so completion receipts are not lost. Larger omitted outputs
-still leave an explicit acknowledgement that execution succeeded. Fixed-token mode
-continues to enforce its configured per-result limit.
+context window. Every output payload is subject to the configured budget, including
+short replies. Execution status is independent: omitted output leaves an explicit
+acknowledgement that execution succeeded, in both main and subagent conversations.
+That acknowledgement is not evidence of external delivery, and output rejection
+does not authorize repeating a mutation. Fixed-token mode enforces its configured
+per-result limit in the same way.
 
 ## Global Tool Policy
 

@@ -375,7 +375,7 @@ func (a *Assistant) executeTools(ctx context.Context, toolCalls []call.Call) {
 			debug.Log("[tool] %s failed in %v: %v", tc.Name, res.duration, res.err)
 			a.session.stats.RecordToolError(tc.Name)
 
-			result = fmt.Sprintf("Error: %v", res.err)
+			result = (call.Result{Err: res.err}).String()
 			toolErr = res.err.Error()
 			commitErr = res.err
 			needsCommit = true
@@ -441,7 +441,7 @@ func (a *Assistant) executeTools(ctx context.Context, toolCalls []call.Call) {
 
 				// Execution already succeeded. Losing its output must not tell the
 				// model that the operation failed (and encourage repeating a mutation).
-				result = "Tool executed successfully; its output was omitted. Do not repeat an operation with side effects to recover its output.\n" + msg
+				result = (call.Result{Output: output, Omission: msg}).String()
 
 				a.builder.CompleteToolCall(ctx, tc.ID, result, nil)
 				a.builder.AddToolResult(ctx, tc.Name, tc.ID, result, 0)
@@ -691,9 +691,8 @@ func truncateArgs(args map[string]any) string {
 
 // CheckResult estimates the tool result and rejects it if it exceeds the configured limit.
 // In "tokens" mode, rejects when the result alone exceeds Result.MaxTokens.
-// In "percentage" mode, rejects when adding the result would push context usage above Result.MaxPercentage,
-// except for short completion receipts (at most 256 tokens). They must survive an already-full context;
-// compaction handles the context pressure without erasing acknowledgement of a completed operation.
+// In "percentage" mode, rejects when adding output would push usage above Result.MaxPercentage.
+// Execution status is retained separately by call.Result, regardless of output admission.
 // Returns the token estimate (always computed), whether the result was rejected, and the rejection message.
 func (a *Assistant) CheckResult(ctx context.Context, output string) (est int, rejected bool, msg string) {
 	cfg := a.cfg.Features.ToolExecution
@@ -702,11 +701,6 @@ func (a *Assistant) CheckResult(ctx context.Context, output string) (est int, re
 
 	switch cfg.Mode {
 	case "percentage":
-		const maxReceiptTokens = 256
-		if est <= maxReceiptTokens {
-			return est, false, ""
-		}
-
 		contextLen := a.ContextLength()
 		if contextLen == 0 {
 			return est, false, ""

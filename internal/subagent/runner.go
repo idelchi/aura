@@ -297,7 +297,7 @@ func (r *Runner) executeToolCall(ctx context.Context, builder *conversation.Buil
 			return
 		}
 
-		builder.AddToolResult(ctx, tc.Name, tc.ID, fmt.Sprintf("Error: %v", execErr), 0)
+		builder.AddToolResult(ctx, tc.Name, tc.ID, (call.Result{Err: execErr}).String(), 0)
 
 		result.ToolCalls++
 
@@ -354,20 +354,15 @@ func (r *Runner) executeToolCall(ctx context.Context, builder *conversation.Buil
 		}
 	}
 
-	// 6. Result guard
+	// 6. Admit output independently of the execution outcome.
+	outcome := call.Result{Output: output}
 	if r.ResultGuard != nil {
 		if guardErr := r.ResultGuard(ctx, tc.Name, output); guardErr != nil {
-			builder.AddToolResult(ctx, tc.Name, tc.ID, fmt.Sprintf("Error: %v", guardErr), 0)
-
-			result.ToolCalls++
-
-			result.Tools[tc.Name]++
-
-			return
+			outcome.Omission = guardErr.Error()
 		}
 	}
 
-	builder.AddToolResult(ctx, tc.Name, tc.ID, output, 0)
+	builder.AddToolResult(ctx, tc.Name, tc.ID, outcome.String(), 0)
 
 	result.ToolCalls++
 
