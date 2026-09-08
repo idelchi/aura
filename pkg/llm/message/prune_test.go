@@ -1,6 +1,7 @@
 package message_test
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -48,9 +49,10 @@ func TestPruneToolResults_PreservesParameterNames(t *testing.T) {
 			"timeout_ms": 15000,
 		})),
 		toolResult(100, "ok"),
+		{Role: roles.Assistant, Content: "assessed"},
 	}
 
-	// protectTokens=0 means everything is eligible, argThreshold=50 triggers pruning.
+	// The batch has been assessed; protectTokens=0 permits pruning its arguments.
 	result := msgs.PruneToolResults(0, 50, fakeEstimate)
 
 	pruned := result[0]
@@ -99,6 +101,7 @@ func TestPruneToolResults_SmallArgsUntouched(t *testing.T) {
 			"path":    "/home/user",
 		})),
 		toolResult(50, "found 10 files"),
+		{Role: roles.Assistant, Content: "assessed"},
 	}
 
 	// protectTokens=0, argThreshold=500 — args are small enough to survive.
@@ -124,6 +127,7 @@ func TestPruneToolResults_Idempotent(t *testing.T) {
 			"content": longContent,
 		})),
 		toolResult(100, "written"),
+		{Role: roles.Assistant, Content: "assessed"},
 	}
 
 	// First prune.
@@ -189,6 +193,7 @@ func TestPruneToolResults_MultipleCallsInOneMessage(t *testing.T) {
 		),
 		toolResult(50, "written"),
 		toolResult(50, "found files"),
+		{Role: roles.Assistant, Content: "assessed"},
 	}
 
 	result := msgs.PruneToolResults(0, 50, fakeEstimate)
@@ -212,5 +217,49 @@ func TestPruneToolResults_MultipleCallsInOneMessage(t *testing.T) {
 	globArgs := result[0].Calls[1].Arguments
 	if globArgs["pattern"] != shortPattern {
 		t.Errorf("Glob pattern changed: got %v", globArgs["pattern"])
+	}
+}
+
+// TestPruneUnreadBatch preserves all fresh results regardless of the token window.
+func TestPruneUnreadBatch(t *testing.T) {
+	t.Parallel()
+	msgs := message.Messages{
+		assistantWithCalls(20, makeCall("old", nil)),
+		toolResult(200, strings.Repeat("old", 100)),
+		assistantWithCalls(600, makeCall("first", map[string]any{"query": strings.Repeat("q", 600)}), makeCall("second", nil)),
+		toolResult(6653, strings.Repeat("paperless", 800)),
+		toolResult(20, "second result"),
+	}
+	for _, window := range []int{0, 4915} {
+		got := msgs.PruneToolResults(window, 50, fakeEstimate)
+		if !reflect.DeepEqual(got[2:], msgs[2:]) {
+			t.Errorf("window %d pruned unread batch", window)
+		}
+		if got[1].Content == msgs[1].Content {
+			t.Errorf("window %d did not prune old result", window)
+		}
+	}
+	// Once the model has assessed the batch, ordinary pruning applies again.
+	read := append(msgs, message.Message{Role: roles.Assistant, Content: "assessed"})
+	got := read.PruneToolResults(0, 50, fakeEstimate)
+	if got[3].Content == msgs[3].Content {
+		t.Error("assessed result remained protected")
+	}
+}
+
+// TestPruneBoundary protects the whole message that crosses the token boundary.
+func TestPruneBoundary(t *testing.T) {
+	t.Parallel()
+	msgs := message.Messages{
+		toolResult(200, "old"),
+		toolResult(6000, "boundary"),
+		{Role: roles.Assistant, Content: "assessed", Tokens: message.Tokens{Total: 100}},
+	}
+	got := msgs.PruneToolResults(1000, 50, fakeEstimate)
+	if got[1].Content != "boundary" {
+		t.Error("boundary message was pruned")
+	}
+	if got[0].Content == "old" {
+		t.Error("old result was not pruned")
 	}
 }

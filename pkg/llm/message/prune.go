@@ -17,7 +17,8 @@ const truncatedPrefix = "[truncated"
 
 // PruneToolResults returns a copy with old tool results and large tool call arguments
 // replaced by short placeholders. Walks backward, accumulating token distance from
-// the end — messages beyond protectTokens are pruned.
+// the end. The boundary message and the latest unanswered tool-call batch are
+// protected, even when a single result exceeds protectTokens.
 func (ms Messages) PruneToolResults(protectTokens, argThreshold int, estimate func(string) int) Messages {
 	result := slices.Clone(ms)
 	pruneToolResults(result, protectTokens, argThreshold, estimate)
@@ -32,16 +33,27 @@ func (ms Messages) PruneToolResultsInPlace(protectTokens, argThreshold int, esti
 
 func pruneToolResults(msgs []Message, protectTokens, argThreshold int, estimate func(string) int) {
 	var accumulated int
+	// A tool-call turn has not been assessed until a subsequent assistant turn.
+	// Protect the request and all results, not merely the last result in the batch.
+	unread := len(msgs)
+	for i := len(msgs) - 1; i >= 0; i-- {
+		if msgs[i].Role == roles.Assistant {
+			if len(msgs[i].Calls) > 0 {
+				unread = i
+			}
+			break
+		}
+	}
 
 	for i := len(msgs) - 1; i >= 0; i-- {
 		msg := msgs[i]
 
-		// Accumulate BEFORE the prune check — the current message's tokens
-		// count toward the protect window. This ensures the boundary message
-		// itself is protected.
+		// Decide before adding this message so the message crossing the boundary
+		// remains intact rather than being pruned before it can be assessed.
+		protected := accumulated < protectTokens || i >= unread
 		accumulated += msg.Tokens.Total
 
-		if accumulated < protectTokens {
+		if protected {
 			continue
 		}
 

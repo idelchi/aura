@@ -46,9 +46,13 @@ compaction:
   truncation_retries: [150, 100, 50, 0]
   prune:
     mode: "off" # "off", "iteration", "compaction"
-    protect_percent: 30 # % of context to protect from pruning
+    protect_percent: 30 # % of context to protect; includes the boundary message
     arg_threshold: 200 # min tokens for tool call args to be prunable
 ```
+
+The latest unanswered tool-call batch (request and all results) is always protected
+from pruning until the model responds, even if it exceeds `protect_percent`.
+Oversized new results remain subject to the tool-result admission limit.
 
 ## Embeddings
 
