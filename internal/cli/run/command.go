@@ -92,6 +92,7 @@ func Command(flags *core.Flags) *cli.Command {
 
 			return core.RunSession(
 				flags,
+				core.Selection{},
 				core.HeadlessUI,
 				func(ctx context.Context, _ context.CancelCauseFunc, asst *assistant.Assistant, u ui.UI) error {
 					go u.Run(ctx)

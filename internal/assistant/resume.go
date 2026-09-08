@@ -17,12 +17,12 @@ func (a *Assistant) ResumeSession(ctx context.Context, sess *session.Session) []
 	var warnings []string
 	a.session.callLimits.Restore(sess.Meta.ToolCallUsage)
 
-	if a.cliOverrides.Agent != nil {
-		// ── CLI agent override: replaces session agent entirely ──
-		// SwitchAgent constructs with cliOverrides (mode/think/model/provider).
+	if a.invocationOverrides.Agent != nil {
+		// An invocation agent selection replaces the stored agent entirely.
+		// Preserve invocation model/provider settings during initial restoration.
 		// No session mode/think/model restoration needed.
-		if err := a.SwitchAgent(*a.cliOverrides.Agent, "user"); err != nil {
-			warnings = append(warnings, fmt.Sprintf("could not apply --agent override: %v", err))
+		if err := a.switchAgent(*a.invocationOverrides.Agent, "resume", a.invocationOverrides); err != nil {
+			warnings = append(warnings, fmt.Sprintf("could not apply invocation agent selection: %v", err))
 		}
 	} else {
 		// ── No agent override: restore from session, then apply individual overrides ──
@@ -49,7 +49,7 @@ func (a *Assistant) ResumeSession(ctx context.Context, sess *session.Session) []
 		}
 
 		// Restore model/provider — skip if CLI will override (avoids redundant LoadModel)
-		hasModelOverride := a.cliOverrides.Model != nil || a.cliOverrides.Provider != nil
+		hasModelOverride := a.invocationOverrides.Model != nil || a.invocationOverrides.Provider != nil
 		if sess.Meta.Model != "" && sess.Meta.Provider != "" && !hasModelOverride {
 			r := a.resolved.config
 			if sess.Meta.Model != r.Model || sess.Meta.Provider != r.Provider {
@@ -64,19 +64,19 @@ func (a *Assistant) ResumeSession(ctx context.Context, sess *session.Session) []
 
 		// Apply CLI overrides on top of restored session state.
 		// Priority: CLI > Session > Agent config.
-		if a.cliOverrides.Mode != nil {
-			if err := a.SwitchMode(*a.cliOverrides.Mode); err != nil {
+		if a.invocationOverrides.Mode != nil {
+			if err := a.SwitchMode(*a.invocationOverrides.Mode); err != nil {
 				warnings = append(warnings, fmt.Sprintf("could not apply --mode override: %v", err))
 			}
 		}
 
-		if a.cliOverrides.Think != nil {
-			if err := a.SetThink(*a.cliOverrides.Think); err != nil {
+		if a.invocationOverrides.Think != nil {
+			if err := a.SetThink(*a.invocationOverrides.Think); err != nil {
 				warnings = append(warnings, fmt.Sprintf("could not apply --think override: %v", err))
 			}
 		}
 
-		if a.cliOverrides.Provider != nil || a.cliOverrides.Model != nil {
+		if a.invocationOverrides.Provider != nil || a.invocationOverrides.Model != nil {
 			// Compose from session baseline + CLI overrides.
 			provider := sess.Meta.Provider
 			if provider == "" {
@@ -88,12 +88,12 @@ func (a *Assistant) ResumeSession(ctx context.Context, sess *session.Session) []
 				modelName = a.resolved.config.Model
 			}
 
-			if a.cliOverrides.Provider != nil {
-				provider = *a.cliOverrides.Provider
+			if a.invocationOverrides.Provider != nil {
+				provider = *a.invocationOverrides.Provider
 			}
 
-			if a.cliOverrides.Model != nil {
-				modelName = *a.cliOverrides.Model
+			if a.invocationOverrides.Model != nil {
+				modelName = *a.invocationOverrides.Model
 			}
 
 			if err := a.SwitchModel(ctx, provider, modelName); err != nil {

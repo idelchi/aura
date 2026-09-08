@@ -11,7 +11,8 @@ Manage and run scheduled tasks.
 
 The task's agent and mode are selected before session startup. Explicit root
 `--agent`, `--mode`, `--model`, and `--provider` flags take precedence over the task
-selection, for both scheduled and immediate runs. Later `/agent` switches and
+selection, for scheduled and immediate runs and when resuming a named task session.
+Task defaults do not change which CLI flags count as explicitly set. Later `/agent` switches and
 failover use the newly selected agent's own model/provider instead.
 
 ## Syntax
@@ -126,6 +127,17 @@ Task files support two delimiter systems:
 | `.Index`     | Foreach only | Zero-based iteration index         |
 | `.Total`     | Foreach only | Total number of items              |
 
+Tasks also expose the shared [prompt context](../configuration/prompts):
+`.Model.Name`, `.Provider.Name`, `.Provider.URL`, `.Agent`, `.Mode.Name`, `.WorkDir`, and the other structured fields.
+Model and provider metadata are available before inference, including explicit CLI selection. Runtime expressions
+are evaluated immediately before each command or hook phase, so a preceding `/model` or `/agent` change is visible
+to subsequent commands and to `post`. Task `env:` values are resolved once during setup.
+
+Shared field names are reserved. Custom task variables and expanded task environment remain available by their
+existing top-level keys and through `.Vars` (for example `.Vars.Model` if a custom key collides with `.Model`).
+Use `shellQuote` when inserting a runtime value as a literal shell argument; it uses the same shell library as task
+execution. Ordinary `${VAR}` expansion continues to use process/task environment, without implicit model variables.
+
 `$[[ ]]` avoids collision with bash `[[ ]]` syntax in `!`-prefixed shell commands.
 
 Task-scoped variables via `vars:` are available in both template systems. `--set` flags override them:
@@ -163,7 +175,7 @@ read-only-review:
 
 ## Feature Overrides
 
-Override chain: **global → CLI flags → agent → mode → task**.
+Feature override chain: **global → agent → mode → task → explicit CLI overrides**.
 
 ```yaml
 heavy-refactor:
@@ -209,21 +221,14 @@ One failed post command does not prevent the remaining post commands from runnin
 Cleanup errors are reported alongside the original task error rather than replacing it. SIGKILL, a process crash,
 or power loss cannot execute a shell cleanup hook. `post:` never invokes the LLM.
 
-Post hooks receive these reserved environment variables, also available as `$[[ .AURA_TASK_MODEL ]]`-style
-runtime template variables. They describe the agent's resolved selection at task exit, including CLI overrides:
-
-- `AURA_TASK_MODEL`: current model name.
-- `AURA_TASK_PROVIDER`: current provider configuration name.
-- `AURA_TASK_PROVIDER_URL`: that provider's configured URL (no token is added).
-
 For a task using a local Ollama provider, unload its selected model on exit:
 
 ```yaml
 post:
   - >-
     curl --fail --silent --show-error --connect-timeout 5 --max-time 15
-    --json "$(jq -cn --arg model "${AURA_TASK_MODEL:?}" '{model: $model, keep_alive: 0}')"
-    "${AURA_TASK_PROVIDER_URL%/}/api/generate" > /dev/null
+    --json "$(jq -cn --arg model $[[ .Model.Name | shellQuote ]] '{model: $model, keep_alive: 0}')"
+    $[[ printf "%s/api/generate" (trimSuffix "/" .Provider.URL) | shellQuote ]] > /dev/null
 ```
 
 This is task-owned Ollama cleanup, not a provider-independent unload API. It targets the final selected model,

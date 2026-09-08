@@ -89,7 +89,7 @@ func runHooks(
 	taskName, phase string,
 	commands []string,
 	verbose bool,
-	vars map[string]string,
+	vars any,
 	extraEnv map[string]string,
 ) error {
 	for i, cmd := range commands {
@@ -103,7 +103,7 @@ func runHooks(
 }
 
 // runHook expands and executes one shell hook with an unambiguous diagnostic label.
-func runHook(w io.Writer, ctx context.Context, label, command string, verbose bool, vars, extraEnv map[string]string) error {
+func runHook(w io.Writer, ctx context.Context, label, command string, verbose bool, vars any, extraEnv map[string]string) error {
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("%s: %w", label, err)
 	}
@@ -122,7 +122,7 @@ func runHook(w io.Writer, ctx context.Context, label, command string, verbose bo
 
 // runPostHooks runs every cleanup hook with a fresh, bounded context. Cleanup
 // failures are joined rather than preventing later hooks from being attempted.
-func runPostHooks(w io.Writer, ctx context.Context, t task.Task, verbose bool, vars, extraEnv map[string]string) error {
+func runPostHooks(w io.Writer, ctx context.Context, t task.Task, verbose bool, vars any, extraEnv map[string]string) error {
 	if len(t.Post) == 0 {
 		return nil
 	}
@@ -191,7 +191,7 @@ func resolveTaskEnv(
 	envFiles []string,
 	rawEnv map[string]string,
 	configHome string,
-	baseVars map[string]string,
+	baseVars any,
 ) (env.Env, error) {
 	if len(envFiles) == 0 && len(rawEnv) == 0 {
 		return nil, nil
@@ -225,8 +225,8 @@ func resolveTaskEnv(
 	return result, nil
 }
 
-// expandCommand expands Go template expressions in a command string with foreach vars.
-func expandCommand(cmd string, vars map[string]string) (string, error) {
+// expandCommand renders a command with shared assistant and task-local template data.
+func expandCommand(cmd string, vars any) (string, error) {
 	result, err := tmpl.Expand([]byte(cmd), vars)
 	if err != nil {
 		return "", err
@@ -244,11 +244,16 @@ func runCommands(
 	taskName string,
 	commands []string,
 	verbose bool,
+	vars map[string]string,
 	extraEnv map[string]string,
 ) error {
 	for i, cmd := range commands {
 		if ctx.Err() != nil {
 			return ctx.Err()
+		}
+		cmd, err := expandCommand(cmd, runtimeData(asst, vars))
+		if err != nil {
+			return fmt.Errorf("task %q command %d: expanding template: %w", taskName, i+1, err)
 		}
 
 		if verbose {
@@ -346,20 +351,8 @@ func runTask(
 		}
 	}
 
-	// Agent/mode/tools/features setup runs before task workdir override —
-	// agent file paths (e.g. files: [.aura/config/...]) resolve against project root.
-	if t.Agent != "" {
-		if err := asst.SwitchAgent(t.Agent, "task"); err != nil {
-			return fmt.Errorf("task %q: setting agent %q: %w", t.Name, t.Agent, err)
-		}
-	}
-
-	if t.Mode != "" {
-		if err := asst.SwitchMode(t.Mode); err != nil {
-			return fmt.Errorf("task %q: setting mode %q: %w", t.Name, t.Mode, err)
-		}
-	}
-
+	// Initial agent/mode selection is resolved during session construction and resume.
+	// Apply task features before changing the workdir so agent files use the project root.
 	if t.Tools.IsSet() {
 		if err := asst.FilterTools(t.Tools); err != nil {
 			return fmt.Errorf("task %q: setting tools filter: %w", t.Name, err)
@@ -417,7 +410,7 @@ func runTask(
 	baseVars["Date"] = time.Now().Format("2006-01-02-15-04")
 
 	// Resolve task-scoped environment variables.
-	taskEnv, err := resolveTaskEnv(t.EnvFile, t.Env, asst.Paths().Home, baseVars)
+	taskEnv, err := resolveTaskEnv(t.EnvFile, t.Env, asst.Paths().Home, runtimeData(asst, baseVars))
 	if err != nil {
 		return fmt.Errorf("task %q: %w", t.Name, err)
 	}
@@ -432,22 +425,11 @@ func runTask(
 	// Cleanup belongs to this invocation, not to successful completion or the
 	// lifetime of the scheduling daemon. Capture metadata at exit, after overrides.
 	defer func() {
-		postEnv := make(map[string]string, len(taskEnv)+3)
-		maps.Copy(postEnv, taskEnv)
-		resolved := asst.Resolved()
-		postEnv["AURA_TASK_MODEL"] = resolved.Model
-		postEnv["AURA_TASK_PROVIDER"] = resolved.Provider
-		postEnv["AURA_TASK_PROVIDER_URL"] = ""
-		if provider := asst.Cfg().Providers.Get(resolved.Provider); provider != nil {
-			postEnv["AURA_TASK_PROVIDER_URL"] = provider.URL
-		}
-		postVars := maps.Clone(baseVars)
-		maps.Copy(postVars, postEnv)
-		taskErr = errors.Join(taskErr, runPostHooks(w, ctx, t, verbose, postVars, postEnv))
+		taskErr = errors.Join(taskErr, runPostHooks(w, ctx, t, verbose, runtimeData(asst, baseVars), taskEnv))
 	}()
 
 	// Pre hooks — abort everything on failure.
-	if err := runHooks(w, ctx, t.Name, "pre", t.Pre, verbose, baseVars, taskEnv); err != nil {
+	if err := runHooks(w, ctx, t.Name, "pre", t.Pre, verbose, runtimeData(asst, baseVars), taskEnv); err != nil {
 		return err
 	}
 
@@ -455,7 +437,7 @@ func runTask(
 	if t.ForEach != nil {
 		// Template-expand foreach sources before resolving items.
 		if t.ForEach.File != "" {
-			expanded, err := expandCommand(t.ForEach.File, baseVars)
+			expanded, err := expandCommand(t.ForEach.File, runtimeData(asst, baseVars))
 			if err != nil {
 				return fmt.Errorf("task %q: expanding foreach.file: %w", t.Name, err)
 			}
@@ -464,7 +446,7 @@ func runTask(
 		}
 
 		if t.ForEach.Shell != "" {
-			expanded, err := expandCommand(t.ForEach.Shell, baseVars)
+			expanded, err := expandCommand(t.ForEach.Shell, runtimeData(asst, baseVars))
 			if err != nil {
 				return fmt.Errorf("task %q: expanding foreach.shell: %w", t.Name, err)
 			}
@@ -577,18 +559,6 @@ func runTask(
 				fmt.Fprintf(w, "[task:%s] [item %d/%d] %s\n", t.Name, i+1, len(items), item)
 			}
 
-			expanded := make([]string, 0, len(t.Commands))
-			for _, raw := range t.Commands {
-				cmd, err := expandCommand(raw, vars)
-				if err != nil {
-					itemCancel()
-
-					return fmt.Errorf("task %q: expanding command for item %q: %w", t.Name, item, err)
-				}
-
-				expanded = append(expanded, cmd)
-			}
-
 			maxAttempts := 1
 
 			if t.ForEach.Retries > 0 {
@@ -609,7 +579,7 @@ func runTask(
 					}
 				}
 
-				lastErr = runCommands(w, itemCtx, asst, u, t.Name, expanded, verbose, taskEnv)
+				lastErr = runCommands(w, itemCtx, asst, u, t.Name, t.Commands, verbose, vars, taskEnv)
 				if lastErr == nil {
 					break
 				}
@@ -622,7 +592,7 @@ func runTask(
 						"on_max_steps",
 						t.OnMaxSteps,
 						verbose,
-						vars,
+						runtimeData(asst, vars),
 						taskEnv,
 					); err != nil {
 						debug.Log("[tasks] on_max_steps hook error for %s: %v", t.Name, err)
@@ -663,16 +633,6 @@ func runTask(
 				fmt.Fprintf(w, "[task:%s] finally: %d commands\n", t.Name, len(t.Finally))
 			}
 
-			expanded := make([]string, 0, len(t.Finally))
-			for _, raw := range t.Finally {
-				cmd, err := expandCommand(raw, baseVars)
-				if err != nil {
-					return fmt.Errorf("task %q: expanding finally command: %w", t.Name, err)
-				}
-
-				expanded = append(expanded, cmd)
-			}
-
 			var (
 				finallyCtx    context.Context
 				finallyCancel context.CancelFunc
@@ -693,7 +653,7 @@ func runTask(
 				finallyCancel = func() {}
 			}
 
-			err := runCommands(w, finallyCtx, asst, u, t.Name, expanded, verbose, taskEnv)
+			err := runCommands(w, finallyCtx, asst, u, t.Name, t.Finally, verbose, baseVars, taskEnv)
 
 			finallyCancel()
 
@@ -706,31 +666,23 @@ func runTask(
 			return fmt.Errorf("task %q: %d/%d items failed", t.Name, len(itemErrors), len(items))
 		}
 	} else {
-		// No foreach — expand and run commands once.
-		expanded := make([]string, 0, len(t.Commands))
-		for _, cmd := range t.Commands {
-			result, err := expandCommand(cmd, baseVars)
-			if err != nil {
-				return fmt.Errorf("task %q: expanding command: %w", t.Name, err)
-			}
-
-			expanded = append(expanded, result)
-		}
+		// No foreach — render each command immediately before its execution.
+		commands := t.Commands
 
 		if start > 0 {
-			if start >= len(expanded) {
+			if start >= len(commands) {
 				return fmt.Errorf("task %q: --start %d out of range (%d commands, valid: 0-%d)",
-					t.Name, start, len(expanded), len(expanded)-1)
+					t.Name, start, len(commands), len(commands)-1)
 			}
 
-			expanded = expanded[start:]
+			commands = commands[start:]
 		}
 
 		if verbose {
-			fmt.Fprintf(w, "[task:%s] executing %d commands (timeout: %s)\n", t.Name, len(expanded), t.Timeout)
+			fmt.Fprintf(w, "[task:%s] executing %d commands (timeout: %s)\n", t.Name, len(commands), t.Timeout)
 		}
 
-		if err := runCommands(w, ctx, asst, u, t.Name, expanded, verbose, taskEnv); err != nil {
+		if err := runCommands(w, ctx, asst, u, t.Name, commands, verbose, baseVars, taskEnv); err != nil {
 			if errors.Is(err, assistant.ErrMaxSteps) && len(t.OnMaxSteps) > 0 {
 				if hookErr := runHooks(
 					w,
@@ -739,7 +691,7 @@ func runTask(
 					"on_max_steps",
 					t.OnMaxSteps,
 					verbose,
-					baseVars,
+					runtimeData(asst, baseVars),
 					taskEnv,
 				); hookErr != nil {
 					debug.Log("[tasks] on_max_steps hook error for %s: %v", t.Name, hookErr)

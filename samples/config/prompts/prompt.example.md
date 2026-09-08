@@ -16,7 +16,7 @@ description: Terse, output-focused system prompt for experienced developers.
 
 # Additional Instructions
 
-You are running as **{{ .Agent }}** on the **{{ .Provider }}** provider with model **{{ .Model.Name }}** ({{ .Model.ParameterSize }}, {{ .Model.ContextLength }} token context).
+You are running as **{{ .Agent }}** on the **{{ .Provider.Name }}** provider with model **{{ .Model.Name }}** ({{ .Model.ParameterSize }}, {{ .Model.ContextLength }} token context).
 
 ## Communication Style
 
@@ -55,7 +55,8 @@ Filesystem access is restricted:
 The following variables are available in agent, mode, and prompt templates:
 
 - `{{ "{{ .Model.Name }}" }}` — model name
-- `{{ "{{ .Provider }}" }}` — provider name
+- `{{ "{{ .Provider.Name }}" }}` — provider name
+- `{{ "{{ .Provider.URL }}" }}` — configured provider API base URL (no authentication credentials)
 - `{{ "{{ .Agent }}" }}` / `{{ "{{ .Mode.Name }}" }}` — current agent/mode name
 - `{{ "{{ .Tools.Eager }}" }}` — currently callable tool names (range-iterable), including `LoadTools` when needed
 - `{{ "{{ .Tools.Deferred }}" }}` — pre-rendered index of available deferred tools

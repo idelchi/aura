@@ -33,7 +33,7 @@ func Command(flags *core.Flags) *cli.Command {
 				return webui.New(bind), nil
 			}
 
-			return core.RunSession(flags, webUI, core.RunInteractive)
+			return core.RunSession(flags, core.Selection{}, webUI, core.RunInteractive)
 		},
 	}
 }

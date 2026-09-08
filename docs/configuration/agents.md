@@ -116,7 +116,7 @@ files:
 
 Paths resolve relative to `.aura/`. Conditional paths evaluating to empty are silently skipped. Missing files cause an error.
 
-Template variables available in paths and prompt bodies: `.Config.Global`, `.Config.Project`, `.Config.Source`, `.LaunchDir`, `.WorkDir`, `.Model.Name`, `.Provider`, `.Agent`, `.Mode.Name`, `.Tools.Eager`, `.Memories.Local`, `.Memories.Global`, `{{ env "VAR" }}`, `{{ index .Vars "key" }}`. See [Prompts]({{ site.baseurl }}/configuration/prompts) for the full set.
+Template variables available in paths and prompt bodies: `.Config.Global`, `.Config.Project`, `.Config.Source`, `.LaunchDir`, `.WorkDir`, `.Model.Name`, `.Provider.Name`, `.Provider.URL`, `.Agent`, `.Mode.Name`, `.Tools.Eager`, `.Memories.Local`, `.Memories.Global`, `{{ env "VAR" }}`, `{{ index .Vars "key" }}`. See [Prompts]({{ site.baseurl }}/configuration/prompts) for the full set.
 
 ## AGENTS.md Injection
 

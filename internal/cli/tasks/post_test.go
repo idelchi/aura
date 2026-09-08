@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/idelchi/aura/internal/config"
 	"github.com/idelchi/aura/internal/task"
 )
 
@@ -35,6 +36,22 @@ func TestPostHooksOutliveCancellation(t *testing.T) {
 				t.Fatalf("later cleanup did not run: %s %v", data, err)
 			}
 		})
+	}
+}
+
+// TestStructuredShellTemplates preserves arbitrary model/URL values as literal shell words.
+func TestStructuredShellTemplates(t *testing.T) {
+	output := filepath.Join(t.TempDir(), "post")
+	model := "model's $(printf unsafe); \"variant\""
+	url := "http://localhost/path?a=1&b='two'"
+	data := config.TemplateData{Model: config.ModelData{Name: model}, Provider: config.ProviderData{Name: "test", URL: url}}
+	definition := task.Task{Name: "structured", Post: []string{`printf '%s\n%s' {{ .Model.Name | shellQuote }} {{ .Provider.URL | shellQuote }} > "${OUTPUT}"`}}
+	if err := runPostHooks(io.Discard, t.Context(), definition, false, data.Context(), map[string]string{"OUTPUT": output}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(output)
+	if err != nil || string(got) != model+"\n"+url {
+		t.Fatalf("runtime value changed during shell evaluation: %q %v", got, err)
 	}
 }
 

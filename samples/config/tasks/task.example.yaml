@@ -10,6 +10,9 @@
 #   $[[ .Workdir ]]   — effective working directory (--workdir flag > task workdir > CWD)
 #   $[[ .LaunchDir ]] — directory where aura was originally invoked (before --workdir)
 #   $[[ .Date ]]      — trigger time in filesystem-friendly format (YYYY-MM-DD-HH-MM)
+#   $[[ .Model.Name ]] — current model, including CLI selection and runtime switches
+#   $[[ .Provider.Name ]] / $[[ .Provider.URL ]] — current provider's public metadata
+#   $[[ .Model.Name | shellQuote ]] — safe literal shell argument
 #   $[[ .KEY ]]       — any key from env: (after expansion) is available as a runtime variable
 #   $[[ .KEY ]]       — any key from vars: is available as a template variable
 #

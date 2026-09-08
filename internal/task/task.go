@@ -242,7 +242,8 @@ func (ts Tasks) Scheduled() Tasks {
 //   - {{ }} for load-time templates (structural generation, env vars, --set vars, sprig)
 //   - $[[ ]] for runtime templates (per-command vars like .Item, .Workdir)
 //
-// Load-time templates are expanded before YAML parsing (Phase A). After parsing,
+// Load-time templates are expanded before YAML parsing and during metadata resolution.
+// Only after both passes,
 // convertRuntimeDelimiters replaces $[[ ... ]] → {{ ... }} on command-like fields
 // so the runtime template engine sees standard {{ }} with full sprig support.
 //
@@ -252,7 +253,7 @@ func (ts Tasks) Scheduled() Tasks {
 func (ts *Tasks) Load(ff files.Files, vars map[string]string) error {
 	*ts = make(Tasks)
 
-	// Phase A: Expand load-time templates, parse YAML, convert runtime delimiters.
+	// Phase A: Expand load-time templates and parse YAML; runtime delimiters stay intact.
 	all := make(map[string]taskDef)
 	sourceMap := make(map[string]string)
 
@@ -274,8 +275,6 @@ func (ts *Tasks) Load(ff files.Files, vars map[string]string) error {
 		}
 
 		for name, def := range fileTasks {
-			convertRuntimeDelimiters(&def)
-
 			all[name] = def
 			sourceMap[name] = f.Path()
 		}
@@ -291,19 +290,6 @@ func (ts *Tasks) Load(ff files.Files, vars map[string]string) error {
 
 	// Phase C: Two-pass decode from merged structs.
 	for name, merged := range resolved {
-		// Save raw command fields and Features before template expansion.
-		// These must survive unexpanded (command fields have runtime templates,
-		// yaml.Node does not survive marshal→unmarshal round-trip).
-		rawPre := merged.Pre
-		rawCommands := merged.Commands
-		rawPost := merged.Post
-		rawForEach := merged.ForEach
-		rawFinally := merged.Finally
-		rawOnMaxSteps := merged.OnMaxSteps
-		rawVars := merged.Vars
-		rawEnv := merged.Env
-		rawFeatures := merged.Features
-
 		// Expanded decode: marshal merged struct → expand templates → strict unmarshal.
 		// Task vars provide defaults; --set vars (the `vars` parameter) override.
 		expandVars := maps.Clone(merged.Vars)
@@ -334,6 +320,11 @@ func (ts *Tasks) Load(ff files.Files, vars map[string]string) error {
 			return fmt.Errorf("task %q: not found after expanded parse", name)
 		}
 
+		// Runtime expressions must not be evaluated by the metadata expansion above.
+		// Convert only the original merged command fields, preserving their contents
+		// and the Features node independently of the YAML round-trip.
+		convertRuntimeDelimiters(&merged)
+
 		// Resolve timeout from pointer.
 		var timeout time.Duration
 
@@ -363,15 +354,15 @@ func (ts *Tasks) Load(ff files.Files, vars map[string]string) error {
 			Workdir:     def.Workdir,
 			Tools:       def.Tools,
 			// Features and command fields from raw (pre-expansion) merge.
-			Features:   rawFeatures,
-			Pre:        rawPre,
-			Commands:   rawCommands,
-			Post:       rawPost,
-			ForEach:    rawForEach,
-			Finally:    rawFinally,
-			OnMaxSteps: rawOnMaxSteps,
-			Vars:       rawVars,     // command-like: preserved raw for runtime expansion
-			Env:        rawEnv,      // command-like: preserved raw for runtime expansion
+			Features:   merged.Features,
+			Pre:        merged.Pre,
+			Commands:   merged.Commands,
+			Post:       merged.Post,
+			ForEach:    merged.ForEach,
+			Finally:    merged.Finally,
+			OnMaxSteps: merged.OnMaxSteps,
+			Vars:       merged.Vars, // command-like: preserved raw for runtime expansion
+			Env:        merged.Env,  // command-like: preserved raw for runtime expansion
 			EnvFile:    def.EnvFile, // metadata: from expanded parse
 		}
 
@@ -401,26 +392,32 @@ func convertRuntimeDelimiters(def *taskDef) {
 		return runtimeDelimRe.ReplaceAllString(s, "{{$1}}")
 	}
 
-	replaceSlice := func(ss []string) {
+	replaceSlice := func(ss []string) []string {
+		ss = slices.Clone(ss)
 		for i, s := range ss {
 			ss[i] = replace(s)
 		}
+		return ss
 	}
 
-	replaceMap := func(m map[string]string) {
+	replaceMap := func(m map[string]string) map[string]string {
+		m = maps.Clone(m)
 		for k, v := range m {
 			m[k] = replace(v)
 		}
+		return m
 	}
 
-	replaceSlice(def.Pre)
-	replaceSlice(def.Commands)
-	replaceSlice(def.Post)
-	replaceSlice(def.Finally)
-	replaceSlice(def.OnMaxSteps)
-	replaceMap(def.Env)
+	def.Pre = replaceSlice(def.Pre)
+	def.Commands = replaceSlice(def.Commands)
+	def.Post = replaceSlice(def.Post)
+	def.Finally = replaceSlice(def.Finally)
+	def.OnMaxSteps = replaceSlice(def.OnMaxSteps)
+	def.Env = replaceMap(def.Env)
 
 	if def.ForEach != nil {
+		foreach := *def.ForEach
+		def.ForEach = &foreach
 		def.ForEach.File = replace(def.ForEach.File)
 		def.ForEach.Shell = replace(def.ForEach.Shell)
 	}

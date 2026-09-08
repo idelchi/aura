@@ -53,7 +53,7 @@ type SessionFunc func(ctx context.Context, cancel context.CancelCauseFunc, asst 
 // RunSession handles the full assistant session lifecycle:
 // flags, config, UI, assistant, MCP, signal handling, graceful shutdown, auto-save.
 // The work callback does the mode-specific processing.
-func RunSession(flags Flags, makeUI func(Flags) (ui.UI, error), work SessionFunc) error {
+func RunSession(flags Flags, selection Selection, makeUI func(Flags) (ui.UI, error), work SessionFunc) error {
 	if done, err := handleEarlyExits(flags); done || err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ func RunSession(flags Flags, makeUI func(Flags) (ui.UI, error), work SessionFunc
 	// Create assistant (no MCP yet — instant, no network)
 	doneAssistant := debug.Span("creating assistant")
 
-	asst, slashRegistry, err := NewAssistant(flags, u.Events(), sp.Update)
+	asst, slashRegistry, err := NewAssistant(flags, selection, u.Events(), sp.Update)
 	if err != nil {
 		return fmt.Errorf("creating assistant: %w", err)
 	}
@@ -238,6 +238,7 @@ func HeadlessUI(_ Flags) (ui.UI, error) {
 // Returns the assistant and the slash registry (for hint resolution by the TUI).
 func NewAssistant(
 	flags Flags,
+	selection Selection,
 	events chan<- ui.Event,
 	onProgress func(string),
 ) (*assistant.Assistant, *slash.Registry, error) {
@@ -290,6 +291,14 @@ func NewAssistant(
 	doneRefresh()
 
 	// Resolve default agent when --agent is not explicitly set.
+	// Resolve the initial selection before loading plugins or building the agent.
+	overrides, err := selection.overrides(flags)
+	if err != nil {
+		return nil, nil, err
+	}
+	if overrides.Agent != nil {
+		flags.Agent = *overrides.Agent
+	}
 	if flags.Agent == "" {
 		resolved, err := config.ResolveDefault(cfg.Agents, flags.Homes())
 		if err != nil {
@@ -299,11 +308,6 @@ func NewAssistant(
 		flags.Agent = resolved.Metadata.Name
 	}
 
-	// Resolve invocation overrides before loading plugin code, including task agents.
-	overrides, err := buildOverrides(flags)
-	if err != nil {
-		return nil, nil, err
-	}
 	var overrideTarget config.OverrideTarget
 	overrideNodes, err := override.Cache(&overrideTarget, allOverrides)
 	if err != nil {
@@ -458,21 +462,21 @@ func NewAssistant(
 	doneAsstNew := debug.Span("  wiring assistant")
 
 	p := assistant.Params{
-		Config:        cfg,
-		Paths:         paths,
-		Runtime:       rt,
-		Agent:         ag,
-		Events:        events,
-		Todo:          todoList,
-		Sessions:      sessionMgr,
-		Slash:         slashRegistry,
-		Auto:          flags.Auto,
-		SetVars:       flags.Set,
-		ConfigOpts:    opts,
-		Plugins:       pluginCache,
-		LSP:           lspManager,
-		CLIOverrides:  overrides,
-		OverrideNodes: overrideNodes,
+		Config:              cfg,
+		Paths:               paths,
+		Runtime:             rt,
+		Agent:               ag,
+		Events:              events,
+		Todo:                todoList,
+		Sessions:            sessionMgr,
+		Slash:               slashRegistry,
+		Auto:                flags.Auto,
+		SetVars:             flags.Set,
+		ConfigOpts:          opts,
+		Plugins:             pluginCache,
+		LSP:                 lspManager,
+		InvocationOverrides: overrides,
+		OverrideNodes:       overrideNodes,
 	}
 
 	if taskTool != nil {
@@ -777,5 +781,5 @@ func RunInteractive(ctx context.Context, cancel context.CancelCauseFunc, asst *a
 
 // Run is the Action handler for the root command (interactive mode).
 func Run() error {
-	return RunSession(GetFlags(), InteractiveUI, RunInteractive)
+	return RunSession(GetFlags(), Selection{}, InteractiveUI, RunInteractive)
 }

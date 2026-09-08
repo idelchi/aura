@@ -19,7 +19,7 @@ type ConfigPaths struct {
 	Source  string // per-file, the config home this agent was loaded from
 }
 
-// TemplateData is the context passed to all prompt templates during rendering.
+// TemplateData is the shared context for prompt rendering and task runtime templates.
 // Templates access fields via Go template syntax, e.g., {{ .Model.Name }}, {{ .Tools.Eager }}.
 // Model.Name is always set from agent config. Capability fields (Family, Thinking,
 // Vision, etc.) are zero until runtime model resolution via the provider.
@@ -28,7 +28,7 @@ type TemplateData struct {
 	LaunchDir  string // CWD at process start, before --workdir
 	WorkDir    string // CWD after --workdir processing
 	Model      ModelData
-	Provider   string
+	Provider   ProviderData
 	Agent      string
 	Mode       ModeData
 	Tools      ToolsData        // eager + deferred tool info, filled by BuildAgent
@@ -40,6 +40,27 @@ type TemplateData struct {
 	Memories   MemoriesData     // concatenated memory file contents, filled by BuildAgent
 	Files      []FileEntry      // autoloaded file entries for composition
 	Workspace  []WorkspaceEntry // workspace (AGENTS.md) entries for composition
+}
+
+// Context exposes the shared template fields to callers that add dynamic variables.
+// Values remain typed so nested fields and template functions behave as in prompts.
+func (d TemplateData) Context() map[string]any {
+	return map[string]any{
+		"Config": d.Config, "LaunchDir": d.LaunchDir, "WorkDir": d.WorkDir,
+		"Model": d.Model, "Provider": d.Provider, "Agent": d.Agent, "Mode": d.Mode,
+		"Tools": d.Tools, "Vars": d.Vars, "Sandbox": d.Sandbox,
+		"ReadBefore": d.ReadBefore, "ToolPolicy": d.ToolPolicy, "Hooks": d.Hooks,
+		"Memories": d.Memories, "Files": d.Files, "Workspace": d.Workspace,
+	}
+}
+
+// ProviderData is the selected provider's public connection metadata.
+// Authentication credentials are never part of the template context.
+type ProviderData struct {
+	// Name is the configured provider identifier.
+	Name string
+	// URL is the configured API base URL.
+	URL string
 }
 
 // ModeData holds the active mode metadata for template consumption.

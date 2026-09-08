@@ -25,16 +25,17 @@ import (
 // If the new agent changes MCP filter rules, MCP sessions are
 // closed and reconnected so the correct set of tools is active.
 func (a *Assistant) SwitchAgent(name, reason string) error {
+	overrides := a.invocationOverrides
+	// A later switch uses the selected agent's model, not the initial invocation's.
+	overrides.Model = nil
+	overrides.Provider = nil
+	return a.switchAgent(name, reason, overrides)
+}
+
+// switchAgent rebuilds an agent with the supplied resolution settings.
+// The reason describes the transition to injectors; it does not select precedence.
+func (a *Assistant) switchAgent(name, reason string, overrides agent.Overrides) error {
 	oldInclude, oldExclude := a.cfg.MCPFilter(a.rt)
-
-	overrides := a.cliOverrides
-
-	// A task selects the initial agent; explicit invocation flags still win.
-	// Later user switches and failover intentionally use the selected agent's model.
-	if reason != "task" {
-		overrides.Model = nil
-		overrides.Provider = nil
-	}
 
 	ag, err := agent.New(a.cfg, a.paths, a.rt, name, overrides)
 	if err != nil {
@@ -76,7 +77,7 @@ func (a *Assistant) SwitchAgent(name, reason string) error {
 // setAgentFailover switches to a fallback agent, stripping --model and --provider
 // CLI overrides (they belong to the primary agent, not the fallback).
 func (a *Assistant) setAgentFailover(name string) error {
-	overrides := a.cliOverrides
+	overrides := a.invocationOverrides
 
 	overrides.Model = nil
 	overrides.Provider = nil
@@ -205,21 +206,30 @@ func (a *Assistant) TemplateData() config.TemplateData {
 	rbPolicy := a.cfg.Features.ToolExecution.ReadBefore.ToPolicy()
 
 	// Compute tool policy.
-	r := a.resolved.config
-	toolPolicy := a.cfg.EffectiveToolPolicy(r.Agent, r.Mode)
+	toolPolicy := a.cfg.EffectiveToolPolicy(a.agent.Name, a.agent.Mode)
+	modelData := config.NewModelData(a.resolved.model.Deref())
+	modelData.Name = a.agent.Model.Name
+	providerData := config.ProviderData{Name: a.agent.Model.Provider}
+	if provider := a.cfg.Providers.Get(providerData.Name); provider != nil {
+		providerData.URL = provider.URL
+	}
 
 	return config.TemplateData{
 		Config: config.ConfigPaths{
 			Global:  a.paths.Global,
 			Project: a.paths.Home,
-			// Source is set per-agent in BuildAgent, not here.
+			Source:  a.resolved.template.Config.Source,
 		},
 		LaunchDir: a.paths.Launch,
 		WorkDir:   a.effectiveWorkDir(),
-		Model:     config.NewModelData(a.resolved.model.Deref()),
-		Provider:  r.Provider,
-		Agent:     r.Agent,
-		Mode:      config.ModeData{Name: r.Mode},
+		Model:     modelData,
+		Provider:  providerData,
+		Agent:     a.agent.Name,
+		Mode:      config.ModeData{Name: a.agent.Mode},
+		Tools:     a.resolved.template.Tools,
+		Memories:  a.resolved.template.Memories,
+		Files:     a.resolved.template.Files,
+		Workspace: a.resolved.template.Workspace,
 		Vars:      config.ToAnyMap(a.setVars),
 		Sandbox:   config.NewSandboxData(a.toggles.sandbox, a.toggles.sandboxRequested, restrictions, sandboxDisplay),
 		ReadBefore: config.ReadBeforeData{
@@ -388,7 +398,7 @@ func (a *Assistant) rebuildState() error {
 	}
 
 	// 7. Build agent with CORRECT features.
-	prompt, _, eager, deferred, err := a.cfg.BuildAgent(a.agent.Name, a.agent.Mode, a.agent.System, data, a.paths, a.rt)
+	prompt, templateData, eager, deferred, err := a.cfg.BuildAgent(a.agent.Name, a.agent.Mode, a.agent.System, data, a.paths, a.rt)
 	if err != nil {
 		return fmt.Errorf("rebuilding agent state: %w", err)
 	}
@@ -400,6 +410,7 @@ func (a *Assistant) rebuildState() error {
 	}
 
 	// 9. All construction succeeded — swap atomically.
+	a.resolved.template = templateData
 	a.agent.Prompt = prompt.String()
 	a.agent.Tools = eager
 	a.builder.UpdateSystemPrompt(a.ctx, a.agent.Prompt)

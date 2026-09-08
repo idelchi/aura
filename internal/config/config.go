@@ -249,22 +249,28 @@ const defaultCompositor = `{{ template "agent" . }}
 // to all prompt templates. The system prompt acts as a compositor that controls
 // the inclusion order of agent, files, workspace, and mode components via
 // {{ template "X" . }} and {{ include .TemplateName $ }} directives.
+// The returned template data includes composition-owned fields for other runtime consumers.
 func (c Config) BuildAgent(
 	agent, mode, system string,
 	data TemplateData,
 	paths Paths,
 	rt *Runtime,
-) (prompts.Prompt, Model, tool.Tools, tool.Tools, error) {
+) (prompts.Prompt, TemplateData, tool.Tools, tool.Tools, error) {
 	// Agent lookup
 	ag := c.Agents.Get(agent)
 	if ag == nil {
-		return "", Model{}, nil, nil, fmt.Errorf("agent %q not found", agent)
+		return "", TemplateData{}, nil, nil, fmt.Errorf("agent %q not found", agent)
 	}
+	// Composition-owned collections are rebuilt, not accumulated from the previous render.
+	data.Files = nil
+	data.Workspace = nil
+	data.Agent = agent
+	data.Mode = ModeData{Name: mode}
 
 	// Resolve tools early so {{ .Tools.Eager }} is available to all templates.
 	eager, deferred, err := c.Tools(agent, mode, rt)
 	if err != nil {
-		return "", Model{}, nil, nil, err
+		return "", TemplateData{}, nil, nil, err
 	}
 
 	deferredIndex := ""
@@ -322,7 +328,7 @@ func (c Config) BuildAgent(
 
 	memories, err := NewMemoriesData(paths.Home, paths.Global)
 	if err != nil {
-		return "", Model{}, nil, nil, fmt.Errorf("loading memories: %w", err)
+		return "", TemplateData{}, nil, nil, fmt.Errorf("loading memories: %w", err)
 	}
 
 	data.Memories = memories
@@ -344,7 +350,7 @@ func (c Config) BuildAgent(
 	if sysName != "" {
 		sys := c.Systems.Get(sysName)
 		if sys == nil {
-			return "", Model{}, nil, nil, fmt.Errorf("system prompt %q not found", sysName)
+			return "", TemplateData{}, nil, nil, fmt.Errorf("system prompt %q not found", sysName)
 		}
 
 		ts.Register("system", sys.Prompt.String())
@@ -359,7 +365,7 @@ func (c Config) BuildAgent(
 	if mode != "" {
 		md := c.Modes.Get(mode)
 		if md == nil {
-			return "", Model{}, nil, nil, fmt.Errorf("mode %q not found", mode)
+			return "", TemplateData{}, nil, nil, fmt.Errorf("mode %q not found", mode)
 		}
 
 		ts.Register("mode", md.Prompt.String())
@@ -371,7 +377,7 @@ func (c Config) BuildAgent(
 	for _, path := range ag.Metadata.Files {
 		expandedPath, err := prompts.Prompt(path).Render(data)
 		if err != nil {
-			return "", Model{}, nil, nil, fmt.Errorf("expanding file path %q: %w", path, err)
+			return "", TemplateData{}, nil, nil, fmt.Errorf("expanding file path %q: %w", path, err)
 		}
 
 		resolved := strings.TrimSpace(expandedPath.String())
@@ -381,7 +387,7 @@ func (c Config) BuildAgent(
 
 		content, err := c.ReadAutoload(resolved, paths)
 		if err != nil {
-			return "", Model{}, nil, nil, err
+			return "", TemplateData{}, nil, nil, err
 		}
 
 		templateName := "file:" + resolved
@@ -410,10 +416,10 @@ func (c Config) BuildAgent(
 	// Single render pass — the entry point template composes everything.
 	rendered, err := ts.Render(data)
 	if err != nil {
-		return "", Model{}, nil, nil, fmt.Errorf("composing prompt: %w", err)
+		return "", TemplateData{}, nil, nil, fmt.Errorf("composing prompt: %w", err)
 	}
 
-	return prompts.Prompt(rendered), ag.Metadata.Model, eager, deferred, nil
+	return prompts.Prompt(rendered), data, eager, deferred, nil
 }
 
 // FilteredHooks returns hooks filtered by the agent's and mode's hook filter settings.

@@ -89,7 +89,7 @@ Optional capabilities use opt-in interfaces (same pattern as tools): `Embedder`,
 
 **Entity inheritance** — `inherit: [parent]` with DAG cycle detection (`internal/config/inherit/`). Children override parent fields via `merge.Merge()`.
 
-**Template rendering** — Go templates + slim-sprig in all prompts. Template variables include `{{ .Agent }}`, `{{ .Mode.Name }}`, `{{ .Provider }}`, and user-defined `{{ .Vars }}` via `--set`.
+**Template rendering** — Go templates + slim-sprig in all prompts. Template variables include `{{ .Agent }}`, `{{ .Mode.Name }}`, `{{ .Provider.Name }}`, and user-defined `{{ .Vars }}` via `--set`.
 
 ## Tool System
 

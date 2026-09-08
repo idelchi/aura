@@ -34,7 +34,8 @@ The body is rendered as a Go template before being sent to the LLM. Sprig functi
 | `{{ .Model.Thinking }}`      | Extended thinking supported (bool)            |
 | `{{ .Model.Vision }}`        | Vision supported (bool)                       |
 | `{{ .Model.Tools }}`         | Tool use supported (bool)                     |
-| `{{ .Provider }}`            | Active provider name                          |
+| `{{ .Provider.Name }}`       | Active provider name                          |
+| `{{ .Provider.URL }}`        | Configured API base URL (no authentication credentials) |
 | `{{ .Agent }}`               | Active agent name                             |
 | `{{ .Mode.Name }}`           | Active mode name                              |
 | `{{ .Tools.Eager }}`         | Currently callable tool names (range-iterable); includes `LoadTools` when deferred tools exist |

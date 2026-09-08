@@ -58,6 +58,9 @@ type resolvedState struct {
 	// InjectorState(), TemplateData(), slash commands, and --dry=render.
 	config config.Resolved
 
+	// template is the context of the last successful prompt composition.
+	template config.TemplateData
+
 	model         *model.Model
 	compactModel  *model.Model
 	titleModel    *model.Model
@@ -184,8 +187,8 @@ type Assistant struct {
 	// Noop mode — when set, provider is replaced with this on every agent rebuild.
 	noopProvider providers.Provider
 
-	// CLI overrides — stored so SetAgent() can forward them to agent construction.
-	cliOverrides agent.Overrides
+	// Invocation settings combine initial defaults and explicit CLI flags for construction and resume.
+	invocationOverrides agent.Overrides
 
 	// Config reload state
 	configOpts config.Options
@@ -219,21 +222,21 @@ type Assistant struct {
 
 // Params holds all dependencies for constructing an Assistant.
 type Params struct {
-	Config        config.Config
-	Paths         config.Paths
-	Runtime       *config.Runtime
-	Agent         *agent.Agent
-	Events        chan<- ui.Event
-	Sessions      *session.Manager
-	Todo          *todo.List
-	Plugins       *plugins.Cache
-	LSP           *lsp.Manager
-	Slash         *slash.Registry
-	Auto          bool
-	SetVars       map[string]string
-	ConfigOpts    config.Options
-	CLIOverrides  agent.Overrides
-	OverrideNodes override.Nodes // pre-parsed --override + --max-steps + --token-budget
+	Config              config.Config
+	Paths               config.Paths
+	Runtime             *config.Runtime
+	Agent               *agent.Agent
+	Events              chan<- ui.Event
+	Sessions            *session.Manager
+	Todo                *todo.List
+	Plugins             *plugins.Cache
+	LSP                 *lsp.Manager
+	Slash               *slash.Registry
+	Auto                bool
+	SetVars             map[string]string
+	ConfigOpts          config.Options
+	InvocationOverrides agent.Overrides
+	OverrideNodes       override.Nodes // pre-parsed --override + --max-steps + --token-budget
 
 	// Task tool (nil if no subagent agents).
 	TaskTool *task.Tool
@@ -313,13 +316,13 @@ func New(p Params) (*Assistant, error) {
 			sandbox:          sandbox.IsAvailable() && cfg.Features.Sandbox.IsEnabled(),
 			sandboxRequested: cfg.Features.Sandbox.IsEnabled(),
 		},
-		setVars:          p.SetVars,
-		done:             make(chan struct{}),
-		primaryFallbacks: primaryFallbacks,
-		loop:             loopState{patchCounts: make(map[string]int)},
-		tracker:          filetime.NewTracker(cfg.Features.ToolExecution.ReadBefore.ToPolicy()),
-		configOpts:       p.ConfigOpts,
-		cliOverrides:     p.CLIOverrides,
+		setVars:             p.SetVars,
+		done:                make(chan struct{}),
+		primaryFallbacks:    primaryFallbacks,
+		loop:                loopState{patchCounts: make(map[string]int)},
+		tracker:             filetime.NewTracker(cfg.Features.ToolExecution.ReadBefore.ToPolicy()),
+		configOpts:          p.ConfigOpts,
+		invocationOverrides: p.InvocationOverrides,
 	}
 
 	// Store pre-parsed override nodes. Validation already happened in Cache().

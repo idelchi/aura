@@ -169,7 +169,7 @@ func New(
 	cfg.Features = resolved
 
 	prompt, _, tools, _, err := cfg.BuildAgent(name, modeStr, systemStr, config.TemplateData{
-		Provider: model.Provider,
+		Provider: config.ProviderData{Name: model.Provider, URL: providerConfig.URL},
 		Agent:    name,
 		Mode:     config.ModeData{Name: modeStr},
 		Vars:     config.ToAnyMap(vars),
