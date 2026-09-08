@@ -26,6 +26,9 @@ func splitHistory(history message.Messages, keepLast int) (toCompact, preserved 
 
 	// Skip system prompt
 	msgs := history[1:]
+	if keepLast == 0 {
+		return msgs, nil
+	}
 
 	// Count non-internal messages to see if we have enough to split.
 	nonInternal := 0

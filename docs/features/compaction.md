@@ -81,6 +81,12 @@ When `chunks` is set to N > 1, compactable messages are split into N chunks and 
 
 ## Progressive Retry
 
+Overflow recovery requires the estimated request size to decrease, not merely its
+message count. It can reduce the preserved tail to zero; zero preserves no
+non-system messages. An ineffective zero-tail attempt or a skipped recovery stops
+with an error. At most three consecutive provider-overflow recoveries are allowed
+without a successful main response; cancellation stops recovery immediately.
+
 Compaction retries with progressively shorter tool result content if the summary is too large (`200 → 150 → 100 → 50 → 0` chars), then with progressively lower `keep_last_messages` down to 0. If context is still exceeded, a warning is shown suggesting `/compact` or a new session.
 
 ## Plugin Hooks
@@ -89,7 +95,7 @@ Compaction retries with progressively shorter tool result content if the summary
 
 ## Pruning
 
-Pruning removes low-value tool call arguments from older messages to reclaim context space without summarizing. Three modes: `off` (default), `iteration` (after each tool-use loop), `compaction` (during compaction). Only args exceeding `arg_threshold` estimated tokens are candidates. The most recent messages covering `protect_percent` of the context window are never touched.
+Pruning removes old tool results and large tool call arguments to reclaim context space without summarizing. Three modes: `off` (default), `iteration` (after each tool-use loop), `compaction` (during compaction). Only arguments exceeding `arg_threshold` estimated tokens are candidates. The most recent messages covering `protect_percent` of the context window, including the message crossing that boundary, are protected. The latest unanswered tool-call batch and all its results remain intact until an assistant response has assessed them.
 
 ```yaml
 compaction:

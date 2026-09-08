@@ -222,6 +222,9 @@ func (a *Assistant) CompactWithKeepLast(ctx context.Context, keepLast int) error
 // or when compaction is ineffective. Returns nil on success, ErrCompactionExhausted
 // when all attempts fail, or a wrapped ErrCompactionConfig on fatal config errors.
 func (a *Assistant) RecoverCompaction(ctx context.Context, keepLast int) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if !a.HasCompactor() {
 		return errors.New("context exhausted — no compaction agent configured for recovery")
 	}
@@ -238,22 +241,30 @@ func (a *Assistant) RecoverCompaction(ctx context.Context, keepLast int) error {
 	if shouldSkipCompaction(injections) {
 		debug.Log("[compact] skipped by BeforeCompaction plugin")
 
-		return nil
+		return fmt.Errorf("%w: recovery skipped by BeforeCompaction plugin", ErrCompactionExhausted)
 	}
 
+	attempts := 0
 	for attempt := 1; attempt <= maxCompactionAttempts; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if keepLast < 0 {
 			break
 		}
+		attempts = attempt
 
 		a.send(ui.SpinnerMessage{Text: fmt.Sprintf(
 			"Compacting (attempt %d/%d, keepLast=%d)...",
 			attempt, maxCompactionAttempts, keepLast)})
 
-		preCompactLen := len(a.builder.History())
+		preCompactTokens := a.EstimateTokens(ctx)
 
 		err := a.CompactWithKeepLast(ctx, keepLast)
 		if err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
 			debug.Log("[compact] recovery attempt %d failed (keepLast=%d): %v", attempt, keepLast, err)
 
 			if errors.Is(err, ErrCompactionConfig) {
@@ -274,18 +285,21 @@ func (a *Assistant) RecoverCompaction(ctx context.Context, keepLast int) error {
 			continue
 		}
 
-		// Success — check effectiveness.
-		postCompactLen := len(a.builder.History())
-		if postCompactLen >= preCompactLen && keepLast > 0 {
-			debug.Log("[compact] recovery attempt %d ineffective (history %d → %d), skipping to keepLast=0",
-				attempt, preCompactLen, postCompactLen)
+		// Fewer messages do not imply a smaller request (one summary may be larger).
+		postCompactTokens := a.EstimateTokens(ctx)
+		if postCompactTokens >= preCompactTokens {
+			debug.Log("[compact] recovery attempt %d ineffective (tokens %d → %d)",
+				attempt, preCompactTokens, postCompactTokens)
+			if keepLast == 0 {
+				break
+			}
 
 			keepLast = 0
 
 			continue
 		}
 
-		// Effective (or already at keepLast=0): done.
+		// The request became smaller; the next provider call remains the final check.
 		a.send(ui.SpinnerMessage{}) // clear
 
 		return nil
@@ -300,12 +314,12 @@ func (a *Assistant) RecoverCompaction(ctx context.Context, keepLast int) error {
 
 	fmt.Fprintf(
 		&diag,
-		"compaction recovery exhausted — system prompt + summary exceeds %d token context\n",
+		"compaction recovery exhausted — no effective reduction for %d token context\n",
 		a.agent.Model.Context,
 	)
 
 	for i, msg := range history {
-		est := a.estimator.Estimate(ctx, msg.Content)
+		est := a.estimator.EstimateLocal(msg.Content)
 		fmt.Fprintf(&diag, "  message[%d] role=%-9s tokens=~%-6d len=%-6d", i, msg.Role, est, len(msg.Content))
 
 		if i == 0 {
@@ -330,7 +344,7 @@ func (a *Assistant) RecoverCompaction(ctx context.Context, keepLast int) error {
 			fmtTokens(tokens, 1),
 			fmtTokens(ctxLen, 0),
 			len(history),
-			maxCompactionAttempts,
+			attempts,
 		),
 		Level: ui.LevelWarn,
 	})

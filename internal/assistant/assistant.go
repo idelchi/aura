@@ -42,13 +42,14 @@ type SlashHandler func(ctx context.Context, sctx slash.Context, input string) (m
 // loopState holds fields that are reset at the start of each processInputs() call.
 // Separating these from persistent Assistant state makes the lifecycle explicit.
 type loopState struct {
-	iteration     int
-	toolHistory   []injector.ToolCall
-	patchCounts   map[string]int
-	pendingEject  bool
-	toolsFilter   *config.Tools
-	streamStarted bool     // true once the stream callback fires this chat() call
-	appendSystem  []string // one-turn system prompt appendages from BeforeChat plugins
+	iteration          int
+	overflowRecoveries int // consecutive context-overflow recoveries without a successful chat
+	toolHistory        []injector.ToolCall
+	patchCounts        map[string]int
+	pendingEject       bool
+	toolsFilter        *config.Tools
+	streamStarted      bool     // true once the stream callback fires this chat() call
+	appendSystem       []string // one-turn system prompt appendages from BeforeChat plugins
 }
 
 // resolvedState holds derived state that is recomputed by rebuildState().

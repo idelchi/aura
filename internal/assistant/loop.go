@@ -24,6 +24,9 @@ const maxParseRetries = 3
 // maxErrorRetries limits how many times the loop retries after plugin-requested error retries.
 const maxErrorRetries = 3
 
+// maxContextRecoveries bounds recovery even when estimates shrink but the provider still rejects the request.
+const maxContextRecoveries = 3
+
 // Loop processes user inputs until cancelled.
 func (a *Assistant) Loop(
 	ctx context.Context,
@@ -344,6 +347,7 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 		}
 
 		parseRetries = 0
+		a.loop.overflowRecoveries = 0
 
 		// Eject synthetics after chat() saw them (one-turn-only)
 		if a.loop.pendingEject {
@@ -506,10 +510,14 @@ func (a *Assistant) handleChatError(
 
 	// 2. Context exhaustion — emergency compaction.
 	if errors.Is(err, providers.ErrContextExhausted) {
+		if a.loop.overflowRecoveries >= maxContextRecoveries {
+			return chatFatal, fmt.Errorf("%w: context still rejected after %d recoveries: %w", ErrCompactionExhausted, maxContextRecoveries, err)
+		}
+		a.loop.overflowRecoveries++
 		a.builder.FinalizeAssistant()
 
 		if recoverErr := a.RecoverCompaction(ctx, a.cfg.Features.Compaction.KeepLastMessages); recoverErr != nil {
-			return chatFatal, recoverErr
+			return chatFatal, errors.Join(err, recoverErr)
 		}
 
 		a.builder.StartAssistant()
