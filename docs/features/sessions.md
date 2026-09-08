@@ -9,6 +9,24 @@ nav_order: 3
 
 Save, resume, and fork conversations as JSON snapshots.
 
+## Git Snapshots and Rewind
+
+Before each accepted user prompt in a Git repository, Aura captures the working
+tree for `/undo` (`/rewind`). These temporary Git refs are separate from saved
+conversation sessions. `/undo` can restore code, rewind messages, or do both.
+
+To disable automatic code snapshots, add `.aura/config/features/snapshot.yaml`:
+
+```yaml
+snapshot:
+  disabled: true
+```
+
+This avoids snapshot-related Git work and leaves message-only rewind available.
+Existing snapshots from earlier enabled turns are cleaned up by `/clear` (`/new`)
+or when the session closes; changing this setting does not delete saved conversation sessions.
+Agent, mode, task, and CLI overrides use the same [feature setting]({{ site.baseurl }}/configuration/features#git-snapshots).
+
 ## Storage
 
 Sessions are stored at `.aura/sessions/{id}.json`. The ID is either a UUID (auto-generated) or a user-chosen name set via `/name`. Each session contains:

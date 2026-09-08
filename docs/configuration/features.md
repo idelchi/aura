@@ -28,6 +28,33 @@ Resolution order: `prompt:` wins over `agent:`. If neither is set: Compaction fa
 | Title                                  | Yes      | Yes       | Falls back to first user message if neither configured                         |
 | Vision, STT, TTS, Embeddings, Reranker | Yes      | No        | Agent name provides model/provider — no runtime resolution                     |
 
+## Git Snapshots
+
+**File:** `features/snapshot.yaml`
+
+```yaml
+snapshot:
+  disabled: false # true = skip automatic Git working-tree snapshots
+```
+
+Snapshots are enabled by default in Git repositories. Set `disabled: true` to
+avoid Git snapshot initialization, working-tree scans, snapshot refs, and the
+`Creating snapshot...` status message. Git initialization is deferred until the
+first accepted user prompt, after feature overrides have been resolved.
+
+The same setting works under `features.snapshot` in agent, mode, and task
+definitions. Normal precedence applies: global → agent → mode → task → CLI.
+Omitting `disabled` inherits the parent setting; explicitly setting it to `false`
+re-enables snapshots. For a single invocation:
+
+```sh
+aura --override features.snapshot.disabled=true
+```
+
+With snapshots disabled, `/undo` reports that code restore is unavailable and
+offers message-only rewind. Saved conversation sessions and their auto-save are
+unaffected. See [Git snapshots and rewind]({{ site.baseurl }}/features/sessions#git-snapshots-and-rewind).
+
 ## Compaction
 
 **File:** `features/compaction.yaml` — See [Compaction]({{ site.baseurl }}/features/compaction)

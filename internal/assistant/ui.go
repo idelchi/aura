@@ -63,7 +63,7 @@ func (a *Assistant) Status() ui.Status {
 			Enabled:   r.Sandbox,
 			Requested: a.toggles.sandboxRequested,
 		},
-		Snapshots: a.tools.snapshots != nil,
+		Snapshots: a.SnapshotManager() != nil,
 		Steps: struct {
 			Current int
 			Max     int
@@ -177,8 +177,8 @@ func (a *Assistant) applyUIAction(ctx context.Context, action ui.Action) {
 
 		a.send(ui.CommandResult{Command: "/todo edit", Message: "Todo list updated.", Level: ui.LevelSuccess})
 	case ui.UndoSnapshot:
-		if act.Hash == "" {
-			// No git — message-only rewind
+		if act.Hash == "" || a.SnapshotManager() == nil {
+			// Without an available code snapshot, only conversation rewind is possible.
 			a.send(ui.PickerOpen{Title: "What to rewind?", Items: []ui.PickerItem{
 				{
 					Label:       "Messages only",
@@ -212,13 +212,14 @@ func (a *Assistant) applyUIAction(ctx context.Context, action ui.Action) {
 		var parts []string
 
 		if act.Mode == "code" || act.Mode == "both" {
-			if a.tools.snapshots == nil {
-				a.send(ui.CommandResult{Command: "/undo", Error: errors.New("code restore unavailable without git")})
+			mgr := a.SnapshotManager()
+			if mgr == nil {
+				a.send(ui.CommandResult{Command: "/undo", Error: errors.New("code restore unavailable: Git snapshots are disabled or unavailable")})
 
 				return
 			}
 
-			if err := a.tools.snapshots.RestoreCode(act.Hash); err != nil {
+			if err := mgr.RestoreCode(act.Hash); err != nil {
 				a.send(ui.CommandResult{Command: "/undo", Error: fmt.Errorf("restoring code: %w", err)})
 
 				return

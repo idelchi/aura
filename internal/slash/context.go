@@ -63,6 +63,7 @@ type Context interface {
 	MCPSessions() []*mcp.Session
 	RegisterMCPSession(s *mcp.Session) error
 	SnapshotManager() *snapshot.Manager
+	ClearSnapshots() error
 	EventChan() chan<- ui.Event
 
 	// Lifecycle

@@ -181,6 +181,6 @@ Components are joined with `•`. Empty components are omitted.
 | Step counter | Iteration > 0    | `step X/Y`            | `step 3/300`                      |
 | Tokens       | TokensMax > 0    | Humanized SI notation | `tokens: 12.4k/131k (10%)`        |
 | Sandbox      | Always           | Lock emoji            | 🔒 when enabled, 🔓 when disabled |
-| Snapshots    | SnapshotsEnabled | Camera emoji          | 📸 (git repo)                     |
+| Snapshots    | SnapshotsEnabled | Camera emoji          | 📸 (Git snapshots initialized and enabled) |
 | Verbose      | Verbose = true   | Text indicator        | `verbose`                         |
 | Auto         | Auto = true      | Text indicator        | `auto`                            |

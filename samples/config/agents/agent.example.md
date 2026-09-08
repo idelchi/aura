@@ -147,6 +147,8 @@ files:
 # Feature overrides. Merged on top of global features/*.yaml defaults.
 # Only set fields you want to override — unset fields keep global values.
 features:
+  snapshot:
+    disabled: true # skip Git code snapshots for this read-only agent
   compaction:
     threshold: 70
     keep_last_messages: 5

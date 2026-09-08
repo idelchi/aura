@@ -46,6 +46,8 @@ daily-review:
 
   # Feature overrides (same syntax as agent features).
   features:
+    snapshot:
+      disabled: true # read-only review: no code snapshots; session saving is unaffected
     compaction:
       threshold: 90
     tools:

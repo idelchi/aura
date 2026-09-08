@@ -93,6 +93,9 @@ func (s *stubContext) RegisterMCPSession(_ *mcp.Session) error { panic("not impl
 
 func (s *stubContext) SnapshotManager() *snapshot.Manager { panic("not implemented") }
 
+// ClearSnapshots is unused by the registry tests.
+func (s *stubContext) ClearSnapshots() error { panic("not implemented") }
+
 func (s *stubContext) RequestExit() { panic("not implemented") }
 
 func (s *stubContext) SetVerbose(_ bool) { panic("not implemented") }

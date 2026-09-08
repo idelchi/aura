@@ -27,6 +27,7 @@ type Features struct {
 	MCP           MCPFeature     `yaml:"mcp"`
 	Estimation    Estimation     `yaml:"estimation"`
 	Guardrail     Guardrail      `yaml:"guardrail"`
+	Snapshot      Snapshot       `yaml:"snapshot"`
 }
 
 // featureDef binds a YAML key to its decode target and post-load defaults function.
@@ -93,6 +94,10 @@ var featureRegistry = map[string]featureDef{
 	"guardrail": {
 		decode: func(f *Features, n *yaml.Node) error { return n.Load(&f.Guardrail, yaml.WithKnownFields()) },
 		apply:  func(f *Features) error { return f.Guardrail.ApplyDefaults() },
+	},
+	"snapshot": {
+		decode: func(f *Features, n *yaml.Node) error { return n.Load(&f.Snapshot, yaml.WithKnownFields()) },
+		apply:  func(f *Features) error { return f.Snapshot.ApplyDefaults() },
 	},
 }
 

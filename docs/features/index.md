@@ -13,6 +13,7 @@ has_children: true
 | [Slash Commands]({{ site.baseurl }}/features/slash-commands)                     | Built-in commands + user-defined custom commands                                |
 | [Skills]({{ site.baseurl }}/features/tools#skills)                               | Model- and user-invocable capabilities with progressive disclosure               |
 | [Sessions]({{ site.baseurl }}/features/sessions)                                 | Save, resume, and fork conversations                                            |
+| [Git Snapshots]({{ site.baseurl }}/features/sessions#git-snapshots-and-rewind)    | Optional working-tree snapshots for code and message rewind                     |
 | [Embeddings]({{ site.baseurl }}/features/embeddings)                             | Embedding-based codebase search with AST-aware chunking                         |
 | [Compaction]({{ site.baseurl }}/features/compaction)                             | Automatic context compression via dedicated agent                               |
 | [Thinking]({{ site.baseurl }}/features/thinking)                                 | Extended reasoning with configurable levels                                     |

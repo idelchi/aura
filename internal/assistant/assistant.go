@@ -105,6 +105,7 @@ type toolState struct {
 	plugins       *plugins.Cache
 	lsp           *lsp.Manager
 	snapshots     *snapshot.Manager
+	snapshotDir   string // working directory associated with the snapshot manager
 	mcp           []*mcp.Session
 }
 
@@ -309,7 +310,6 @@ func New(p Params) (*Assistant, error) {
 			plugins:   p.Plugins,
 			lsp:       p.LSP,
 			loaded:    make(map[string]bool),
-			snapshots: snapshot.NewManager(p.ConfigOpts.WorkDir),
 		},
 		toggles: toggleState{
 			auto:             p.Auto,
@@ -396,10 +396,8 @@ func (a *Assistant) Close() {
 		}
 	}
 
-	if a.tools.snapshots != nil {
-		if err := a.tools.snapshots.Prune(); err != nil {
-			debug.Log("[snapshot] prune: %v", err)
-		}
+	if err := a.ClearSnapshots(); err != nil {
+		debug.Log("[snapshot] prune: %v", err)
 	}
 
 	a.closeMCPSessions()

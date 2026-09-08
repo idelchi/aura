@@ -20,6 +20,10 @@ compaction:
     protect_percent: 30          # % of context window to protect from pruning (most recent messages)
     arg_threshold: 200           # min estimated tokens for tool call args to be prunable
 
+# Automatic Git working-tree snapshots for /undo (not saved conversation sessions).
+snapshot:
+  disabled: false                # true = skip snapshot Git work; message-only rewind remains
+
 # Session title generation.
 title:
   disabled: false                # true = skip LLM, use first user message as title

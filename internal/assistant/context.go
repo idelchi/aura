@@ -141,8 +141,15 @@ func (a *Assistant) PluginSummary() string {
 // MCPSessions returns the connected MCP server sessions.
 func (a *Assistant) MCPSessions() []*mcp.Session { return a.tools.mcp }
 
-// SnapshotManager returns the snapshot manager (nil if not in a git repo).
-func (a *Assistant) SnapshotManager() *snapshot.Manager { return a.tools.snapshots }
+// SnapshotManager returns the current directory's manager, or nil when snapshots
+// are disabled, have not been initialized, or the directory is not a Git repo.
+func (a *Assistant) SnapshotManager() *snapshot.Manager {
+	if a.cfg.Features.Snapshot.IsDisabled() || a.tools.snapshotDir != a.effectiveWorkDir() {
+		return nil
+	}
+
+	return a.tools.snapshots
+}
 
 // EventChan returns the UI event channel for sending events.
 func (a *Assistant) EventChan() chan<- ui.Event { return a.events }

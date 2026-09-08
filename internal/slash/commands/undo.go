@@ -23,7 +23,7 @@ func Undo() slash.Command {
 		Execute: func(_ context.Context, c slash.Context, args ...string) (string, error) {
 			mgr := c.SnapshotManager()
 
-			// No git — derive turn points from conversation history for message-only rewind.
+			// Without code snapshots, derive message-only rewind points from history.
 			if mgr == nil {
 				return undoFromHistory(c)
 			}
@@ -57,7 +57,7 @@ func Undo() slash.Command {
 	}
 }
 
-// undoFromHistory builds an undo picker from conversation history when no git repo is available.
+// undoFromHistory builds an undo picker when no code snapshots are available.
 // Only message-only rewind is supported — no code restore.
 func undoFromHistory(c slash.Context) (string, error) {
 	history := c.Builder().History()
@@ -94,13 +94,18 @@ func undoFromHistory(c slash.Context) (string, error) {
 		})
 	}
 
+	notice := "Code snapshots unavailable; only messages can be rewound."
+	if c.Cfg().Features.Snapshot.IsDisabled() {
+		notice = "Git snapshots are disabled; only messages can be rewound."
+	}
+
 	if len(items) == 0 {
-		return "Nothing to rewind", nil
+		return "Nothing to rewind. " + notice, nil
 	}
 
 	slices.Reverse(items)
 
 	c.EventChan() <- ui.PickerOpen{Title: "Rewind to:", Items: items}
 
-	return "", nil
+	return notice, nil
 }

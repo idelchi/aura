@@ -21,10 +21,8 @@ func Clear() slash.Command {
 			c.ResetTokens()
 			c.ResetToolCalls()
 
-			if mgr := c.SnapshotManager(); mgr != nil {
-				if err := mgr.Prune(); err != nil {
-					debug.Log("[snapshot] prune: %v", err)
-				}
+			if err := c.ClearSnapshots(); err != nil {
+				debug.Log("[snapshot] prune: %v", err)
 			}
 
 			c.EventChan() <- ui.CommandResult{Clear: true}

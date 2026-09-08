@@ -164,6 +164,8 @@ func (f Features) SummaryDisplay() string {
 		kv("enabled", strconv.FormatBool(f.Sandbox.IsEnabled())),
 	)
 
+	write("snapshot", kv("disabled", strconv.FormatBool(f.Snapshot.IsDisabled())))
+
 	// plugins
 	write("plugins",
 		kv("unsafe", strconv.FormatBool(f.PluginConfig.Unsafe)),

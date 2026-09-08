@@ -54,6 +54,8 @@ hooks:
 # Per-mode feature overrides. Non-zero values are merged on top of agent features.
 # Merge order: Global > Agent > Mode > Task = Effective Features.
 features:
+  snapshot:
+    disabled: true # skip Git code snapshots in this read-only mode
   compaction:
     threshold: 60
   tools:

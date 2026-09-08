@@ -1,0 +1,3 @@
+# Automatic Git working-tree snapshots for /undo. Does not affect saved sessions.
+snapshot:
+  disabled: false # true = no snapshot Git work; /undo can still rewind messages

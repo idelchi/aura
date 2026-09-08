@@ -211,20 +211,7 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 	}
 
 	// Capture working tree BEFORE this turn's tool calls.
-	if a.tools.snapshots != nil {
-		a.send(ui.SpinnerMessage{Text: "Creating snapshot..."})
-
-		msg := inputs[0]
-		if _, err := a.tools.snapshots.Create(msg, preLen); err != nil {
-			debug.Log("[snapshot] create failed: %v", err)
-			a.send(
-				ui.CommandResult{
-					Message: fmt.Sprintf("warning: snapshot failed, /undo may be unavailable: %v", err),
-					Level:   ui.LevelWarn,
-				},
-			)
-		}
-	}
+	a.createSnapshot(inputs[0], preLen)
 
 	a.builder.StartAssistant()
 
