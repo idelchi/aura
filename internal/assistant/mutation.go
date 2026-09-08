@@ -29,8 +29,12 @@ func (a *Assistant) SwitchAgent(name, reason string) error {
 
 	overrides := a.cliOverrides
 
-	overrides.Model = nil
-	overrides.Provider = nil
+	// A task selects the initial agent; explicit invocation flags still win.
+	// Later user switches and failover intentionally use the selected agent's model.
+	if reason != "task" {
+		overrides.Model = nil
+		overrides.Provider = nil
+	}
 
 	ag, err := agent.New(a.cfg, a.paths, a.rt, name, overrides)
 	if err != nil {

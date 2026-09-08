@@ -198,6 +198,25 @@ func resolveTasks(flags core.Flags, names []string) (task.Tasks, error) {
 	return selected, nil
 }
 
+// taskSessionFlags selects the task's initial agent/mode before session construction,
+// so startup, dry rendering and the actual execution use the same selection.
+// applyTaskOverrides has already removed task values superseded by explicit flags.
+func taskSessionFlags(flags core.Flags, t task.Task) core.Flags {
+	if t.Agent != "" {
+		flags.Agent = t.Agent
+	}
+	if t.Mode != "" {
+		flags.Mode = t.Mode
+	}
+	// Feed the resolved task selection through the same override path as flags.
+	// The original IsSet remains unchanged for the scheduler and other tasks.
+	isSet := flags.IsSet
+	flags.IsSet = func(name string) bool {
+		return (name == "agent" && t.Agent != "") || (name == "mode" && t.Mode != "") || isSet(name)
+	}
+	return flags
+}
+
 // runScheduled starts the scheduler daemon for the given tasks (or all scheduled tasks).
 func runScheduled(flags core.Flags, names []string) error {
 	opts := flags.ConfigOptions()
@@ -250,7 +269,7 @@ func runScheduled(flags core.Flags, names []string) error {
 	// conversation state leaking between scheduled runs.
 	runFn := func(ctx context.Context, t task.Task) error {
 		return core.RunSession(
-			flags,
+			taskSessionFlags(flags, t),
 			core.HeadlessUI,
 			func(sessCtx context.Context, _ context.CancelCauseFunc, asst *assistant.Assistant, u ui.UI) error {
 				go u.Run(sessCtx) //nolint:errcheck
@@ -335,7 +354,7 @@ func runNow(flags core.Flags, names []string) error {
 
 		g.Go(func() error {
 			return core.RunSession(
-				flags,
+				taskSessionFlags(flags, t),
 				core.HeadlessUI,
 				func(sessCtx context.Context, _ context.CancelCauseFunc, asst *assistant.Assistant, u ui.UI) error {
 					go u.Run(sessCtx) //nolint:errcheck

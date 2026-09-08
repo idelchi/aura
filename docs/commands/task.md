@@ -9,6 +9,11 @@ nav_order: 11
 
 Manage and run scheduled tasks.
 
+The task's agent and mode are selected before session startup. Explicit root
+`--agent`, `--mode`, `--model`, and `--provider` flags take precedence over the task
+selection, for both scheduled and immediate runs. Later `/agent` switches and
+failover use the newly selected agent's own model/provider instead.
+
 ## Syntax
 
 ```sh
