@@ -61,7 +61,7 @@ func (a *Assistant) RunSubagent(ctx context.Context, agentName, prompt string) (
 	}
 
 	// Strip Task (recursion) and Ask (no user interaction) from subagent tool set.
-	tools := child.Tools.Filtered(nil, []string{"Task", "Ask"})
+	tools := a.loop.filterTools(child.Tools).Filtered(nil, []string{"Task", "Ask"})
 
 	// Resolve hooks for the child agent.
 	childHooks := a.cfg.FilteredHooks(child.Name, child.Mode)

@@ -58,7 +58,7 @@ type Injection struct {
 	Content     string
 	Prefix      string        // e.g., "[SYSTEM FEEDBACK]: "
 	Eject       bool          // remove after one turn
-	Tools       *config.Tools // tool filter for the turn this injection fires (nil = no override)
+	Tools       *config.Tools // cumulative restriction until the next user turn (nil = no additional restriction)
 	DisplayOnly bool          // show in UI but don't add to conversation history
 }
 

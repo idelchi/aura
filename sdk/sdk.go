@@ -30,7 +30,9 @@ type Result struct {
 	Prefix string
 	// Eject removes the injected message after one turn.
 	Eject bool
-	// DisableTools lists tool name patterns to disable (e.g. ["*"] to disable all).
+	// DisableTools restricts later tool dispatches in this user turn, across hook phases.
+	// Patterns accumulate (e.g. ["*"] disables all); the next user turn resets them.
+	// Applies without a Message and to Batch/delegated calls, not already-running calls.
 	DisableTools []string
 	// Notice is display-only text shown in the TUI but not sent to the LLM.
 	// When set, Message is ignored.

@@ -187,18 +187,10 @@ func (h *Hook) Check(ctx context.Context, state *injector.State) *injector.Injec
 }
 
 // buildBaseInjection converts an sdk.Result into a base injector.Injection.
-// Returns nil if the result has no message or notice. Timing-specific fields
+// Returns nil if the result has no message, notice or tool restriction. Timing-specific fields
 // are attached by the typed CheckXxx methods.
 func buildBaseInjection(h *Hook, result sdk.Result) *injector.Injection {
-	if result.Notice != "" {
-		return &injector.Injection{
-			Name:        h.Name(),
-			Content:     result.Notice,
-			DisplayOnly: true,
-		}
-	}
-
-	if result.Message == "" {
+	if result.Message == "" && result.Notice == "" && len(result.DisableTools) == 0 {
 		return nil
 	}
 
@@ -214,6 +206,10 @@ func buildBaseInjection(h *Hook, result sdk.Result) *injector.Injection {
 		Content: result.Message,
 		Prefix:  result.Prefix,
 		Eject:   result.Eject,
+	}
+	if result.Notice != "" {
+		inj.Content = result.Notice
+		inj.DisplayOnly = true
 	}
 
 	if len(result.DisableTools) > 0 {

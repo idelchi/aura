@@ -201,7 +201,7 @@ func (a *Assistant) Compact(ctx context.Context, force bool) error {
 	state.Compaction.KeepLast = keepLast
 
 	injections := a.tools.injectors.RunBeforeCompaction(ctx, state)
-	a.injectMessages(filterContentInjections(injector.Bases(injections)))
+	a.injectMessages(injector.Bases(injections))
 
 	if shouldSkipCompaction(injections) {
 		debug.Log("[compact] skipped by BeforeCompaction plugin")
@@ -242,7 +242,7 @@ func (a *Assistant) RecoverCompaction(ctx context.Context, keepLast int) error {
 	state.Compaction.KeepLast = keepLast
 
 	injections := a.tools.injectors.RunBeforeCompaction(ctx, state)
-	a.injectMessages(filterContentInjections(injector.Bases(injections)))
+	a.injectMessages(injector.Bases(injections))
 
 	if shouldSkipCompaction(injections) {
 		debug.Log("[compact] skipped by BeforeCompaction plugin")
@@ -488,15 +488,7 @@ func (a *Assistant) CompactWith(ctx context.Context, force bool, keepLast int) e
 
 		compactionInjections := a.tools.injectors.Run(ctx, injector.AfterCompaction, compactionState)
 
-		var messageInjections []injector.Injection
-
-		for _, inj := range compactionInjections {
-			if inj.Content != "" || inj.DisplayOnly {
-				messageInjections = append(messageInjections, inj)
-			}
-		}
-
-		a.injectMessages(messageInjections)
+		a.injectMessages(compactionInjections)
 
 		return fmt.Errorf("compaction: truncation attempts exhausted: %w", lastErr)
 	}
@@ -553,15 +545,7 @@ func (a *Assistant) CompactWith(ctx context.Context, force bool, keepLast int) e
 
 	compactionInjections := a.tools.injectors.Run(ctx, injector.AfterCompaction, compactionState)
 
-	var messageInjections []injector.Injection
-
-	for _, inj := range compactionInjections {
-		if inj.Content != "" || inj.DisplayOnly {
-			messageInjections = append(messageInjections, inj)
-		}
-	}
-
-	a.injectMessages(messageInjections)
+	a.injectMessages(compactionInjections)
 
 	return nil
 }
@@ -714,17 +698,4 @@ func shouldSkipCompaction(injections []injector.BeforeCompactionInjection) bool 
 	}
 
 	return false
-}
-
-// filterContentInjections returns only injections that have content or are display-only.
-func filterContentInjections(injections []injector.Injection) []injector.Injection {
-	var result []injector.Injection
-
-	for _, inj := range injections {
-		if inj.Content != "" || inj.DisplayOnly {
-			result = append(result, inj)
-		}
-	}
-
-	return result
 }

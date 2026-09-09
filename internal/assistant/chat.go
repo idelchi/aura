@@ -55,10 +55,7 @@ func (a *Assistant) chat(ctx context.Context) (message.Message, error) {
 		a.loop.appendSystem = nil
 	}
 
-	agentTools := a.agent.Tools
-	if a.loop.toolsFilter != nil {
-		agentTools = agentTools.Filtered(a.loop.toolsFilter.Enabled, a.loop.toolsFilter.Disabled)
-	}
+	agentTools := a.loop.filterTools(a.agent.Tools)
 
 	// TransformMessages hook pipeline: let plugins modify the message array before the LLM call.
 	// Ephemeral — builder history is untouched. Plugins re-apply all transforms every turn.
@@ -99,7 +96,7 @@ func (a *Assistant) chat(ctx context.Context) (message.Message, error) {
 		a.resolved.model.Deref().Name,
 		len(history),
 		len(req.Tools),
-		a.loop.toolsFilter,
+		a.loop.toolsFilters,
 		lastRole,
 		a.agent.Model.Context,
 		int(a.resolved.model.Deref().ContextLength),
@@ -181,7 +178,7 @@ func (a *Assistant) chat(ctx context.Context) (message.Message, error) {
 	// accurate baseline and add only what the LLM just generated.
 	// When previousInputTokens == 0 (after Compact() or first turn), keep the
 	// API value — a deflated input is a much smaller error than 0 + Output.
-	if a.loop.toolsFilter != nil && previousInputTokens > 0 {
+	if len(a.loop.toolsFilters) > 0 && previousInputTokens > 0 {
 		a.tokens.lastInput = previousInputTokens + usageData.Output
 	}
 

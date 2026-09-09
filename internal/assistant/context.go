@@ -31,7 +31,7 @@ func (a *Assistant) Resolved() config.Resolved { return a.resolved.config }
 func (a *Assistant) SystemPrompt() string { return a.agent.Prompt }
 
 // ToolNames returns the names of the currently active tools.
-func (a *Assistant) ToolNames() []string { return a.agent.Tools.Names() }
+func (a *Assistant) ToolNames() []string { return a.loop.filterTools(a.agent.Tools).Names() }
 
 // LoadedTools returns the names of deferred tools loaded this session.
 func (a *Assistant) LoadedTools() []string { return loadedToolNames(a.tools.loaded) }
@@ -88,7 +88,10 @@ func (a *Assistant) TodoList() *todo.List { return a.tools.todo }
 func (a *Assistant) SessionStats() *stats.Stats { return a.session.stats }
 
 // ResetToolCalls starts a new conversation's execution allowances.
-func (a *Assistant) ResetToolCalls() { a.session.callLimits.Restore(nil) }
+func (a *Assistant) ResetToolCalls() {
+	a.session.callLimits.Restore(nil)
+	a.loop.toolsFilters = nil
+}
 
 // InjectorRegistry returns the synthetic message injection registry.
 func (a *Assistant) InjectorRegistry() *injector.Registry { return a.tools.injectors }

@@ -268,9 +268,7 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 		// INJECTION POINT 1: BeforeChat.
 		beforeChatInjections := a.tools.injectors.RunBeforeChat(ctx, state)
 
-		if filter := a.injectMessages(injector.Bases(beforeChatInjections)); filter != nil {
-			a.loop.toolsFilter = filter
-		}
+		a.injectMessages(injector.Bases(beforeChatInjections))
 
 		// Process request modifications.
 		skipChat := false
@@ -391,17 +389,8 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 			}
 		}
 
-		// Only inject messages that have actual content — Response-only modifications
-		// must not produce empty messages or force continuation.
-		var messageInjections []injector.Injection
-
-		for _, inj := range afterResponseInjections {
-			if inj.Content != "" || inj.DisplayOnly {
-				messageInjections = append(messageInjections, inj.Injection)
-			}
-		}
-
-		a.injectMessages(messageInjections)
+		// Silent response/filter modifications must not force another model call.
+		emitted := a.injectMessages(injector.Bases(afterResponseInjections))
 
 		if !skipResponse {
 			a.builder.AddAssistantMessage(response)
@@ -410,7 +399,7 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 		if len(response.Calls) == 0 {
 			// Message injections force another iteration so the model sees the nudge.
 			// Silent modifications (Response-only) don't force continuation.
-			if len(messageInjections) > 0 {
+			if emitted {
 				debug.Log("[loop] forcing continuation after AfterResponse injection")
 
 				continue
@@ -544,16 +533,7 @@ func (a *Assistant) handleChatError(
 		}
 	}
 
-	// Filter content-less injections (Error-only mods don't produce messages).
-	var messageInjections []injector.Injection
-
-	for _, inj := range onErrorInjections {
-		if inj.Content != "" || inj.DisplayOnly {
-			messageInjections = append(messageInjections, inj.Injection)
-		}
-	}
-
-	a.injectMessages(messageInjections)
+	a.injectMessages(injector.Bases(onErrorInjections))
 
 	// Retry takes precedence over skip.
 	if retryError {

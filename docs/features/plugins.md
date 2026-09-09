@@ -181,9 +181,9 @@ Every hook receives a base `sdk.Context` with runtime state (agent, mode, tokens
 | Context                   | Extra Fields                                                                                  |
 | ------------------------- | --------------------------------------------------------------------------------------------- |
 | `BeforeChatContext`       | _(base context only)_                                                                         |
-| `AfterResponseContext`    | `Response string`, `Thinking string`, `Calls []ToolCall`                                      |
+| `AfterResponseContext`    | `Content string`, `Thinking string`, `Calls []ToolCall`                                       |
 | `BeforeToolContext`       | `ToolName string`, `Arguments map[string]any`                                                 |
-| `AfterToolContext`        | `ToolName`, `ToolResult`, `ToolError`, `ToolDuration`                                         |
+| `AfterToolContext`        | `Tool.Name`, `Tool.Result`, `Tool.Error`, `Tool.Duration`                                     |
 | `OnErrorContext`          | `Error string`, `ErrorType string`, `Retryable bool`, `StatusCode int`                        |
 | `BeforeCompactionContext` | `Forced bool`, `TokensUsed int`, `ContextPercent float64`, `MessageCount int`, `KeepLast int` |
 | `AfterCompactionContext`  | `Success bool`, `PreMessages int`, `PostMessages int`, `SummaryLength int`                    |
@@ -191,6 +191,13 @@ Every hook receives a base `sdk.Context` with runtime state (agent, mode, tokens
 | `TransformContext`        | `Messages []Message`                                                                          |
 
 Return `sdk.Result{}` (empty) to skip injection. Plugin errors are non-fatal — they log and skip.
+
+`sdk.Result.DisableTools` withdraws matching tools for the remainder of the current user turn,
+even when the result has no `Message`. Restrictions accumulate across hook phases: a later
+hook cannot re-enable an earlier restriction. Aura removes these tools from subsequent model
+requests and rejects further execution attempts, including Batch and delegated calls. Calls
+already running are not cancelled. The next user turn or `/new` restores the configured tools;
+use `features.tools.call_limits` for limits that must span the whole conversation.
 
 ## Imports and Unsafe Mode
 

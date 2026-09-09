@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/idelchi/aura/internal/agent"
@@ -44,9 +45,25 @@ type loopState struct {
 	toolHistory        []injector.ToolCall
 	patchCounts        map[string]int
 	pendingEject       bool
-	toolsFilter        *config.Tools
-	streamStarted      bool     // true once the stream callback fires this chat() call
-	appendSystem       []string // one-turn system prompt appendages from BeforeChat plugins
+	toolsFilters       []config.Tools // cumulative restrictions for this user turn
+	streamStarted      bool           // true once the stream callback fires this chat() call
+	appendSystem       []string       // one-turn system prompt appendages from BeforeChat plugins
+}
+
+// filterTools applies each injected restriction without widening earlier filters.
+func (s *loopState) filterTools(tools tool.Tools) tool.Tools {
+	for _, filter := range s.toolsFilters {
+		tools = tools.Filtered(filter.Enabled, filter.Disabled)
+	}
+	return tools
+}
+
+// checkTool rejects execution of a tool excluded by this turn's injected restrictions.
+func (s *loopState) checkTool(t tool.Tool) error {
+	if len(s.filterTools(tool.Tools{t})) == 0 {
+		return fmt.Errorf("tool %q is disabled for this turn; do not repeat this call", t.Name())
+	}
+	return nil
 }
 
 // resolvedState holds derived state that is recomputed by rebuildState().
@@ -600,7 +617,7 @@ func (a *Assistant) InjectorState() *injector.State {
 		Compaction: injector.CompactionState{
 			Enabled: r.Features.Compaction.Threshold > 0 || r.Features.Compaction.MaxTokens > 0,
 		},
-		AvailableTools: a.agent.Tools.Names(),
+		AvailableTools: a.loop.filterTools(a.agent.Tools).Names(),
 		LoadedTools:    loadedToolNames(a.tools.loaded),
 		Turns:          a.builder.Turns(),
 		SystemPrompt:   a.builder.SystemPrompt(),
@@ -657,13 +674,24 @@ func (a *Assistant) effectiveWorkDir() string {
 // WorkDir returns the effective working directory (post --workdir resolution).
 func (a *Assistant) WorkDir() string { return a.effectiveWorkDir() }
 
-// injectMessages applies a batch of injections to the conversation.
-// Sets pendingEject if any injection is marked for one-turn-only.
-// Returns the last non-nil tool filter from the batch (nil = no filtering).
-func (a *Assistant) injectMessages(injections []injector.Injection) *config.Tools {
-	var toolsFilter *config.Tools
+// injectMessages applies hook messages and cumulative tool restrictions for this turn.
+// It reports whether a message was emitted; a filter alone does not force continuation.
+func (a *Assistant) injectMessages(injections []injector.Injection) bool {
+	emitted := false
 
 	for _, inj := range injections {
+		if inj.Tools != nil {
+			filter := config.Tools{Enabled: slices.Clone(inj.Tools.Enabled), Disabled: slices.Clone(inj.Tools.Disabled)}
+			if !slices.ContainsFunc(a.loop.toolsFilters, func(existing config.Tools) bool {
+				return slices.Equal(existing.Enabled, filter.Enabled) && slices.Equal(existing.Disabled, filter.Disabled)
+			}) {
+				a.loop.toolsFilters = append(a.loop.toolsFilters, filter)
+			}
+		}
+		if inj.Content == "" && !inj.DisplayOnly {
+			continue
+		}
+		emitted = true
 		content := inj.Prefix + inj.Content
 
 		if !inj.DisplayOnly {
@@ -679,13 +707,9 @@ func (a *Assistant) injectMessages(injections []injector.Injection) *config.Tool
 		if !inj.DisplayOnly && inj.Eject {
 			a.loop.pendingEject = true
 		}
-
-		if inj.Tools != nil {
-			toolsFilter = inj.Tools
-		}
 	}
 
-	return toolsFilter
+	return emitted
 }
 
 // buildSandbox constructs a Sandbox from merged restrictions for lightweight path checks.

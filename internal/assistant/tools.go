@@ -122,6 +122,12 @@ func (a *Assistant) executeTools(ctx context.Context, toolCalls []call.Call) {
 			continue
 		}
 
+		if err := a.loop.checkTool(t); err != nil {
+			a.builder.CompleteToolCall(ctx, tc.ID, "", err)
+			a.builder.AddEphemeralToolResult(ctx, tc.Name, tc.ID, err.Error(), 0)
+			continue
+		}
+
 		// BeforeToolExecution plugin hooks (modify args, block execution).
 		state := a.InjectorState()
 
@@ -157,6 +163,12 @@ func (a *Assistant) executeTools(ctx context.Context, toolCalls []call.Call) {
 			}
 
 			a.injectMessages(beforeResult.Messages)
+		}
+
+		if err := a.loop.checkTool(t); err != nil {
+			a.builder.CompleteToolCall(ctx, tc.ID, "", err)
+			a.builder.AddEphemeralToolResult(ctx, tc.Name, tc.ID, err.Error(), 0)
+			continue
 		}
 
 		// Inject workdir, sdk.Context, and read-before policy for all tool phases (Pre, Execute, Post).
@@ -485,16 +497,7 @@ func (a *Assistant) executeTools(ctx context.Context, toolCalls []call.Call) {
 			a.builder.AddToolResult(ctx, tc.Name, tc.ID, result, est)
 		}
 
-		// Filter out Output-only injections.
-		var messageInjections []injector.Injection
-
-		for _, inj := range injections {
-			if inj.Content != "" || inj.DisplayOnly {
-				messageInjections = append(messageInjections, inj.Injection)
-			}
-		}
-
-		a.injectMessages(messageInjections)
+		a.injectMessages(injector.Bases(injections))
 	}
 }
 
@@ -512,9 +515,12 @@ func (a *Assistant) executeOne(ctx context.Context, pc preparedCall) execResult 
 	return execResult{output: output, err: err, duration: time.Since(start)}
 }
 
-// executeTool applies the conversation budget at the shared execution boundary.
-// Limits stay in the parent process even when tool execution uses a sandbox child.
+// executeTool enforces turn restrictions and the conversation budget at the shared
+// execution boundary, including delegated calls and sandbox child processes.
 func (a *Assistant) executeTool(ctx context.Context, t tool.Tool, args map[string]any) (string, error) {
+	if err := a.loop.checkTool(t); err != nil {
+		return "", err
+	}
 	return a.session.callLimits.Run(ctx, t.Name(), a.cfg.Features.ToolExecution.CallLimits, func(ctx context.Context) (string, error) {
 		sandboxable := true
 		if so, ok := t.(tool.SandboxOverride); ok {
@@ -942,6 +948,9 @@ func (a *Assistant) ExecuteSubTool(ctx context.Context, toolName string, args ma
 	t, err := a.agent.Tools.Get(toolName)
 	if err != nil {
 		return "", fmt.Errorf("tool %q not found", toolName)
+	}
+	if err := a.loop.checkTool(t); err != nil {
+		return "", err
 	}
 
 	// BeforeToolExecution plugins — plugin contracts are tool-specific.
