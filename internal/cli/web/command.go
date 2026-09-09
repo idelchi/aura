@@ -25,7 +25,7 @@ func Command(flags *core.Flags) *cli.Command {
 				Sources:     cli.EnvVars("AURA_WEB_BIND"),
 			},
 		},
-		Action: func(_ context.Context, _ *cli.Command) error {
+		Action: func(ctx context.Context, _ *cli.Command) error {
 			flags := core.GetFlags()
 			bind := flags.Web.Bind
 
@@ -33,7 +33,7 @@ func Command(flags *core.Flags) *cli.Command {
 				return webui.New(bind), nil
 			}
 
-			return core.RunSession(flags, core.Selection{}, webUI, core.RunInteractive)
+			return core.RunSession(ctx, flags, core.Selection{}, webUI, core.RunInteractive)
 		},
 	}
 }

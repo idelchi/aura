@@ -61,6 +61,7 @@ unaffected. See [Git snapshots and rewind]({{ site.baseurl }}/features/sessions#
 
 ```yaml
 compaction:
+  timeout: 0s # optional overall compaction limit; 0 uses only the caller's deadline
   threshold: 80 # context fill % that triggers compaction (1-100)
   # max_tokens: 32000    # absolute token trigger (overrides threshold)
   trim_threshold: 50 # fill % at which synthetic messages are trimmed first (must be < threshold)

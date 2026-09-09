@@ -53,21 +53,25 @@ type SessionFunc func(ctx context.Context, cancel context.CancelCauseFunc, asst 
 // RunSession handles the full assistant session lifecycle:
 // flags, config, UI, assistant, MCP, signal handling, graceful shutdown, auto-save.
 // The work callback does the mode-specific processing.
-func RunSession(flags Flags, selection Selection, makeUI func(Flags) (ui.UI, error), work SessionFunc) error {
+func RunSession(parent context.Context, flags Flags, selection Selection, makeUI func(Flags) (ui.UI, error), work SessionFunc) error {
 	if done, err := handleEarlyExits(flags); done || err != nil {
 		return err
 	}
 
 	// Context + signal handling
-	ctx, cancel := context.WithCancelCause(context.Background())
+	ctx, cancel := context.WithCancelCause(parent)
 	defer cancel(nil)
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigCh)
 
 	go func() {
-		<-sigCh
-		cancel(ErrUserAbort)
+		select {
+		case <-sigCh:
+			cancel(ErrUserAbort)
+		case <-ctx.Done():
+		}
 	}()
 
 	// Initialize debug logger early.
@@ -780,6 +784,6 @@ func RunInteractive(ctx context.Context, cancel context.CancelCauseFunc, asst *a
 }
 
 // Run is the Action handler for the root command (interactive mode).
-func Run() error {
-	return RunSession(GetFlags(), Selection{}, InteractiveUI, RunInteractive)
+func Run(ctx context.Context) error {
+	return RunSession(ctx, GetFlags(), Selection{}, InteractiveUI, RunInteractive)
 }

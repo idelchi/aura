@@ -1,3 +1,4 @@
 description: "Detects consecutive identical tool calls"
 config:
   window: 2
+  disable_tool: false

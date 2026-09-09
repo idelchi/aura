@@ -16,6 +16,12 @@
 #   $[[ .KEY ]]       — any key from env: (after expansion) is available as a runtime variable
 #   $[[ .KEY ]]       — any key from vars: is available as a template variable
 #
+# Post-only execution result (before cleanup):
+#   $[[ .Result.Status ]] — completed, failed, cancelled or timed_out
+#   $[[ .Result.Summary ]] — coverage, failed items and unprocessed count
+#   $[[ .Result | toJson ]] — structured result with per-item attempts/errors
+# Completion is not proof of a correct model answer or delivered notification.
+#
 # vars: vs env:
 #   vars: are template variables — expanded in {{ }}/​$[[ ]] expressions, not set in the OS environment.
 #   env: are environment variables — set in the OS environment for shell commands and tools.

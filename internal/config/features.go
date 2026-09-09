@@ -110,6 +110,9 @@ func (f *Features) MergeFrom(overlay Features) error {
 
 // ValidateResolved checks semantic feature constraints after defaults and overlays.
 func (f Features) ValidateResolved() error {
+	if err := f.Compaction.ValidateResolved(); err != nil {
+		return err
+	}
 	return f.ToolExecution.ValidateResolved()
 }
 

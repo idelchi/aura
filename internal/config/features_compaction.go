@@ -1,7 +1,15 @@
 package config
 
+import (
+	"fmt"
+	"time"
+)
+
 // Compaction holds configuration for context compaction.
 type Compaction struct {
+	// Timeout bounds a complete compaction/recovery operation, including retries.
+	// Zero adds no separate deadline; the caller's deadline still applies.
+	Timeout time.Duration `yaml:"timeout"`
 	// Threshold is the context window fill percentage that triggers automatic compaction.
 	Threshold float64 `yaml:"threshold"`
 	// MaxTokens is an absolute token count that triggers compaction when exceeded.
@@ -66,6 +74,9 @@ func (m PruneMode) AtCompaction() bool {
 
 // ApplyDefaults sets sane defaults for zero-valued fields.
 func (c *Compaction) ApplyDefaults() error {
+	if err := c.ValidateResolved(); err != nil {
+		return err
+	}
 	if c.Threshold == 0 {
 		c.Threshold = 80
 	}
@@ -91,6 +102,14 @@ func (c *Compaction) ApplyDefaults() error {
 	}
 
 	return c.Prune.ApplyDefaults()
+}
+
+// ValidateResolved checks values after agent, mode, task and CLI overlays.
+func (c Compaction) ValidateResolved() error {
+	if c.Timeout < 0 {
+		return fmt.Errorf("compaction.timeout must be nonnegative")
+	}
+	return nil
 }
 
 // ApplyDefaults sets sane defaults for zero-valued prune fields.

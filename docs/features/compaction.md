@@ -32,6 +32,7 @@ Use `/compact` to trigger compaction manually at any time.
 | Setting                  | Default    | Description                                                      |
 | ------------------------ | ---------- | ---------------------------------------------------------------- |
 | `threshold`              | 80         | Context fill % that triggers auto-compaction                     |
+| `timeout`                | 0s         | Total compaction/recovery deadline; 0 uses only the caller deadline |
 | `max_tokens`             | 0          | Absolute token count trigger (overrides `threshold` when set)    |
 | `trim_threshold`         | 50         | Fill % for synthetic message trimming                            |
 | `trim_max_tokens`        | 0          | Absolute token count trigger for trimming                        |
@@ -87,7 +88,20 @@ non-system messages. An ineffective zero-tail attempt or a skipped recovery stop
 with an error. At most three consecutive provider-overflow recoveries are allowed
 without a successful main response; cancellation stops recovery immediately.
 
-Compaction retries with progressively shorter tool result content if the summary is too large (`200 → 150 → 100 → 50 → 0` chars), then with progressively lower `keep_last_messages` down to 0. If context is still exceeded, a warning is shown suggesting `/compact` or a new session.
+Compaction retries with progressively shorter tool result content **only for context-overflow errors**
+(`200 → 150 → 100 → 50 → 0` chars), then with progressively lower `keep_last_messages` down to 0.
+Empty summaries, attempted tool calls, authorization failures and exhausted transport retries stop that recovery;
+shrinking the transcript does not correct those failures. Tools emitted by a compactor are never executed.
+Set `truncation_retries: []` to disable the inner size-retry sequence.
+
+`timeout` bounds the whole recovery, including all chunks and retries. It cannot extend the parent task deadline.
+For a short automated assessment, a single chunk and a bounded timeout avoid multiplying summarization calls.
+
+After compaction, Aura also attaches actual current-turn tool receipts outside the model-generated summary.
+They list executed tools and their returned responses (bounded excerpts for long outputs), including suppressed
+or failed actions. These receipts take precedence over summary claims; they do not cover earlier turns or prove
+an external effect beyond what the tool response confirms. The usual summary still carries interpretations and
+evidence; it is not an authoritative delivery ledger.
 
 ## Plugin Hooks
 

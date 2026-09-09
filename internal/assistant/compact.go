@@ -16,6 +16,7 @@ import (
 	"github.com/idelchi/aura/pkg/llm/model"
 	"github.com/idelchi/aura/pkg/llm/request"
 	"github.com/idelchi/aura/pkg/llm/stream"
+	providererrors "github.com/idelchi/aura/pkg/providers"
 )
 
 // ErrCompactionConfig indicates a configuration error that will never succeed on retry.
@@ -228,6 +229,11 @@ func (a *Assistant) RecoverCompaction(ctx context.Context, keepLast int) error {
 	if !a.HasCompactor() {
 		return errors.New("context exhausted — no compaction agent configured for recovery")
 	}
+	if timeout := a.cfg.Features.Compaction.Timeout; timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
 
 	// BeforeCompaction hook — fires once before all retry attempts.
 	state := a.InjectorState()
@@ -271,6 +277,11 @@ func (a *Assistant) RecoverCompaction(ctx context.Context, keepLast int) error {
 				a.send(ui.SpinnerMessage{}) // clear
 
 				return fmt.Errorf("compaction aborted: %w", err)
+			}
+			// A smaller transcript can fix context overflow, not an invalid
+			// summary, authorization error, or exhausted transport retry.
+			if !errors.Is(err, providererrors.ErrContextExhausted) {
+				return fmt.Errorf("%w: %w", ErrCompactionExhausted, err)
 			}
 
 			a.send(ui.CommandResult{Message: fmt.Sprintf(
@@ -357,6 +368,11 @@ func (a *Assistant) RecoverCompaction(ctx context.Context, keepLast int) error {
 // If no summarization agent is configured, only mechanical pruning runs.
 func (a *Assistant) CompactWith(ctx context.Context, force bool, keepLast int) error {
 	cfg := a.cfg.Features.Compaction
+	if cfg.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, cfg.Timeout)
+		defer cancel()
+	}
 
 	// Resolve compaction agent/prompt first — determines whether we can summarize.
 	resolved, err := a.ResolveCompaction(ctx)
@@ -440,6 +456,9 @@ func (a *Assistant) CompactWith(ctx context.Context, force bool, keepLast int) e
 	var lastErr error
 
 	for _, maxLen := range truncLengths {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		var err error
 
 		if cfg.Chunks > 1 {
@@ -455,6 +474,9 @@ func (a *Assistant) CompactWith(ctx context.Context, force bool, keepLast int) e
 		}
 
 		lastErr = err
+		if !errors.Is(err, providererrors.ErrContextExhausted) {
+			break
+		}
 	}
 
 	if summary == "" {
@@ -481,6 +503,7 @@ func (a *Assistant) CompactWith(ctx context.Context, force bool, keepLast int) e
 
 	// Wrap summary in compaction markers
 	wrappedSummary := wrapCompactionSummary(summary, a.tools.todo.String(), len(a.tools.todo.FindPending()))
+	wrappedSummary += compactionReceipts(a.loop.toolHistory, cfg.ToolResultMaxLen)
 
 	// Rebuild conversation: replace history, then refresh system prompt.
 	// rebuildState() regenerates the system prompt with current agent/mode/tools/sandbox,

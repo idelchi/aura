@@ -422,10 +422,19 @@ func runTask(
 	// Merge expanded env into runtime template vars.
 	maps.Copy(baseVars, taskEnv)
 
+	result := task.Result{Name: t.Name, TotalKnown: t.ForEach == nil}
+	if t.ForEach == nil {
+		result.Total = 1
+	}
+
 	// Cleanup belongs to this invocation, not to successful completion or the
 	// lifetime of the scheduling daemon. Capture metadata at exit, after overrides.
 	defer func() {
-		taskErr = errors.Join(taskErr, runPostHooks(w, ctx, t, verbose, runtimeData(asst, baseVars), taskEnv))
+		result.Finish(taskErr)
+		fmt.Fprintf(w, "[task:%s] %s\n", t.Name, result.Summary())
+		data := runtimeData(asst, baseVars)
+		data["Result"] = result
+		taskErr = errors.Join(taskErr, runPostHooks(w, ctx, t, verbose, data, taskEnv))
 	}()
 
 	// Pre hooks — abort everything on failure.
@@ -469,6 +478,7 @@ func runTask(
 		}
 
 		total := strconv.Itoa(len(items))
+		result.Total, result.TotalKnown = len(items), true
 
 		if verbose {
 			fmt.Fprintf(w, "[task:%s] foreach: %d items, %d commands per item (timeout: %s)\n",
@@ -566,6 +576,7 @@ func runTask(
 			}
 
 			var lastErr error
+			attempts := 0
 
 			for attempt := range maxAttempts {
 				if attempt > 0 {
@@ -579,6 +590,7 @@ func runTask(
 					}
 				}
 
+				attempts++
 				lastErr = runCommands(w, itemCtx, asst, u, t.Name, t.Commands, verbose, vars, taskEnv)
 				if lastErr == nil {
 					break
@@ -601,11 +613,12 @@ func runTask(
 			}
 
 			itemCancel()
+			result.Add(item, attempts, lastErr)
 
 			if lastErr != nil {
 				if t.ForEach.ContinueOnError {
 					fmt.Fprintf(w, "[task:%s] [item %d/%d] error (after %d attempts): %v\n",
-						t.Name, i+1, len(items), maxAttempts, lastErr)
+						t.Name, i+1, len(items), attempts, lastErr)
 
 					itemErrors = append(itemErrors, fmt.Errorf("item %d (%s): %w", i, item, lastErr))
 
@@ -663,7 +676,7 @@ func runTask(
 		}
 
 		if len(itemErrors) > 0 {
-			return fmt.Errorf("task %q: %d/%d items failed", t.Name, len(itemErrors), len(items))
+			return fmt.Errorf("task %q: %d/%d items failed: %w", t.Name, len(itemErrors), len(items), errors.Join(itemErrors...))
 		}
 	} else {
 		// No foreach — render each command immediately before its execution.
@@ -683,6 +696,7 @@ func runTask(
 		}
 
 		if err := runCommands(w, ctx, asst, u, t.Name, commands, verbose, baseVars, taskEnv); err != nil {
+			result.Add(t.Name, 1, err)
 			if errors.Is(err, assistant.ErrMaxSteps) && len(t.OnMaxSteps) > 0 {
 				if hookErr := runHooks(
 					w,
@@ -700,6 +714,7 @@ func runTask(
 
 			return err
 		}
+		result.Add(t.Name, 1, nil)
 	}
 
 	return nil

@@ -1,4 +1,5 @@
 compaction:
+  timeout: 0s # total compaction/recovery budget; 0 adds no deadline beyond the caller
   threshold: 80
   max_tokens: 0 # absolute token count trigger (overrides threshold when set)
   trim_threshold: 50

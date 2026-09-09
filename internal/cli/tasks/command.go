@@ -113,13 +113,13 @@ func run(flags *core.Flags) *cli.Command {
 				Destination: &flags.Tasks.Run.Timeout,
 			},
 		},
-		Action: func(_ context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
 			flags := core.GetFlags()
 
 			flags.Tasks.Run.IsSet = cmd.IsSet
 
 			if flags.Tasks.Run.Now {
-				return runNow(flags, cmd.Args().Slice())
+				return runNow(ctx, flags, cmd.Args().Slice())
 			}
 
 			return runScheduled(flags, cmd.Args().Slice())
@@ -241,28 +241,14 @@ func runScheduled(flags core.Flags, names []string) error {
 	// conversation state leaking between scheduled runs.
 	runFn := func(ctx context.Context, t task.Task) error {
 		return core.RunSession(
+			ctx,
 			flags,
 			core.Selection{Agent: t.Agent, Mode: t.Mode},
 			core.HeadlessUI,
 			func(sessCtx context.Context, _ context.CancelCauseFunc, asst *assistant.Assistant, u ui.UI) error {
 				go u.Run(sessCtx) //nolint:errcheck
 
-				// Merge both contexts: ctx carries the task timeout from the scheduler,
-				// sessCtx carries signal cancellation from RunSession. The task must
-				// stop when either fires.
-				taskCtx, cancel := context.WithCancel(sessCtx)
-
-				go func() {
-					select {
-					case <-ctx.Done():
-						cancel()
-					case <-taskCtx.Done():
-					}
-				}()
-
-				defer cancel()
-
-				return runTask(flags.Writer, taskCtx, asst, u, t, flags.Debug, flags.Workdir, flags.Tasks.Run.Start)
+				return runTask(flags.Writer, sessCtx, asst, u, t, flags.Debug, flags.Workdir, flags.Tasks.Run.Start)
 			},
 		)
 	}
@@ -288,7 +274,7 @@ func runScheduled(flags core.Flags, names []string) error {
 // runNow runs tasks immediately with concurrency control and exits.
 // With names: runs those specific tasks (regardless of schedule status).
 // Without names: runs all scheduled tasks.
-func runNow(flags core.Flags, names []string) error {
+func runNow(ctx context.Context, flags core.Flags, names []string) error {
 	tasks, err := resolveTasks(flags, names)
 	if err != nil {
 		return err
@@ -327,6 +313,7 @@ func runNow(flags core.Flags, names []string) error {
 
 		g.Go(func() error {
 			return core.RunSession(
+				ctx,
 				flags,
 				core.Selection{Agent: t.Agent, Mode: t.Mode},
 				core.HeadlessUI,

@@ -221,6 +221,29 @@ One failed post command does not prevent the remaining post commands from runnin
 Cleanup errors are reported alongside the original task error rather than replacing it. SIGKILL, a process crash,
 or power loss cannot execute a shell cleanup hook. `post:` never invokes the LLM.
 
+Post hooks receive `.Result`, the execution result **before cleanup**: `Name`, `Status`
+(`completed`, `failed`, `cancelled`, `timed_out`), `Error`, `TotalKnown`, `Total`, `Completed`,
+`Failed`, `Unprocessed`, and `Items`. Each item has `Item`, `Status`, `Attempts` and `Error`.
+Items are recorded after their last attempt; `--start` excludes work from `Total`.
+If enumeration failed, `TotalKnown` is false. `.Result.Summary` produces a compact coverage report.
+The same report is printed at execution exit, including when debug output is disabled.
+
+`completed` means the commands returned without an execution error. It does **not** validate a model's
+answer, classify service health, or prove a notification was sent. Check actual tool receipts for delivery;
+model text and compaction summaries are not receipts. Post-hook failures are reported separately and
+do not retroactively change the result supplied to those hooks.
+
+```yaml
+post:
+  - >-
+    if [ $[[ .Result.Status | shellQuote ]] != completed ]; then
+      printf '%s\n' $[[ .Result.Summary | shellQuote ]];
+    fi
+```
+
+Use `$[[ .Result | toJson | shellQuote ]]` to pass the structured result to a reporting command.
+This uses the existing post lifecycle; no additional failure hook is required.
+
 For a task using a local Ollama provider, unload its selected model on exit:
 
 ```yaml
@@ -269,6 +292,10 @@ logs:
 | `shell:`             | Run a command and read lines from stdout                    |
 | `continue_on_error:` | Log per-item errors and continue instead of aborting; the task's original timeout still applies |
 | `retries:`           | Additional attempts per failed item (0 = no retry)          |
+
+The timeout is one wall-clock budget for the whole invocation, including all items and retries,
+in both scheduled and immediate runs. Expiry stops further work even with `continue_on_error: true`.
+The `post` cleanup hooks still run under their separate `post_timeout` budget.
 
 A child task's `foreach` block replaces the entire inherited block. Omit it to inherit the parent's
 source and options. When overriding it, repeat any options you want to keep, such as

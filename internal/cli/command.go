@@ -164,12 +164,12 @@ func buildApp(version string) (*cli.Command, *core.Flags) {
 
 			return nil, nil
 		},
-		Action: func(_ context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if cmd.Args().Present() {
 				return fmt.Errorf("unknown command %q\n\nRun 'aura --help' for available commands", cmd.Args().First())
 			}
 
-			return core.Run()
+			return core.Run(ctx)
 		},
 		Flags: []cli.Flag{
 			// Agent

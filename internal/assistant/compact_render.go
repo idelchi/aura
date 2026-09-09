@@ -6,10 +6,34 @@ import (
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
+	"github.com/idelchi/aura/internal/injector"
 
 	"github.com/idelchi/aura/pkg/llm/message"
 	"github.com/idelchi/aura/pkg/llm/roles"
 )
+
+// compactionReceipts retains actual current-turn tool responses outside the
+// model-generated summary. They describe execution, never inferred side effects.
+func compactionReceipts(calls []injector.ToolCall, limit int) string {
+	var result strings.Builder
+	result.WriteString("\n[CURRENT TURN TOOL RECEIPTS — recorded by Aura, not the summarizing model]\nThese are all tool invocations in this turn, not earlier turns. Prefer these receipts over conflicting summary claims. Execution alone does not prove an external effect.\n")
+	if len(calls) == 0 {
+		result.WriteString("No tools were invoked in this turn.\n")
+	}
+	for i, call := range calls {
+		output := call.Result
+		if call.Error != "" {
+			output = "Execution failed: " + call.Error
+		}
+		runes := []rune(output)
+		if len(runes) > max(limit, 200) {
+			output = string(runes[:max(limit, 200)]) + " [response excerpt; remaining output omitted]"
+		}
+		fmt.Fprintf(&result, "%d. %s returned: %q\n", i+1, call.Name, output)
+	}
+	result.WriteString("[END CURRENT TURN TOOL RECEIPTS]")
+	return result.String()
+}
 
 // splitHistory divides API history into (toCompact, preserved).
 // System prompt (index 0) is excluded from both — it stays in place via Builder.

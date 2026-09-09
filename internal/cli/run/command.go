@@ -55,7 +55,7 @@ func Command(flags *core.Flags) *cli.Command {
 				Sources:     cli.EnvVars("AURA_RUN_TIMEOUT"),
 			},
 		},
-		Action: func(_ context.Context, cmd *cli.Command) error {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
 			flags := core.GetFlags()
 
 			prompts := cmd.Args().Slice()
@@ -91,6 +91,7 @@ func Command(flags *core.Flags) *cli.Command {
 			}
 
 			return core.RunSession(
+				ctx,
 				flags,
 				core.Selection{},
 				core.HeadlessUI,
