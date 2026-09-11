@@ -5,6 +5,9 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/idelchi/aura/internal/stats"
 )
 
 // TestResultCoverage keeps execution, retries, skipped work and finalization
@@ -32,5 +35,23 @@ func TestResultCoverage(t *testing.T) {
 	final.Finish(context.Canceled)
 	if final.Completed != 1 || final.Failed != 0 || final.Status != "cancelled" {
 		t.Fatalf("finalization failure lost: %+v", final)
+	}
+}
+
+// TestMetricsObserve counts work once across ordinary commands and session resets.
+func TestMetricsObserve(t *testing.T) {
+	started := time.Now()
+	before := stats.Snapshot{StartTime: started, Iterations: 2, Tokens: stats.TokensSnapshot{In: 100, Out: 10}}
+	after := stats.Snapshot{StartTime: started, Iterations: 3, Tokens: stats.TokensSnapshot{In: 150, Out: 20}, CompactionTime: time.Second}
+	var metrics Metrics
+	metrics.Observe(before, after)
+	metrics.Observe(after, after)
+	if metrics.Iterations != 1 || metrics.InputTokens != 50 || metrics.OutputTokens != 10 || metrics.CompactionTime != time.Second {
+		t.Fatalf("incorrect command delta: %+v", metrics)
+	}
+	reset := stats.Snapshot{StartTime: started.Add(time.Second), Iterations: 1, Tokens: stats.TokensSnapshot{In: 25, Out: 5}}
+	metrics.Observe(after, reset)
+	if metrics.Iterations != 2 || metrics.InputTokens != 75 || metrics.OutputTokens != 15 {
+		t.Fatalf("lost work after new session: %+v", metrics)
 	}
 }

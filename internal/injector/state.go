@@ -34,11 +34,13 @@ type TokenSnapshot struct {
 
 // ResponseState holds the current response metadata.
 type ResponseState struct {
-	Content      string     // response text content
-	Thinking     string     // thinking block from this response
-	Calls        []ToolCall // pending tool calls from this response (pre-execution)
-	Empty        bool
-	ContentEmpty bool
+	EmptyCount      int        // consecutive empty responses in the current turn
+	ValidationError string     // declared response-format violation, not a truth assessment
+	Content         string     // response text content
+	Thinking        string     // thinking block from this response
+	Calls           []ToolCall // pending tool calls from this response (pre-execution)
+	Empty           bool
+	ContentEmpty    bool
 }
 
 // TodoState holds todo list counts.

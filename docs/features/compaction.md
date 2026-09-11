@@ -47,6 +47,14 @@ Use `/compact` to trigger compaction manually at any time.
 
 `max_tokens` takes priority over `threshold` when set; same for `trim_max_tokens` vs `trim_threshold`. The agent's `context:` field sets the effective context window size and takes priority over provider-reported values.
 
+Automatic compaction runs before a model request needs the space, not after a completed answer. A following `/new`
+or process exit therefore does not pay for a discarded summary. Explicit `/compact` and bounded overflow recovery
+are unchanged. Compaction time includes failed attempts as well as successful summaries.
+
+Local token estimates are calibrated upward by observed provider input overhead, including chat templates not
+represented in stored messages. This remains an estimate, not an exact tokenizer; native context-overflow recovery
+is still required. Changing models or resetting token state clears the calibration.
+
 See [Compaction Config]({{ site.baseurl }}/configuration/features#compaction) for the full YAML.
 
 ## Per-Agent Overrides

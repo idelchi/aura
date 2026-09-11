@@ -51,3 +51,23 @@ func AfterToolExecution(_ context.Context, ctx sdk.AfterToolContext) (sdk.Result
 		Prefix: "[SYSTEM FEEDBACK]: ",
 	}, nil
 }
+
+// BeforeChat ends repeated attempts to use tools removed from this turn.
+// Availability is supplied by Aura; plugin policy does not parse error prose.
+func BeforeChat(_ context.Context, ctx sdk.BeforeChatContext) (sdk.Result, error) {
+	limit, ok := ctx.PluginConfig["unavailable_limit"].(int)
+	if !ok || limit <= 0 || len(ctx.ToolHistory) < limit {
+		return sdk.Result{}, nil
+	}
+	for _, call := range ctx.ToolHistory[len(ctx.ToolHistory)-limit:] {
+		if call.Error == "" {
+			return sdk.Result{}, nil
+		}
+		for _, name := range ctx.AvailableTools {
+			if name == call.Name {
+				return sdk.Result{}, nil
+			}
+		}
+	}
+	return sdk.Result{Stop: "repeated requests for unavailable tools"}, nil
+}

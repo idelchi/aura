@@ -176,6 +176,18 @@ aura tools Notepad '{"action": "write", "path": "/tmp/file.txt", "content": "hel
 
 ## SDK
 
+`sdk.Result.Stop` lets `BeforeChat` and `AfterResponse` terminate a turn with an explicit policy failure.
+It is processed before pending model/tool dispatch; it does not imply successful completion or retry a side effect.
+Ordinary hook errors retain their existing diagnostic behaviour—use `Stop` for an intentional policy decision.
+
+`Context.Response.EmptyCount` counts consecutive empty responses in the current user turn.
+`Context.Response.ValidationError` describes violations of the agent's existing `response_format` for final answers.
+It checks syntax/schema, not factual correctness. `AvailableTools` excludes turn-disabled and call-budget-exhausted tools.
+
+The opt-in `response-validation` injector uses that format information for bounded correction followed by an explicit
+failure. `empty-response.retries` bounds nudges; `loop-detection.unavailable_limit` bounds consecutive attempts to
+invoke unavailable tools. Defaults preserve the advisory behaviour of existing agents. See each plugin's README.
+
 Every hook receives a base `sdk.Context` with runtime state (agent, mode, tokens, model info, session stats, tool history) plus timing-specific fields:
 
 | Context                   | Extra Fields                                                                                  |

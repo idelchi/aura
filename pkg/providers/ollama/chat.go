@@ -68,7 +68,7 @@ func (c *Client) Chat(
 	if err != nil {
 		// Ollama's internal parser returns "error parsing tool call: raw=..." for malformed JSON.
 		// Wrap with ErrToolCallParse so the assistant loop can detect and retry.
-		if strings.Contains(err.Error(), "error parsing tool call") {
+		if isToolParseError(err) {
 			return message.Message{}, usage.Usage{}, fmt.Errorf("%w: %w", tool.ErrToolCallParse, err)
 		}
 
@@ -99,4 +99,10 @@ func (c *Client) Chat(
 			Input: response.PromptEvalCount, Output: response.EvalCount,
 		},
 		nil
+}
+
+// isToolParseError recognizes Ollama's JSON and XML tool-parser failures.
+// These arrive as server errors, not local encoding/xml error values.
+func isToolParseError(err error) bool {
+	return strings.Contains(err.Error(), "error parsing tool call") || strings.Contains(err.Error(), "XML syntax error on line")
 }

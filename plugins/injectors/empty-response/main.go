@@ -14,6 +14,9 @@ func AfterResponse(_ context.Context, ctx sdk.AfterResponseContext) (sdk.Result,
 	if !ctx.Response.Empty {
 		return sdk.Result{}, nil
 	}
+	if retries, ok := ctx.PluginConfig["retries"].(int); ok && retries >= 0 && ctx.Response.EmptyCount > retries {
+		return sdk.Result{Stop: "empty response recovery exhausted"}, nil
+	}
 	var disabled []string
 	switch values := ctx.PluginConfig["disable_tools"].(type) {
 	case []string:

@@ -28,6 +28,9 @@ func TestCounting(t *testing.T) {
 			if _, err := limits.Run(t.Context(), "Send", rules, execute); err == nil {
 				t.Fatal("limit bypassed")
 			}
+			if !limits.Exhausted("Send", rules) || limits.Exhausted("Other", rules) {
+				t.Fatal("tool availability disagrees with execution admission")
+			}
 			want := 0
 			if mode == "success" {
 				want = 1

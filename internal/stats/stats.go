@@ -31,13 +31,14 @@ type Stats struct {
 	mu        sync.Mutex
 	StartTime time.Time `json:"start_time"`
 
-	Interactions int            `json:"interactions"`
-	Turns        int            `json:"turns"`
-	Iterations   int            `json:"iterations"`
-	ParseRetries int            `json:"parse_retries"`
-	Compactions  int            `json:"compactions"`
-	Tools        ToolsSnapshot  `json:"tools"`
-	Tokens       TokensSnapshot `json:"tokens"`
+	Interactions   int            `json:"interactions"`
+	Turns          int            `json:"turns"`
+	Iterations     int            `json:"iterations"`
+	ParseRetries   int            `json:"parse_retries"`
+	Compactions    int            `json:"compactions"`
+	CompactionTime time.Duration  `json:"compaction_time_ns"`
+	Tools          ToolsSnapshot  `json:"tools"`
+	Tokens         TokensSnapshot `json:"tokens"`
 }
 
 // New creates a Stats with the start time set to now.
@@ -119,6 +120,13 @@ func (s *Stats) RecordCompaction() {
 	s.Compactions++
 }
 
+// RecordCompactionTime includes both successful and failed compaction attempts.
+func (s *Stats) RecordCompactionTime(elapsed time.Duration) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.CompactionTime += elapsed
+}
+
 // RecordTokens adds token counts from a single chat round.
 func (s *Stats) RecordTokens(input, output int) {
 	s.mu.Lock()
@@ -143,14 +151,15 @@ func (s *Stats) TopTools(n int) []ToolCount {
 
 // Snapshot is a frozen, mutex-free copy of Stats for safe read-only use.
 type Snapshot struct {
-	StartTime    time.Time      `json:"start_time"`
-	Interactions int            `json:"interactions"`
-	Turns        int            `json:"turns"`
-	Iterations   int            `json:"iterations"`
-	ParseRetries int            `json:"parse_retries"`
-	Compactions  int            `json:"compactions"`
-	Tools        ToolsSnapshot  `json:"tools"`
-	Tokens       TokensSnapshot `json:"tokens"`
+	CompactionTime time.Duration  `json:"compaction_time_ns"`
+	StartTime      time.Time      `json:"start_time"`
+	Interactions   int            `json:"interactions"`
+	Turns          int            `json:"turns"`
+	Iterations     int            `json:"iterations"`
+	ParseRetries   int            `json:"parse_retries"`
+	Compactions    int            `json:"compactions"`
+	Tools          ToolsSnapshot  `json:"tools"`
+	Tokens         TokensSnapshot `json:"tokens"`
 }
 
 // Snapshot returns a frozen, mutex-free copy of the current stats.
@@ -162,14 +171,15 @@ func (s *Stats) Snapshot() Snapshot {
 	maps.Copy(freq, s.Tools.Freq)
 
 	return Snapshot{
-		StartTime:    s.StartTime,
-		Interactions: s.Interactions,
-		Turns:        s.Turns,
-		Iterations:   s.Iterations,
-		ParseRetries: s.ParseRetries,
-		Compactions:  s.Compactions,
-		Tools:        ToolsSnapshot{Calls: s.Tools.Calls, Errors: s.Tools.Errors, Freq: freq},
-		Tokens:       TokensSnapshot{In: s.Tokens.In, Out: s.Tokens.Out},
+		CompactionTime: s.CompactionTime,
+		StartTime:      s.StartTime,
+		Interactions:   s.Interactions,
+		Turns:          s.Turns,
+		Iterations:     s.Iterations,
+		ParseRetries:   s.ParseRetries,
+		Compactions:    s.Compactions,
+		Tools:          ToolsSnapshot{Calls: s.Tools.Calls, Errors: s.Tools.Errors, Freq: freq},
+		Tokens:         TokensSnapshot{In: s.Tokens.In, Out: s.Tokens.Out},
 	}
 }
 

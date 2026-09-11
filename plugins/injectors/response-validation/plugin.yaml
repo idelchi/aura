@@ -1,0 +1,3 @@
+description: Validate final answers against the agent's response_format, with bounded correction.
+config:
+  retries: 1

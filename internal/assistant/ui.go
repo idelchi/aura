@@ -75,10 +75,11 @@ func (a *Assistant) Status() ui.Status {
 }
 
 // EstimateTokens returns a client-side token estimate by summing per-message Tokens.Total
-// for messages that affect context budget (excludes internal types) plus cached schema tokens.
+// for messages that affect context budget (excludes internal types), cached schema tokens,
+// and any observed provider overhead.
 // No re-rendering or provider calls — O(n) message count, not O(n) text.
 func (a *Assistant) EstimateTokens(_ context.Context) int {
-	return a.builder.History().TokensForEstimation() + a.resolved.schemaTokens
+	return a.builder.History().TokensForEstimation() + a.resolved.schemaTokens + a.tokens.overhead
 }
 
 // EmitStatus sends the current system status to the UI.

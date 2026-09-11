@@ -1,6 +1,13 @@
 // Package responseformat defines structured output constraints for LLM responses.
 package responseformat
 
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/google/jsonschema-go/jsonschema"
+)
+
 // Type enumerates the allowed response format types.
 type Type string
 
@@ -30,4 +37,34 @@ func (r *ResponseFormat) EffectiveName() string {
 	}
 
 	return r.Name
+}
+
+// Validate checks the declared output contract without judging its factual content.
+func (r *ResponseFormat) Validate(content string) error {
+	if r == nil || r.Type == Text || r.Type == "" {
+		return nil
+	}
+	var value any
+	if err := json.Unmarshal([]byte(content), &value); err != nil {
+		return err
+	}
+	if r.Type == JSONObject {
+		if _, ok := value.(map[string]any); !ok {
+			return fmt.Errorf("response must be a JSON object")
+		}
+		return nil
+	}
+	data, err := json.Marshal(r.Schema)
+	if err != nil {
+		return err
+	}
+	var schema jsonschema.Schema
+	if err := json.Unmarshal(data, &schema); err != nil {
+		return err
+	}
+	resolved, err := schema.Resolve(nil)
+	if err != nil {
+		return err
+	}
+	return resolved.Validate(value)
 }

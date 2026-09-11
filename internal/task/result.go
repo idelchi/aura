@@ -5,15 +5,42 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
+
+	"github.com/idelchi/aura/internal/stats"
 )
 
 // ItemResult records execution, not the correctness of a model's answer or a
 // downstream side effect. An item is recorded once, after its last attempt.
 type ItemResult struct {
-	Item     string // foreach value, or task name for a non-foreach task
-	Status   string // completed, failed, cancelled or timed_out
-	Attempts int    // actual attempts, including the first
-	Error    string // execution error, empty on completion
+	Duration time.Duration // elapsed item execution, including retries
+	Reason   string        // machine-readable failure category
+	Metrics  Metrics       // model work, excluding shell subprocesses
+	Item     string        // foreach value, or task name for a non-foreach task
+	Status   string        // completed, failed, cancelled or timed_out
+	Attempts int           // actual attempts, including the first
+	Error    string        // execution error, empty on completion
+}
+
+// Metrics records model work across commands, including session resets.
+type Metrics struct {
+	Iterations     int
+	InputTokens    int
+	OutputTokens   int
+	Compactions    int
+	CompactionTime time.Duration
+}
+
+// Observe adds one command's session counters without mixing /new sessions.
+func (m *Metrics) Observe(before, after stats.Snapshot) {
+	if !before.StartTime.Equal(after.StartTime) {
+		before = stats.Snapshot{}
+	}
+	m.Iterations += max(0, after.Iterations-before.Iterations)
+	m.InputTokens += max(0, after.Tokens.In-before.Tokens.In)
+	m.OutputTokens += max(0, after.Tokens.Out-before.Tokens.Out)
+	m.Compactions += max(0, after.Compactions-before.Compactions)
+	m.CompactionTime += max(0, after.CompactionTime-before.CompactionTime)
 }
 
 // Result is the final execution state exposed to post hooks as .Result.

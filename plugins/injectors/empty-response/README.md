@@ -7,3 +7,6 @@ from existing evidence, or an explicit incomplete result. Other tools remain ava
 ordinary recovery behavior; `["*"]` disables every tool. Configure it under
 `features.plugins.config.local.empty-response` for short assessment tasks, not workflows that must continue tool work.
 The normal task deadline and max-step limit still bound repeated empty answers.
+
+`retries: 1` permits one nudge, then stops with a policy failure if the next response is also empty.
+The counter resets on a nonempty response or a new user turn. Default `-1` leaves recovery to the normal limits.

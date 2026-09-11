@@ -6,6 +6,21 @@ import (
 	"github.com/idelchi/aura/sdk"
 )
 
+func TestUnavailableAttempts(t *testing.T) {
+	ctx := sdk.BeforeChatContext{}
+	ctx.PluginConfig = map[string]any{"unavailable_limit": 2}
+	ctx.ToolHistory = []sdk.ToolCall{{Name: "Send", Error: "blocked"}, {Name: "Send", Error: "blocked"}}
+	result, _ := BeforeChat(t.Context(), ctx)
+	if result.Stop == "" {
+		t.Fatal("blocked loop did not stop")
+	}
+	ctx.AvailableTools = []string{"Send"}
+	result, _ = BeforeChat(t.Context(), ctx)
+	if result.Stop != "" {
+		t.Fatal("ordinary retryable failures stopped")
+	}
+}
+
 // TestLoopDisabling preserves changed-argument retries and ordinary failures.
 func TestLoopDisabling(t *testing.T) {
 	for _, tc := range []struct {

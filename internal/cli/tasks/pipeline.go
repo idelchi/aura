@@ -246,6 +246,7 @@ func runCommands(
 	verbose bool,
 	vars map[string]string,
 	extraEnv map[string]string,
+	metrics ...*task.Metrics,
 ) error {
 	for i, cmd := range commands {
 		if ctx.Err() != nil {
@@ -275,9 +276,13 @@ func runCommands(
 			continue
 		}
 
-		iterationsBefore := asst.SessionStats().Iterations
-
-		if err := asst.ProcessInput(ctx, cmd); err != nil {
+		before := asst.SessionStats().Snapshot()
+		iterationsBefore := before.Iterations
+		inputErr := asst.ProcessInput(ctx, cmd)
+		for _, m := range metrics {
+			m.Observe(before, asst.SessionStats().Snapshot())
+		}
+		if err := inputErr; err != nil {
 			return fmt.Errorf("task %q command %d (%s): %w", taskName, i+1, cmd, err)
 		}
 
@@ -522,7 +527,7 @@ func runTask(
 			if abortCh != nil {
 				select {
 				case <-abortCh:
-					return fmt.Errorf("task %q interrupted at item %d/%d", t.Name, i+1, len(items))
+					return fmt.Errorf("task %q interrupted at item %d/%d: %w", t.Name, i+1, len(items), context.Canceled)
 				default:
 				}
 			}
@@ -577,6 +582,8 @@ func runTask(
 
 			var lastErr error
 			attempts := 0
+			started := time.Now()
+			metrics := task.Metrics{}
 
 			for attempt := range maxAttempts {
 				if attempt > 0 {
@@ -591,7 +598,7 @@ func runTask(
 				}
 
 				attempts++
-				lastErr = runCommands(w, itemCtx, asst, u, t.Name, t.Commands, verbose, vars, taskEnv)
+				lastErr = runCommands(w, itemCtx, asst, u, t.Name, t.Commands, verbose, vars, taskEnv, &metrics)
 				if lastErr == nil {
 					break
 				}
@@ -613,7 +620,7 @@ func runTask(
 			}
 
 			itemCancel()
-			result.Add(item, attempts, lastErr)
+			recordItem(&result, item, attempts, lastErr, started, metrics)
 
 			if lastErr != nil {
 				if t.ForEach.ContinueOnError {
@@ -695,8 +702,10 @@ func runTask(
 			fmt.Fprintf(w, "[task:%s] executing %d commands (timeout: %s)\n", t.Name, len(commands), t.Timeout)
 		}
 
-		if err := runCommands(w, ctx, asst, u, t.Name, commands, verbose, baseVars, taskEnv); err != nil {
-			result.Add(t.Name, 1, err)
+		started := time.Now()
+		metrics := task.Metrics{}
+		if err := runCommands(w, ctx, asst, u, t.Name, commands, verbose, baseVars, taskEnv, &metrics); err != nil {
+			recordItem(&result, t.Name, 1, err, started, metrics)
 			if errors.Is(err, assistant.ErrMaxSteps) && len(t.OnMaxSteps) > 0 {
 				if hookErr := runHooks(
 					w,
@@ -714,7 +723,7 @@ func runTask(
 
 			return err
 		}
-		result.Add(t.Name, 1, nil)
+		recordItem(&result, t.Name, 1, nil, started, metrics)
 	}
 
 	return nil

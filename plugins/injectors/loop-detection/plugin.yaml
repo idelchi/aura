@@ -1,4 +1,5 @@
 description: "Detects consecutive identical tool calls"
 config:
+  unavailable_limit: 0 # Positive opts into stopping consecutive unavailable-tool attempts.
   window: 2
   disable_tool: false

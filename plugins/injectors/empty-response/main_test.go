@@ -6,6 +6,22 @@ import (
 	"github.com/idelchi/aura/sdk"
 )
 
+func TestEmptyRecoveryBound(t *testing.T) {
+	ctx := sdk.AfterResponseContext{}
+	ctx.Response.Empty = true
+	ctx.PluginConfig = map[string]any{"retries": 1}
+	ctx.Response.EmptyCount = 1
+	first, _ := AfterResponse(t.Context(), ctx)
+	if first.Stop != "" || first.Message == "" {
+		t.Fatal("first recovery was not offered")
+	}
+	ctx.Response.EmptyCount = 2
+	last, _ := AfterResponse(t.Context(), ctx)
+	if last.Stop == "" {
+		t.Fatal("empty recovery was not bounded")
+	}
+}
+
 // TestEmptyDisablesSelectedTools leaves notification tools available and only
 // changes behavior for a truly empty response.
 func TestEmptyDisablesSelectedTools(t *testing.T) {

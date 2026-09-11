@@ -1,3 +1,4 @@
 description: "Nudges the LLM when it returns an empty response"
 config:
+  retries: -1 # Negative leaves recovery bounded by the normal step/task limits.
   disable_tools: []

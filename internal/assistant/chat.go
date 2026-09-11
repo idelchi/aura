@@ -117,6 +117,9 @@ func (a *Assistant) chat(ctx context.Context) (message.Message, error) {
 	}
 
 	previousInputTokens := a.tokens.lastInput
+	// Account for chat templates and provider wrappers absent from local estimates.
+	// Observed overhead only raises admission estimates; it never reduces them.
+	estimatedInput := a.builder.History().TokensForEstimation() + a.resolved.schemaTokens
 
 	response, usageData, err := a.agent.Provider.Chat(ctx, req, streamFunc)
 	if err != nil {
@@ -124,6 +127,7 @@ func (a *Assistant) chat(ctx context.Context) (message.Message, error) {
 
 		return message.Message{}, err
 	}
+	a.tokens.overhead = max(a.tokens.overhead, usageData.Input-estimatedInput)
 
 	debug.Log(
 		"[chat] response content=%q thinking_len=%d tool_calls=%d usage_in=%d usage_out=%d",

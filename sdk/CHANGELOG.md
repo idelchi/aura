@@ -1,5 +1,11 @@
 # SDK Changelog
 
+## Unreleased
+
+- `Result.Stop` requests an explicit policy failure from BeforeChat or AfterResponse, separately from skipping a request or response.
+- Response context includes consecutive `EmptyCount` and the declared response-format `ValidationError` for optional recovery policies.
+- `AvailableTools` excludes tools whose configured call allowance has been exhausted.
+
 ## 0.0.0
 
 Initial semver release. Establishes the plugin contract.

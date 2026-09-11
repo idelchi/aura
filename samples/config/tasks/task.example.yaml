@@ -20,6 +20,7 @@
 #   $[[ .Result.Status ]] — completed, failed, cancelled or timed_out
 #   $[[ .Result.Summary ]] — coverage, failed items and unprocessed count
 #   $[[ .Result | toJson ]] — structured result with per-item attempts/errors
+#   Item receipts include Duration (ns), Reason and Metrics (model work; excludes shell subprocesses).
 # Completion is not proof of a correct model answer or delivered notification.
 #
 # vars: vs env:

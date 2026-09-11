@@ -190,7 +190,7 @@ func (h *Hook) Check(ctx context.Context, state *injector.State) *injector.Injec
 // Returns nil if the result has no message, notice or tool restriction. Timing-specific fields
 // are attached by the typed CheckXxx methods.
 func buildBaseInjection(h *Hook, result sdk.Result) *injector.Injection {
-	if result.Message == "" && result.Notice == "" && len(result.DisableTools) == 0 {
+	if result.Message == "" && result.Notice == "" && len(result.DisableTools) == 0 && result.Stop == "" {
 		return nil
 	}
 
@@ -201,6 +201,7 @@ func buildBaseInjection(h *Hook, result sdk.Result) *injector.Injection {
 	}
 
 	inj := &injector.Injection{
+		Stop:    result.Stop,
 		Name:    h.Name(),
 		Role:    role,
 		Content: result.Message,
@@ -552,11 +553,15 @@ func BuildSDKContext(state *injector.State) sdk.Context {
 		MaxSteps:     state.MaxSteps,
 
 		Response: struct {
-			Empty        bool
-			ContentEmpty bool
+			Empty           bool
+			ContentEmpty    bool
+			EmptyCount      int
+			ValidationError string
 		}{
-			Empty:        state.Response.Empty,
-			ContentEmpty: state.Response.ContentEmpty,
+			EmptyCount:      state.Response.EmptyCount,
+			ValidationError: state.Response.ValidationError,
+			Empty:           state.Response.Empty,
+			ContentEmpty:    state.Response.ContentEmpty,
 		},
 
 		Todo: struct {

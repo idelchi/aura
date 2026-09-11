@@ -40,6 +40,7 @@ import (
 // loopState holds fields that are reset at the start of each processInputs() call.
 // Separating these from persistent Assistant state makes the lifecycle explicit.
 type loopState struct {
+	emptyResponses     int // consecutive empty model responses in this turn
 	iteration          int
 	overflowRecoveries int // consecutive context-overflow recoveries without a successful chat
 	toolHistory        []injector.ToolCall
@@ -139,6 +140,7 @@ type toggleState struct {
 
 // tokenState groups per-turn token tracking.
 type tokenState struct {
+	overhead     int // observed provider input excess over the local request estimate
 	lastInput    int
 	lastOutput   int
 	lastAPIInput int // raw API-reported input tokens (for delta backfill, not overwritten by estimates)
@@ -485,6 +487,7 @@ func (a *Assistant) AutoSave() error {
 
 // ResetTokens clears cached token counts, forcing Status() to re-estimate.
 func (a *Assistant) ResetTokens() {
+	a.tokens.overhead = 0
 	a.tokens.lastInput = 0
 	a.tokens.lastOutput = 0
 	a.tokens.lastAPIInput = 0
@@ -617,7 +620,7 @@ func (a *Assistant) InjectorState() *injector.State {
 		Compaction: injector.CompactionState{
 			Enabled: r.Features.Compaction.Threshold > 0 || r.Features.Compaction.MaxTokens > 0,
 		},
-		AvailableTools: a.loop.filterTools(a.agent.Tools).Names(),
+		AvailableTools: a.availableToolNames(),
 		LoadedTools:    loadedToolNames(a.tools.loaded),
 		Turns:          a.builder.Turns(),
 		SystemPrompt:   a.builder.SystemPrompt(),

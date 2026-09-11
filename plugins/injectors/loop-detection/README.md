@@ -8,3 +8,7 @@ Execution failures do not trigger disabling. Requests with changed arguments (su
 oversized result) do not count as identical; repeating the same oversized request can trigger disabling.
 Default behavior remains advisory. Configure this under `features.plugins.config.local.loop-detection` for agents/tasks
 where repeating a successful read is not useful; do not enable it for intentional polling workflows.
+
+`unavailable_limit: 2` opts into stopping after two consecutive failed calls to tools that are no longer available
+in this turn (including exhausted call budgets). Normal failures of still-available tools remain retryable.
+Default `0` disables this policy. The `BeforeChat` hook uses Aura's tool availability, not error-message matching.

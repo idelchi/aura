@@ -52,6 +52,25 @@ type Usage struct {
 	Successes int `json:"successes"`
 }
 
+// Reached reports whether this usage has exhausted a rule's selected counter.
+func (u Usage) Reached(rule Rule) bool {
+	if rule.Counting() == "success" {
+		return u.Successes >= rule.Max
+	}
+	return u.Attempts >= rule.Max
+}
+
+// Exhausted exposes the same admission decision to tool-awareness consumers.
+func (l *Limiter) Exhausted(name string, rules Rules) bool {
+	rule, limited := rules[name]
+	if !limited {
+		return false
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.usage[name].Reached(rule)
+}
+
 // Limiter owns counters and per-tool serialization for one conversation.
 // Its zero value is ready for use. Do not copy a used Limiter.
 type Limiter struct {
@@ -102,11 +121,7 @@ func (l *Limiter) Run(ctx context.Context, name string, rules Rules, execute fun
 	}
 	l.mu.Lock()
 	usage := l.usage[name]
-	used := usage.Attempts
-	if rule.Counting() == "success" {
-		used = usage.Successes
-	}
-	if limited && used >= rule.Max {
+	if limited && usage.Reached(rule) {
 		l.mu.Unlock()
 		return "", fmt.Errorf("tool %q not executed: conversation call limit reached (%d %s calls). Do not repeat this call", name, rule.Max, rule.Counting())
 	}

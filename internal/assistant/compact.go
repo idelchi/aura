@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	humanize "github.com/dustin/go-humanize"
 
@@ -132,36 +133,10 @@ func (a *Assistant) TrimSynthetics() {
 	a.builder.TrimDuplicateSynthetics()
 }
 
-// autoCompactAndFinalize runs auto-compaction if threshold is exceeded, then finalizes the turn.
-// Uses force=true because ShouldCompact() already confirmed the threshold is exceeded —
-// the compaction must succeed even with few messages (common on small-context models).
-func (a *Assistant) autoCompactAndFinalize(ctx context.Context) error {
-	a.builder.FinalizeAssistant() // finalize FIRST — TUI clears currentMessage, enabling standalone spinner
-
-	if a.ShouldCompact() {
-		a.send(ui.SpinnerMessage{Text: "Compacting context..."})
-
-		if err := a.Compact(ctx, true); err != nil {
-			debug.Log("[compact] auto-compact failed: %v", err)
-
-			if errors.Is(err, ErrCompactionConfig) {
-				a.send(ui.SpinnerMessage{}) // clear
-
-				return fmt.Errorf("auto-compact aborted: %w", err)
-			}
-
-			a.send(
-				ui.CommandResult{
-					Message: fmt.Sprintf("auto-compact failed: %v — context remains large", err),
-					Level:   ui.LevelWarn,
-				},
-			)
-		}
-
-		a.send(ui.SpinnerMessage{}) // clear
-	}
-
-	return nil
+// finalizeTurn finalizes a turn without summarizing disposable history.
+// Admission and automatic compaction run before the next model request, if any.
+func (a *Assistant) finalizeTurn() {
+	a.builder.FinalizeAssistant()
 }
 
 // ResolveCompaction determines which provider, model, and system prompt to use for compaction.
@@ -367,6 +342,8 @@ func (a *Assistant) RecoverCompaction(ctx context.Context, keepLast int) error {
 // When force is true, keepLast is clamped to what's actually possible.
 // If no summarization agent is configured, only mechanical pruning runs.
 func (a *Assistant) CompactWith(ctx context.Context, force bool, keepLast int) error {
+	started := time.Now()
+	defer func() { a.session.stats.RecordCompactionTime(time.Since(started)) }()
 	cfg := a.cfg.Features.Compaction
 	if cfg.Timeout > 0 {
 		var cancel context.CancelFunc

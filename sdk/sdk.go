@@ -21,6 +21,9 @@ const (
 // Result is the return value from a hook function.
 // A zero Result means "no injection" — the hook ran but has nothing to say.
 type Result struct {
+	// Stop ends the current turn with an explicit policy failure (BeforeChat or
+	// AfterResponse). It does not retry or execute pending tool calls.
+	Stop string
 	// Message is the content to inject into the conversation.
 	// Empty string means no injection.
 	Message string
@@ -169,8 +172,10 @@ type Context struct {
 	MaxSteps     int
 
 	Response struct {
-		Empty        bool
-		ContentEmpty bool
+		Empty           bool
+		ContentEmpty    bool
+		EmptyCount      int    // consecutive empty responses in this user turn
+		ValidationError string // violation of the agent's response_format, if set
 	}
 
 	Todo struct {

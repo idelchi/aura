@@ -53,6 +53,7 @@ const maxDisplayLen = 120
 // Injection represents the base message to inject. Timing-specific data lives in
 // typed structs (BeforeChatInjection, AfterResponseInjection, etc.) that embed this.
 type Injection struct {
+	Stop        string // explicit policy failure, handled before model/tool dispatch
 	Name        string // Injector name (e.g. "loop_detection", "max_steps")
 	Role        roles.Role
 	Content     string

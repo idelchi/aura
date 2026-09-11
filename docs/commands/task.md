@@ -241,7 +241,16 @@ post:
     fi
 ```
 
-Use `$[[ .Result | toJson | shellQuote ]]` to pass the structured result to a reporting command.
+Per-item receipts also contain `Duration` (nanoseconds), `Reason`, and `Metrics` (`Iterations`, `InputTokens`,
+`OutputTokens`, `Compactions`, `CompactionTime` in nanoseconds). Metrics accumulate across commands and session
+resets; they do not include work inside arbitrary shell subprocesses. A child Aura task produces its own receipt.
+
+Reasons include `max_steps`, `token_budget`, `policy_stopped`, `compaction_deadline`, `compaction_exhausted`,
+`tool_parse`, `context_overflow`, `deadline`, `cancelled`, and `execution_error`. They describe execution, not whether
+an answer was correct. An opt-in response-validation plugin can require the agent's declared output contract.
+
+Use a stdin here-document containing `$[[ .Result | toJson ]]` to pass a structured result to a reporting command;
+large foreach reports should not be stored in environment variables or command-line arguments.
 This uses the existing post lifecycle; no additional failure hook is required.
 
 For a task using a local Ollama provider, unload its selected model on exit:

@@ -18,7 +18,7 @@ import (
 	providers "github.com/idelchi/aura/pkg/providers"
 )
 
-// maxParseRetries limits how many times the loop retries after malformed tool call JSON.
+// maxParseRetries limits how many times the loop retries after malformed tool calls.
 const maxParseRetries = 3
 
 // maxErrorRetries limits how many times the loop retries after plugin-requested error retries.
@@ -268,6 +268,11 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 		// INJECTION POINT 1: BeforeChat.
 		beforeChatInjections := a.tools.injectors.RunBeforeChat(ctx, state)
 
+		if err := injectionStop(injector.Bases(beforeChatInjections)); err != nil {
+			a.builder.FinalizeAssistant()
+			return err
+		}
+
 		a.injectMessages(injector.Bases(beforeChatInjections))
 
 		// Process request modifications.
@@ -362,6 +367,17 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 		state.Response.Calls = convertResponseCalls(response.Calls)
 		state.Response.Empty = response.Content == "" && len(response.Calls) == 0
 		state.Response.ContentEmpty = response.Content == ""
+		if state.Response.Empty {
+			a.loop.emptyResponses++
+		} else {
+			a.loop.emptyResponses = 0
+		}
+		state.Response.EmptyCount = a.loop.emptyResponses
+		if len(response.Calls) == 0 {
+			if err := a.agent.ResponseFormat.Validate(response.Content); err != nil {
+				state.Response.ValidationError = err.Error()
+			}
+		}
 		state.HasToolCalls = len(response.Calls) > 0
 
 		debug.Log("[loop] response: empty=%v content_len=%d thinking_len=%d calls=%d",
@@ -369,6 +385,11 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 
 		// INJECTION POINT 2: AfterResponse
 		afterResponseInjections := a.tools.injectors.RunAfterResponse(ctx, state)
+		if err := injectionStop(injector.Bases(afterResponseInjections)); err != nil {
+			a.builder.AddAssistantMessage(response)
+			a.builder.FinalizeAssistant()
+			return err
+		}
 
 		// Process response modifications from ALL injections.
 		// Skip uses OR (any skip = skip), Content uses last-writer-wins.
@@ -413,9 +434,7 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 				continue
 			}
 
-			if err := a.autoCompactAndFinalize(ctx); err != nil {
-				return err
-			}
+			a.finalizeTurn()
 
 			return nil
 		}
@@ -440,17 +459,13 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 		if a.toggles.doneSignaled {
 			debug.Log("[done] LLM called Done — exiting loop")
 
-			if err := a.autoCompactAndFinalize(ctx); err != nil {
-				return err
-			}
+			a.finalizeTurn()
 
 			return nil
 		}
 
 		if len(a.stream.pending) > 0 {
-			if err := a.autoCompactAndFinalize(ctx); err != nil {
-				return err
-			}
+			a.finalizeTurn()
 
 			return nil
 		}
@@ -775,7 +790,7 @@ func (a *Assistant) handleParseError(ctx context.Context, err error, retries *in
 	a.builder.SetError(err)
 	a.builder.FinalizeAssistant()
 	a.builder.AddEphemeralToolResult(ctx, "", "", fmt.Sprintf(
-		"Error: your previous response contained malformed tool calls that could not be parsed: %s. Please retry with valid JSON arguments.",
+		"Error: your previous response contained malformed tool calls that could not be parsed: %s. Retry using the tool-call format and argument schema advertised in this request.",
 		cleanParseError(err),
 	), 0)
 	a.builder.StartAssistant()
