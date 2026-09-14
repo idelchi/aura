@@ -191,6 +191,12 @@ heavy-refactor:
 
 Available feature keys: `compaction`, `title`, `thinking`, `vision`, `embeddings`, `tools`, `stt`, `tts`, `sandbox`, `subagent`, `plugins`, `mcp`, `estimation`, `guardrail`. See [Features]({{ site.baseurl }}/configuration/features).
 
+`features.tools.bindings` supplies fixed tool arguments and hides them from the model's input schema.
+Bindings support runtime `$[[ ]]` expressions, resolved once per task run after `env` resolution and before
+`pre`/`foreach`. The same values apply to every iteration; `.Item` is not available at this stage.
+Use ordinary YAML booleans/numbers for typed inputs, and strings for text or template values.
+See [Fixed Tool Arguments]({{ site.baseurl }}/features/tools#fixed-tool-arguments) for enforcement and inheritance.
+
 ## Environment
 
 ```yaml

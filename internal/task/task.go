@@ -384,13 +384,16 @@ func (ts *Tasks) Load(ff files.Files, vars map[string]string) error {
 // Lazy (.+?) ensures each $[[ matches the nearest ]], leaving bare bash ]] untouched.
 var runtimeDelimRe = regexp.MustCompile(`\$\[\[(.+?)\]\]`)
 
+// RuntimeTemplate converts runtime delimiters for the shared template renderer.
+func RuntimeTemplate(value string) string {
+	return runtimeDelimRe.ReplaceAllString(value, "{{$1}}")
+}
+
 // convertRuntimeDelimiters replaces $[[ ... ]] → {{ ... }} on all command-like
 // fields in a taskDef. This converts runtime template expressions from the
 // user-facing $[[ ]] syntax to standard Go template delimiters for execution.
 func convertRuntimeDelimiters(def *taskDef) {
-	replace := func(s string) string {
-		return runtimeDelimRe.ReplaceAllString(s, "{{$1}}")
-	}
+	replace := RuntimeTemplate
 
 	replaceSlice := func(ss []string) []string {
 		ss = slices.Clone(ss)

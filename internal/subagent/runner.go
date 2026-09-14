@@ -207,6 +207,12 @@ func (r *Runner) executeToolCall(ctx context.Context, builder *conversation.Buil
 		return
 	}
 
+	t, tc.Arguments, err = tool.Prepare(t, tc.Arguments)
+	if err != nil {
+		builder.AddToolResult(ctx, tc.Name, tc.ID, fmt.Sprintf("Error: %v", err), 0)
+		return
+	}
+
 	// Inject workdir into context so tools resolve paths against the correct directory.
 	ctx = tool.WithWorkDir(ctx, r.CWD)
 

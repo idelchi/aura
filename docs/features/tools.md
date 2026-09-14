@@ -75,6 +75,52 @@ Call-limit maps follow the normal feature override chain: a supplied map replace
 `call_limits: {}` removes inherited limits. Usage remains recorded even while unlimited, so changing the
 policy does not reset counters. Limits are execution budgets, not duplicate-content detection or exactly-once delivery.
 
+## Fixed Tool Arguments
+
+`features.tools.bindings` fixes top-level inputs by exact tool name. It works for built-in, plugin and MCP tools:
+
+```yaml
+features:
+  tools:
+    bindings:
+      mcp__issues__list:
+        project: homelab
+        include_archived: false
+```
+
+Aura removes bound properties from the model-facing schema and its required list, then injects the configured
+values before validation, policy checks, hooks and execution. Caller-supplied values cannot override them;
+bindings are reapplied after argument-rewriting plugins. Other inputs remain model-controlled.
+Unknown fields or incompatible values on available tools are configuration errors. Bindings for tools excluded
+from the current agent are inactive. Values retain their JSON types; nested objects are bound as a whole.
+
+Bindings follow the normal global → agent → mode → task feature chain. A supplied map replaces the inherited
+map; `bindings: {}` clears it. Eager and deferred tools, reloads, Batch and subagent execution use the same
+mechanism, with each agent's effective configuration. Subagents resolve their own global → child-agent → mode
+bindings, not the parent's agent/mode/task overlay. Sandbox re-execution receives the fully bound arguments.
+Standalone `aura tools` and shell hooks retain their normal explicit-argument behavior.
+
+Task bindings can use runtime templates, resolved **once per run after task environment resolution**, before
+pre hooks and foreach iterations. Task vars, env and the shared assistant context are available; `.Item` is not.
+For example, a time window stays stable across all pages and containers:
+
+```yaml
+logs:
+  env:
+    WINDOW_END: "$[[ now | unixEpoch ]]"
+  features:
+    tools:
+      bindings:
+        mcp__portainer__logs:
+          since: "$[[ sub (int64 .WINDOW_END) 86400 ]]"
+          until: "$[[ .WINDOW_END ]]"
+          timestamps: true
+```
+
+These are agent configuration constraints, not a server-side authorization boundary: other tools or direct API
+clients may have separate access. Hiding an argument from the schema is not a secret-storage guarantee; tool
+output and execution diagnostics may still expose it.
+
 ## Skills
 
 Skills are capabilities defined as packages under `.aura/skills/`. The LLM can invoke them through the `Skill` tool,

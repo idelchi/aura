@@ -51,6 +51,8 @@ type ToolResult struct {
 
 // ToolExecution holds configuration for tool execution guards.
 type ToolExecution struct {
+	// Bindings supplies fixed arguments hidden from the model-facing tool schema.
+	Bindings tool.Bindings `yaml:"bindings"`
 	// CallLimits applies optional per-tool conversation budgets, shared across execution paths.
 	CallLimits calllimit.Rules `yaml:"call_limits"`
 	// Mode selects the guard strategy: "tokens" (fixed limit) or "percentage" (context-fill based).

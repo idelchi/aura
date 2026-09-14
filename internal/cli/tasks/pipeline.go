@@ -364,23 +364,6 @@ func runTask(
 		}
 	}
 
-	if t.Features.Kind != 0 {
-		var taskFeatures config.Features
-
-		if err := t.Features.Load(&taskFeatures, yaml.WithKnownFields()); err != nil {
-			return fmt.Errorf("task %q: decoding features: %w", t.Name, err)
-		}
-
-		if err := asst.MergeFeatures(taskFeatures); err != nil {
-			return fmt.Errorf("task %q: merging features: %w", t.Name, err)
-		}
-	}
-
-	// Emit status after all task overrides (agent, mode, tools, features) are applied.
-	u.Events() <- ui.StatusChanged{Status: asst.Status()}
-
-	u.Events() <- ui.DisplayHintsChanged{Hints: asst.DisplayHints()}
-
 	// Resolve effective working directory AFTER agent setup.
 	// Precedence: --workdir flag > task.workdir > WorkDir.
 	effectiveWorkdir := core.WorkDir
@@ -393,10 +376,6 @@ func runTask(
 
 		if !taskWd.Exists() {
 			return fmt.Errorf("task %q workdir %q: not a directory or does not exist", t.Name, taskWd)
-		}
-
-		if err := asst.SetWorkDir(taskWd.Path()); err != nil {
-			return fmt.Errorf("task %q: setting workdir: %w", t.Name, err)
 		}
 
 		effectiveWorkdir = taskWd.Path()
@@ -426,6 +405,32 @@ func runTask(
 
 	// Merge expanded env into runtime template vars.
 	maps.Copy(baseVars, taskEnv)
+
+	if t.Features.Kind != 0 {
+		var taskFeatures config.Features
+		if err := t.Features.Load(&taskFeatures, yaml.WithKnownFields()); err != nil {
+			return fmt.Errorf("task %q: decoding features: %w", t.Name, err)
+		}
+		// Fixed inputs resolve once against this run's shared runtime context,
+		// after env resolution and before changing the agent's working directory.
+		taskFeatures.ToolExecution.Bindings, err = taskFeatures.ToolExecution.Bindings.Expand(func(value string) (string, error) {
+			return expandCommand(task.RuntimeTemplate(value), runtimeData(asst, baseVars))
+		})
+		if err != nil {
+			return fmt.Errorf("task %q: %w", t.Name, err)
+		}
+		if err := asst.MergeFeatures(taskFeatures); err != nil {
+			return fmt.Errorf("task %q: merging features: %w", t.Name, err)
+		}
+	}
+
+	u.Events() <- ui.StatusChanged{Status: asst.Status()}
+	u.Events() <- ui.DisplayHintsChanged{Hints: asst.DisplayHints()}
+	if t.Workdir != "" && cliWorkdir == "" {
+		if err := asst.SetWorkDir(effectiveWorkdir); err != nil {
+			return fmt.Errorf("task %q: setting workdir: %w", t.Name, err)
+		}
+	}
 
 	result := task.Result{Name: t.Name, TotalKnown: t.ForEach == nil}
 	if t.ForEach == nil {

@@ -59,6 +59,13 @@ daily-review:
       threshold: 90
     tools:
       max_steps: 30
+      # Fixed inputs are hidden from the model and enforced before execution.
+      # Runtime values resolve once per run, after env and before foreach (.Item is unavailable).
+      # bindings:
+      #   mcp__issues__list:
+      #     project: "$[[ .PROJECT ]]"
+      #     include_archived: false
+      # An explicit bindings: {} clears inherited bindings.
 
   # Task-scoped template variables.
   # Available in both {{ }} and $[[ ]] templates. --set overrides these.

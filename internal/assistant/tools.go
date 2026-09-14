@@ -128,6 +128,14 @@ func (a *Assistant) executeTools(ctx context.Context, toolCalls []call.Call) {
 			continue
 		}
 
+		configured := t
+		t, tc.Arguments, err = tool.Prepare(configured, tc.Arguments)
+		if err != nil {
+			a.builder.CompleteToolCall(ctx, tc.ID, "", err)
+			a.builder.AddEphemeralToolResult(ctx, tc.Name, tc.ID, err.Error(), 0)
+			continue
+		}
+
 		// BeforeToolExecution plugin hooks (modify args, block execution).
 		state := a.InjectorState()
 
@@ -151,7 +159,16 @@ func (a *Assistant) executeTools(ctx context.Context, toolCalls []call.Call) {
 
 			if beforeResult.Arguments != nil {
 				tc.Arguments = beforeResult.Arguments
+			}
+			// Hooks may mutate the original argument map without returning a replacement.
+			t, tc.Arguments, err = tool.Prepare(configured, tc.Arguments)
+			if err != nil {
+				a.builder.CompleteToolCall(ctx, tc.ID, "", err)
+				a.builder.AddEphemeralToolResult(ctx, tc.Name, tc.ID, err.Error(), 0)
+				continue
+			}
 
+			if beforeResult.Arguments != nil {
 				if err := t.Schema().ValidateArgs(tc.Arguments); err != nil {
 					debug.Log("[tool] %s plugin produced invalid args: %v", tc.Name, err)
 					a.builder.CompleteToolCall(ctx, tc.ID, "", err)
@@ -518,6 +535,11 @@ func (a *Assistant) executeOne(ctx context.Context, pc preparedCall) execResult 
 // executeTool enforces turn restrictions and the conversation budget at the shared
 // execution boundary, including delegated calls and sandbox child processes.
 func (a *Assistant) executeTool(ctx context.Context, t tool.Tool, args map[string]any) (string, error) {
+	var err error
+	t, args, err = tool.Prepare(t, args)
+	if err != nil {
+		return "", err
+	}
 	if err := a.loop.checkTool(t); err != nil {
 		return "", err
 	}
@@ -953,6 +975,12 @@ func (a *Assistant) ExecuteSubTool(ctx context.Context, toolName string, args ma
 		return "", err
 	}
 
+	configured := t
+	t, args, err = tool.Prepare(configured, args)
+	if err != nil {
+		return "", err
+	}
+
 	// BeforeToolExecution plugins — plugin contracts are tool-specific.
 	state := a.InjectorState()
 	beforeResult := a.tools.injectors.RunBeforeTool(ctx, state, toolName, args)
@@ -963,7 +991,13 @@ func (a *Assistant) ExecuteSubTool(ctx context.Context, toolName string, args ma
 
 	if beforeResult.Arguments != nil {
 		args = beforeResult.Arguments
+	}
+	t, args, err = tool.Prepare(configured, args)
+	if err != nil {
+		return "", err
+	}
 
+	if beforeResult.Arguments != nil {
 		if err := t.Schema().ValidateArgs(args); err != nil {
 			return "", fmt.Errorf("plugin modified arguments are invalid: %w", err)
 		}

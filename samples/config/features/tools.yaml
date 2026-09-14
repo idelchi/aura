@@ -1,4 +1,9 @@
 tools:
+  # Fixed arguments use exact tool names; values keep their YAML/JSON types.
+  # bindings:
+  #   mcp__issues__list:
+  #     project: homelab
+  #     include_archived: false
   mode: percentage
   result:
     max_tokens: 20000

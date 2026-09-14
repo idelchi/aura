@@ -456,6 +456,11 @@ func (c Config) Tools(agent, mode string, rt *Runtime) (tool.Tools, tool.Tools, 
 		}
 	}
 
+	all, err = c.Features.ToolExecution.Bindings.Bind(all)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// Fast path: no deferred config → all eager, zero overhead.
 	hasDeferred := len(c.Features.ToolExecution.Deferred) > 0
 	if !hasDeferred {
