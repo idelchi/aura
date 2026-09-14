@@ -449,6 +449,10 @@ func runTask(
 
 	// Foreach loop: resolve items, expand and run commands per item.
 	if t.ForEach != nil {
+		// Keep runtime expansion private to this run; the scheduler reuses the definition.
+		foreach := *t.ForEach
+		t.ForEach = &foreach
+
 		// Template-expand foreach sources before resolving items.
 		if t.ForEach.File != "" {
 			expanded, err := expandCommand(t.ForEach.File, runtimeData(asst, baseVars))
