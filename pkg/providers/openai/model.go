@@ -5,24 +5,18 @@ import (
 	"fmt"
 
 	"github.com/idelchi/aura/pkg/llm/model"
-	"github.com/idelchi/aura/pkg/providers/registry"
 )
 
-// Model fetches metadata for the specified model.
+// Model resolves an exact model ID from the provider's model catalog.
 func (c *Client) Model(ctx context.Context, name string) (model.Model, error) {
-	info, err := c.Client.Models.Get(ctx, name)
+	models, err := c.Models(ctx)
 	if err != nil {
-		return model.Model{}, fmt.Errorf("fetching model info for %q: %w", name, err)
+		return model.Model{}, err
 	}
 
-	// SDK returns only model ID — no context length, vision, or other capabilities.
-	// ParameterCount is parsed from the name; everything else comes from registry.Enrich().
-	m := model.Model{
-		Name:           info.ID,
-		ParameterCount: model.ParseParameterName(info.ID),
+	if !models.Exists(name) {
+		return model.Model{}, fmt.Errorf("model %q not found", name)
 	}
 
-	registry.Enrich("openai", &m)
-
-	return m, nil
+	return models.Get(name), nil
 }

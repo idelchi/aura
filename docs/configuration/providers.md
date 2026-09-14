@@ -121,6 +121,11 @@ codex:
 
 ## Catwalk Registry
 
+The `openai` provider resolves model IDs from `GET /models`, so gateways do not need a separate
+`GET /models/<id>` endpoint. Use the exact ID advertised by the gateway, such as
+`openai/gpt-5-nano` behind Bifrost. Requests retain that qualified ID; registry enrichment also
+recognizes the matching provider prefix. The configured endpoint must support the Responses API.
+
 Model capabilities (context length, vision, thinking levels) are enriched at startup using [Catwalk](https://catwalk.charm.sh) metadata. Aura ships with compiled-in embedded data for offline use. On startup it fetches fresh data and caches it to `.aura/cache/catwalk/`; on failure it falls back to the disk cache then the embedded data.
 
 Enrichment only fills gaps — it never overwrites capabilities reported by the provider API. Applies to `anthropic`, `openai`, and `google` (their listing APIs return only model IDs). Other providers build capabilities inline from their own API responses.

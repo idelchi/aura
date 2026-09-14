@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"sync"
 	"time"
 
@@ -149,6 +150,10 @@ func lookup(providerType, modelID string) *catwalk.Model {
 	}
 
 	m, ok := models[modelID]
+	if !ok {
+		// Gateways may qualify IDs with the provider name; keep that routing ID on the model.
+		m, ok = models[strings.TrimPrefix(modelID, string(catwalkID)+"/")]
+	}
 	if !ok {
 		return nil
 	}
