@@ -104,6 +104,7 @@ func Enrich(providerType string, m *model.Model) {
 	if cm == nil {
 		return
 	}
+	m.CapabilitiesKnown = true
 
 	if m.ContextLength == 0 && cm.ContextWindow > 0 {
 		m.ContextLength = model.ContextLength(cm.ContextWindow)

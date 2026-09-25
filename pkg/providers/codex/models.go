@@ -87,11 +87,12 @@ func (c *Client) Models(ctx context.Context) (model.Models, error) {
 		}
 
 		models = append(models, model.Model{
-			Name:             m.Slug,
-			ParameterCount:   model.ParseParameterName(m.Slug),
-			ContextLength:    model.ContextLength(m.ContextWindow),
-			Capabilities:     caps,
-			ReasoningEfforts: reasoningEfforts,
+			CapabilitiesKnown: true,
+			Name:              m.Slug,
+			ParameterCount:    model.ParseParameterName(m.Slug),
+			ContextLength:     model.ContextLength(m.ContextWindow),
+			Capabilities:      caps,
+			ReasoningEfforts:  reasoningEfforts,
 		})
 	}
 

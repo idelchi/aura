@@ -8,6 +8,8 @@ import (
 
 // enrichFromAPI adds capabilities from the Google API response and runs registry enrichment.
 func enrichFromAPI(mdl *model.Model, thinking bool, actions []string) {
+	mdl.CapabilitiesKnown = true
+
 	if thinking {
 		mdl.Capabilities.Add(capabilities.Thinking)
 		mdl.Capabilities.Add(capabilities.ThinkingLevels)

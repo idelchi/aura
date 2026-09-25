@@ -25,6 +25,8 @@ Aura supports extended thinking/reasoning, allowing models to reason before resp
 
 These are Aura's provider-neutral values, not a promise that every model supports every effort. Aura validates an explicit effort after resolving the provider and model, and reports the supported set when a value is unavailable. Higher efforts generally consume more output tokens. Thinking content counts toward the context window but is managed by the strip/rewrite strategies below.
 
+Validation uses reported model capabilities or matching registry metadata. An OpenAI-compatible gateway may return only model IDs, without capability metadata. In that case, Aura passes explicit thinking settings through for the backend to validate. It also preserves them when switching to such a model. Known model restrictions and provider-specific parameter validation still apply; no validation bypass setting is needed.
+
 For Ollama, [most thinking models](https://docs.ollama.com/capabilities/thinking) accept booleans or `low`, `medium`, `high`, and `max`. GPT-OSS is the documented exception: it accepts only `low`, `medium`, and `high`; booleans are ignored and its trace cannot be fully disabled.
 
 Set per-agent in the agent frontmatter via `model.think`.

@@ -74,9 +74,10 @@ func (c *Client) fetchModels(ctx context.Context) (model.Models, error) {
 		}
 
 		m := model.Model{
-			Name:           entry.ID,
-			ParameterCount: model.ParseParameterName(entry.ID),
-			ContextLength:  model.ContextLength(entry.Capabilities.Limits.MaxContextWindowTokens),
+			CapabilitiesKnown: true,
+			Name:              entry.ID,
+			ParameterCount:    model.ParseParameterName(entry.ID),
+			ContextLength:     model.ContextLength(entry.Capabilities.Limits.MaxContextWindowTokens),
 		}
 
 		if entry.Capabilities.Supports.ToolCalls {

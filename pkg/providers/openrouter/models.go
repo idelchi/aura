@@ -62,11 +62,12 @@ func (c *Client) Models(ctx context.Context) (model.Models, error) {
 		}
 
 		m := model.Model{
-			Name:           embeddingModel.ID,
-			ParameterCount: model.ParseParameterName(embeddingModel.ID),
-			ContextLength:  model.ContextLength(contextLen),
-			Capabilities:   capabilities.Capabilities{capabilities.Embedding},
-			Family:         family,
+			Name:              embeddingModel.ID,
+			CapabilitiesKnown: true,
+			ParameterCount:    model.ParseParameterName(embeddingModel.ID),
+			ContextLength:     model.ContextLength(contextLen),
+			Capabilities:      capabilities.Capabilities{capabilities.Embedding},
+			Family:            family,
 		}
 
 		models = append(models, m)

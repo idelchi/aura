@@ -18,6 +18,9 @@ type Model struct {
 	ContextLength ContextLength `json:"context_length"`
 	// Capabilities lists the model's supported features.
 	Capabilities capabilities.Capabilities `json:",omitempty"`
+	// CapabilitiesKnown distinguishes reported capabilities from missing metadata.
+	// When false, an absent capability does not establish that it is unsupported.
+	CapabilitiesKnown bool `json:"capabilities_known,omitempty"`
 	// ReasoningEfforts lists explicit reasoning efforts reported for this model.
 	ReasoningEfforts []thinking.Effort `json:"reasoning_efforts,omitempty"`
 	// Family is the model family name (e.g., "gpt", "llama").

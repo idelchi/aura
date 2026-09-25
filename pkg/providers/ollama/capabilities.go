@@ -14,6 +14,8 @@ import (
 
 // WithCapabilities adds capabilities to a model based on Ollama API response.
 func WithCapabilities(m model.Model, info *api.ShowResponse) model.Model {
+	m.CapabilitiesKnown = info.Capabilities != nil
+
 	if slices.Contains(info.Capabilities, ollama.CapabilityTools) {
 		m.Capabilities.Add(capabilities.Tools)
 	}

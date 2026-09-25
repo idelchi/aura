@@ -49,7 +49,7 @@ func TestWithCapabilitiesThinkingLevels(t *testing.T) {
 				Capabilities: []ollamamodel.Capability{ollamamodel.CapabilityThinking},
 			})
 
-			if !got.Capabilities.Thinking() {
+			if !got.CapabilitiesKnown || !got.Capabilities.Thinking() {
 				t.Fatal("Thinking() = false, want true")
 			}
 
@@ -67,7 +67,16 @@ func TestWithCapabilitiesThinkingLevels(t *testing.T) {
 func TestWithCapabilitiesWithoutThinking(t *testing.T) {
 	t.Parallel()
 
-	got := ollama.WithCapabilities(model.Model{Name: "ordinary-model"}, &api.ShowResponse{})
+	got := ollama.WithCapabilities(model.Model{Name: "ordinary-model"}, &api.ShowResponse{
+		Capabilities: []ollamamodel.Capability{ollamamodel.CapabilityCompletion},
+	})
+
+	if !got.CapabilitiesKnown {
+		t.Fatal("reported capabilities must be known")
+	}
+	if _, err := got.NormalizeThinking(thinking.NewValue("medium"), false); err == nil {
+		t.Fatal("known non-thinking model must reject explicit effort")
+	}
 
 	if got.Capabilities.Thinking() {
 		t.Fatal("Thinking() = true, want false")
@@ -79,5 +88,17 @@ func TestWithCapabilitiesWithoutThinking(t *testing.T) {
 
 	if len(got.ReasoningEfforts) != 0 {
 		t.Fatalf("ReasoningEfforts = %v, want empty", got.ReasoningEfforts)
+	}
+}
+
+func TestWithCapabilitiesMissingMetadata(t *testing.T) {
+	t.Parallel()
+
+	got := ollama.WithCapabilities(model.Model{Name: "unknown-model"}, &api.ShowResponse{})
+	if got.CapabilitiesKnown {
+		t.Fatal("absent capabilities must remain unknown")
+	}
+	if _, err := got.NormalizeThinking(thinking.NewValue("medium"), false); err != nil {
+		t.Fatalf("missing metadata rejected explicit effort: %v", err)
 	}
 }

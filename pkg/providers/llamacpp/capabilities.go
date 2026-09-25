@@ -7,6 +7,8 @@ import (
 
 // WithCapabilities adds capabilities based on the model's chat template capabilities.
 func WithCapabilities(m model.Model, info ShowResponse) model.Model {
+	m.CapabilitiesKnown = true
+
 	if info.ChatTemplateCaps.SupportsToolCalls {
 		m.Capabilities.Add(capabilities.Tools)
 	}

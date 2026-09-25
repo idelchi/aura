@@ -13,6 +13,8 @@ type SupportedParameters []string
 
 // WithCapabilities adds capabilities to a model based on supported parameters and input modalities.
 func WithCapabilities(m model.Model, info SupportedParameters, inputModalities []string) model.Model {
+	m.CapabilitiesKnown = info != nil
+
 	if slices.Contains(info, "reasoning") {
 		m.Capabilities.Add(capabilities.Thinking)
 	}
