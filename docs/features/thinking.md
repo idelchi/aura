@@ -14,7 +14,8 @@ Aura supports extended thinking/reasoning, allowing models to reason before resp
 | Value                  | Description                                                   |
 | ---------------------- | ------------------------------------------------------------- |
 | `off` / `false`        | Request that thinking be disabled, where the model supports it |
-| `on` / `true` / `auto` | Use the provider or model's default thinking behavior          |
+| `on` / `true` | Explicitly enable thinking using the provider's default effort |
+| `auto` | Leave the server's thinking default unchanged |
 | `none`                 | Request no reasoning from providers that expose it as an effort |
 | `minimal`              | Minimal explicit effort                                       |
 | `low`                  | Low explicit effort                                           |
@@ -29,6 +30,10 @@ Validation uses reported model capabilities or matching registry metadata. An Op
 
 For Ollama, [most thinking models](https://docs.ollama.com/capabilities/thinking) accept booleans or `low`, `medium`, `high`, and `max`. GPT-OSS is the documented exception: it accepts only `low`, `medium`, and `high`; booleans are ignored and its trace cannot be fully disabled.
 
+For llama.cpp and llama-swap, `on`/`off` set `chat_template_kwargs.enable_thinking`; explicit efforts additionally set `reasoning_effort`. `auto` sends neither control. Aura requests separate reasoning output using `reasoning_format: auto`, and forwards an optional `generation.think_budget` as `thinking_budget_tokens`. This uses the server's template contract, without model-name rules.
+
+For OpenAI-compatible gateways such as Bifrost, `on` requests `medium` effort, `off` requests `none`, and `auto` omits the override. Explicit efforts pass through unless model metadata rejects them. The upstream must support that contract: effort alone cannot enable a llama.cpp template whose server default is disabled and which requires `enable_thinking`. Use the native provider when those template controls are needed. Streamed `reasoning_content` is retained separately from answer text.
+
 Set per-agent in the agent frontmatter via `model.think`.
 
 For example, start Aura at the highest effort only when the selected model advertises it:
@@ -42,8 +47,8 @@ aura --think max
 | Method                         | Description                                                    |
 | ------------------------------ | -------------------------------------------------------------- |
 | `/think [value]` or `/effort`  | Set any mode or provider-supported explicit effort listed above |
-| `Ctrl+R`                       | Toggle thinking off ↔ auto                                     |
-| `Ctrl+E`                       | Cycle common values: off → auto → low → medium → high → off   |
+| `Ctrl+R`                       | Toggle thinking off ↔ on                                     |
+| `Ctrl+E`                       | Cycle common values: off → on → low → medium → high → off   |
 | `--think <value>`              | Set the starting mode or effort from the CLI                    |
 
 ## Thinking Display

@@ -15,6 +15,7 @@ Providers are YAML files in `.aura/config/providers/`. Each file configures a co
 | ------------ | ------------------------------ | -------------------------------------------------------------- |
 | `ollama`     | Native Ollama API              | Chat, embedding, thinking, vision                              |
 | `llamacpp`   | OpenAI-compatible              | Chat, reranking, thinking, vision, STT (whisper), TTS (kokoro) |
+| `llamaswap` | llama-swap with llama.cpp workers | llama.cpp inference, per-model tokenization, load/unload routing |
 | `openrouter` | OpenRouter API                 | Chat, embedding (cloud models, token auth)                     |
 | `openai`     | OpenAI Responses API           | Chat, embedding, transcription, synthesis                      |
 | `anthropic`  | Native Anthropic Messages API  | Chat, thinking, vision, tools                                  |
@@ -32,7 +33,7 @@ provider_name:
   url: http://host.docker.internal:11434
 
   # Determines which API protocol to use (required).
-  # Values: ollama, llamacpp, openrouter, openai, anthropic, google, copilot, codex.
+  # Values: ollama, llamacpp, llamaswap, openrouter, openai, anthropic, google, copilot, codex.
   type: ollama
 
   # Auth token. Falls back to AURA_PROVIDERS_{NAME}_TOKEN env var.
@@ -55,7 +56,7 @@ provider_name:
   # capabilities: []
 
   # Retry for transient Chat() failures. Disabled by default (max_attempts: 0).
-  # Only applies to ollama/llamacpp — other providers have built-in retry.
+  # Only applies to ollama/llamacpp/llamaswap — other providers have built-in retry.
   retry:
     max_attempts: 0
     base_delay: 1s
@@ -119,12 +120,28 @@ codex:
 
 ---
 
+## Local servers and gateways
+
+Use `llamacpp` for llama-server and its native router. Use `llamaswap` for llama-swap backed by llama.cpp workers:
+
+```yaml
+local_models:
+  type: llamaswap
+  url: http://localhost:8080
+```
+
+Both share the chat implementation. llama-swap routes native properties, template application and tokenization through `/upstream/<model>/`; its unload API is `/api/models/unload/<model>`. Loading requests the worker's properties. These routes differ from llama.cpp's native router, which uses `/models/load` and `/models/unload`.
+
+Model listings retain the context and capabilities the server advertises. Resolving a selected llama.cpp model also reads `/props` and checks whether applying its template with thinking enabled versus disabled changes the prompt. This uses no generated tokens. An unchanged template or an unavailable template endpoint leaves boolean thinking support unknown; it does not establish that reasoning is unsupported. Prior-reasoning preservation is a separate capability.
+
+Bifrost uses `type: openai` with its `/v1` URL and qualified model IDs. It does not expose llama-swap's native control endpoints. Reasoning efforts follow the OpenAI contract; model-specific template switches are not inferred or injected into gateway requests. If the upstream has no token-count endpoint, native estimation reports that limitation and uses the configured local estimator. Use `rough+tiktoken` explicitly when native counting is unavailable.
+
 ## Catwalk Registry
 
 The `openai` provider resolves model IDs from `GET /models`, so gateways do not need a separate
 `GET /models/<id>` endpoint. Use the exact ID advertised by the gateway, such as
 `openai/gpt-5-nano` behind Bifrost. Requests retain that qualified ID; registry enrichment also
-recognizes the matching provider prefix. The configured endpoint must support the Responses API.
+recognizes the matching provider prefix. OpenAI models use the Responses API; other model IDs use Chat Completions. Catalog context lengths and reported vision, tools and reasoning capabilities are retained. Missing capability fields remain unknown.
 
 Model capabilities (context length, vision, thinking levels) are enriched at startup using [Catwalk](https://catwalk.charm.sh) metadata. Aura ships with compiled-in embedded data for offline use. On startup it fetches fresh data and caches it to `.aura/cache/catwalk/`; on failure it falls back to the disk cache then the embedded data.
 

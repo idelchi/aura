@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/idelchi/aura/pkg/llm/thinking"
+	"github.com/idelchi/aura/pkg/providers/capabilities"
 )
 
 // TestModelFromCatalog covers gateway routing IDs without a per-model endpoint.
@@ -40,7 +41,7 @@ func TestModelFromCatalog(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if m.Name != name || m.ContextLength == 0 || !m.Capabilities.Vision() || !m.CapabilitiesKnown {
+		if m.Name != name || m.ContextLength == 0 || !m.Capabilities.Vision() || !m.Knows(capabilities.Thinking) {
 			t.Fatalf("routing ID or enrichment lost: %+v", m)
 		}
 	}

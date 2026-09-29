@@ -13,7 +13,7 @@ func Think() slash.Command {
 	return slash.Command{
 		Name:        "/think",
 		Aliases:     []string{"/effort"},
-		Description: "Set thinking: off, on/auto, none, minimal, low, medium, high, xhigh, max",
+		Description: "Set thinking: off, on, auto, none, minimal, low, medium, high, xhigh, max",
 		Hints:       "[off|on|auto|none|minimal|low|medium|high|xhigh|max]",
 		Category:    "agent",
 		Execute: func(_ context.Context, c slash.Context, args ...string) (string, error) {

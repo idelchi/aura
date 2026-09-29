@@ -94,33 +94,35 @@ func Refresh(ctx context.Context, domain *cache.Domain) {
 //
 // Non-destructive: only fills gaps, never overwrites API-provided values.
 //
-// For ALL models: always adds Tools (safe default for chat models).
-// For matched models: sets ContextLength (if zero), Vision, Thinking, ThinkingLevels per Catwalk data.
+// For models without a tools field: assumes Tools (the chat-provider default).
+// For matched models: fills unreported context and capability fields from Catwalk data.
 // For unmatched models: Tools only (no false positives).
 func Enrich(providerType string, m *model.Model) {
-	m.Capabilities.Add(capabilities.Tools)
+	if !m.Knows(capabilities.Tools) {
+		m.Capabilities.Add(capabilities.Tools)
+	}
 
 	cm := lookup(providerType, m.Name)
 	if cm == nil {
 		return
 	}
-	m.CapabilitiesKnown = true
 
 	if m.ContextLength == 0 && cm.ContextWindow > 0 {
 		m.ContextLength = model.ContextLength(cm.ContextWindow)
 	}
 
-	if cm.SupportsImages {
-		m.Capabilities.Add(capabilities.Vision)
+	if !m.Knows(capabilities.Vision) {
+		m.SetCapability(capabilities.Vision, cm.SupportsImages)
 	}
 
-	if cm.CanReason {
-		m.Capabilities.Add(capabilities.Thinking)
+	if !m.Knows(capabilities.Thinking) {
+		m.SetCapability(capabilities.Thinking, cm.CanReason)
 	}
 
-	if len(cm.ReasoningLevels) > 0 {
-		m.Capabilities.Add(capabilities.ThinkingLevels)
-
+	if !m.Knows(capabilities.ThinkingLevels) {
+		m.SetCapability(capabilities.ThinkingLevels, len(cm.ReasoningLevels) > 0)
+	}
+	if m.Capabilities.ThinkingLevels() && len(cm.ReasoningLevels) > 0 {
 		if len(m.ReasoningEfforts) == 0 {
 			for _, raw := range cm.ReasoningLevels {
 				if effort, ok := thinking.ParseEffort(raw); ok {

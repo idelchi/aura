@@ -5,21 +5,20 @@ import (
 	"github.com/idelchi/aura/pkg/providers/capabilities"
 )
 
-// WithCapabilities adds capabilities based on the model's chat template capabilities.
+// WithCapabilities preserves partial metadata. Preserving prior reasoning is
+// independent of whether a template supports producing new reasoning.
 func WithCapabilities(m model.Model, info ShowResponse) model.Model {
-	m.CapabilitiesKnown = true
-
-	if info.ChatTemplateCaps.SupportsToolCalls {
-		m.Capabilities.Add(capabilities.Tools)
+	if supported := info.ChatTemplateCaps.SupportsToolCalls; supported != nil {
+		m.SetCapability(capabilities.Tools, *supported)
 	}
-
-	if info.ChatTemplateCaps.SupportsPreserveReasoning {
-		m.Capabilities.Add(capabilities.Thinking)
+	if supported := info.Modalities.Vision; supported != nil {
+		m.SetCapability(capabilities.Vision, *supported)
 	}
-
-	if info.Modalities.Vision {
-		m.Capabilities.Add(capabilities.Vision)
+	if supported := info.ChatTemplateCaps.SupportsReasoningEffort; supported != nil {
+		m.SetCapability(capabilities.ThinkingLevels, *supported)
+		if *supported {
+			m.SetCapability(capabilities.Thinking, true)
+		}
 	}
-
 	return m
 }

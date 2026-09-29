@@ -25,7 +25,7 @@ func TestParseValue(t *testing.T) {
 		{name: "on", input: "on", wantDisabled: false, wantBool: true},
 		{name: "true", input: "true", wantDisabled: false, wantBool: true},
 		{name: "1", input: "1", wantDisabled: false, wantBool: true},
-		{name: "auto", input: "auto", wantDisabled: false, wantBool: true},
+		{name: "auto", input: "auto", wantString: "auto"},
 		{name: "none", input: "none", wantString: "none"},
 		{name: "minimal", input: "minimal", wantString: "minimal"},
 		{name: "low", input: "low", wantString: "low"},
@@ -144,7 +144,8 @@ func TestModeAndString(t *testing.T) {
 	}{
 		{name: "unset", value: thinking.Value{}, wantMode: thinking.ModeUnset, wantString: "off"},
 		{name: "off", value: thinking.NewValue(false), wantMode: thinking.ModeOff, wantString: "off"},
-		{name: "auto", value: thinking.NewValue(true), wantMode: thinking.ModeAuto, wantString: "auto"},
+		{name: "on", value: thinking.NewValue(true), wantMode: thinking.ModeOn, wantString: "on"},
+		{name: "auto", value: thinking.NewValue("auto"), wantMode: thinking.ModeAuto, wantString: "auto"},
 		{name: "effort", value: thinking.NewValue("xhigh"), wantMode: thinking.ModeEffort, wantString: "xhigh"},
 	}
 

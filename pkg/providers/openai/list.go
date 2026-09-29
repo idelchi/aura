@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/idelchi/aura/pkg/llm/model"
+	"github.com/idelchi/aura/pkg/providers/catalog"
 	"github.com/idelchi/aura/pkg/providers/registry"
 )
 
@@ -18,9 +19,9 @@ func (c *Client) List(ctx context.Context) (model.Models, error) {
 	var models model.Models
 
 	for _, m := range page.Data {
-		mdl := model.Model{
-			Name:           m.ID,
-			ParameterCount: model.ParseParameterName(m.ID),
+		mdl, err := catalog.Decode([]byte(m.RawJSON()))
+		if err != nil {
+			return nil, fmt.Errorf("decoding model %q metadata: %w", m.ID, err)
 		}
 
 		registry.Enrich("openai", &mdl)

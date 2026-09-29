@@ -73,7 +73,7 @@ func (c *Client) Chat(ctx context.Context, req request.Request, fn stream.Func) 
 }
 
 func reasoningEffort(value *thinking.Value) (fantasyopenai.ReasoningEffort, bool, error) {
-	if value == nil || value.IsUnset() || value.IsAuto() {
+	if value == nil || value.IsUnset() || value.IsAuto() || value.IsOn() {
 		return "", false, nil
 	}
 

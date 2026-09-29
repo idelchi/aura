@@ -51,7 +51,7 @@ func (c *Client) Chat(
 
 // buildProviderOptions sets Google-specific thinking options.
 func buildProviderOptions(req request.Request) (fantasy.ProviderOptions, error) {
-	if req.Think == nil || req.Think.IsUnset() || req.Think.IsOff() {
+	if req.Think == nil || req.Think.IsUnset() || req.Think.IsAuto() || req.Think.IsOff() {
 		return fantasy.ProviderOptions{}, nil
 	}
 

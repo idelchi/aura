@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"path"
 	"strings"
 	"time"
 
@@ -19,19 +18,24 @@ import (
 type Client struct {
 	*openaiProvider.Client
 
-	baseURL string
+	baseURL   string
+	modelPath func(name, endpoint string) string
 }
 
 // New creates a llama.cpp client for the given server URL, optional token, and response timeout.
-func New(serverURL, token string, timeout time.Duration) *Client {
+func New(serverURL, token string, timeout time.Duration, options ...Option) *Client {
 	apiURL := strings.TrimSuffix(serverURL, "/") + "/v1"
 
 	debug.Log("[llamacpp] initialized (url=%s)", serverURL)
 
-	return &Client{
+	client := &Client{
 		Client:  openaiProvider.New(apiURL, token, timeout),
 		baseURL: serverURL,
 	}
+	for _, option := range options {
+		option(client)
+	}
+	return client
 }
 
 // WithEndpoint constructs a full URL for the given endpoint path.
@@ -41,9 +45,7 @@ func (c Client) WithEndpoint(endpoint string) (*url.URL, error) {
 		return nil, fmt.Errorf("parsing base URL: %w", err)
 	}
 
-	u.Path = path.Join(u.Path, endpoint)
-
-	return u, nil
+	return u.JoinPath(endpoint), nil
 }
 
 // modelRequest is the payload for load/unload endpoints.
@@ -112,4 +114,19 @@ func (c *Client) modelAction(ctx context.Context, action, name string) error {
 	}
 
 	return nil
+}
+
+// Option configures a llama.cpp client.
+type Option func(*Client)
+
+// WithModelPath supplies the path for per-model native endpoints behind a router.
+func WithModelPath(resolve func(name, endpoint string) string) Option {
+	return func(c *Client) { c.modelPath = resolve }
+}
+
+func (c *Client) modelEndpoint(name, endpoint string) (*url.URL, error) {
+	if c.modelPath != nil {
+		endpoint = c.modelPath(name, endpoint)
+	}
+	return c.WithEndpoint(endpoint)
 }

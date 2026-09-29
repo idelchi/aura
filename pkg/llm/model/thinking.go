@@ -6,13 +6,14 @@ import (
 	"strings"
 
 	"github.com/idelchi/aura/pkg/llm/thinking"
+	"github.com/idelchi/aura/pkg/providers/capabilities"
 )
 
 // NormalizeThinking validates known model restrictions, leaving unknown capabilities
 // to the provider. On model switches, coerce replaces incompatible settings with
-// off or auto; settings are preserved when capability metadata is unavailable.
+// off or on; settings are preserved when capability metadata is unavailable.
 func (m Model) NormalizeThinking(value thinking.Value, coerce bool) (thinking.Value, error) {
-	if value.IsUnset() || value.IsOff() {
+	if value.IsUnset() || value.IsOff() || value.IsAuto() {
 		return value, nil
 	}
 
@@ -20,16 +21,12 @@ func (m Model) NormalizeThinking(value thinking.Value, coerce bool) (thinking.Va
 		return value, nil
 	}
 
-	if m.CapabilitiesKnown && !m.Capabilities.Thinking() {
+	if m.Knows(capabilities.Thinking) && !m.Capabilities.Thinking() {
 		if coerce {
 			return thinking.NewValue(false), nil
 		}
 
 		return thinking.Value{}, fmt.Errorf("model %q does not support thinking", m.Name)
-	}
-
-	if value.IsAuto() {
-		return value, nil
 	}
 
 	effort, ok := value.Effort()
@@ -54,7 +51,7 @@ func (m Model) NormalizeThinking(value thinking.Value, coerce bool) (thinking.Va
 		)
 	}
 
-	if m.CapabilitiesKnown && !m.Capabilities.ThinkingLevels() {
+	if m.Knows(capabilities.ThinkingLevels) && !m.Capabilities.ThinkingLevels() {
 		if coerce {
 			return thinking.NewValue(true), nil
 		}

@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/idelchi/aura/pkg/llm/model"
+	"github.com/idelchi/aura/pkg/providers/catalog"
 )
 
 // parseCtxSize extracts the --ctx-size value from a LlamaCPP status.args slice.
@@ -54,7 +55,7 @@ func (c *Client) List(ctx context.Context) (model.Models, error) {
 
 	response := struct {
 		Data []struct {
-			ID     string `json:"id"`
+			catalog.Model
 			Status struct {
 				Args []string `json:"args"`
 			} `json:"status"`
@@ -68,14 +69,12 @@ func (c *Client) List(ctx context.Context) (model.Models, error) {
 	var models model.Models
 
 	for _, x := range response.Data {
-		// ContextLength from --ctx-size in status.args — the configured (not native) context window.
-		// Only present when the server explicitly sets it; 0 means unconfigured (same as before).
-		// ParameterCount parsed from name — API has no field for it.
-		models = append(models, model.Model{
-			Name:           x.ID,
-			ParameterCount: model.ParseParameterName(x.ID),
-			ContextLength:  model.ContextLength(parseCtxSize(x.Status.Args)),
-		})
+		m := x.Model.Model()
+		// Router launch arguments describe the configured window, rather than training limits.
+		if n := parseCtxSize(x.Status.Args); n > 0 {
+			m.ContextLength = model.ContextLength(n)
+		}
+		models = append(models, m)
 	}
 
 	return models, nil

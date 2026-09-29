@@ -19,7 +19,7 @@ func TestBuildProviderOptionsThinking(t *testing.T) {
 		wantOpts   bool
 		wantErr    bool
 	}{
-		{name: "auto omits effort", think: thinking.NewValue(true), wantOpts: false},
+		{name: "auto omits effort", think: thinking.NewValue("auto"), wantOpts: false},
 		{
 			name:       "off maps to none",
 			think:      thinking.NewValue(false),
@@ -32,7 +32,8 @@ func TestBuildProviderOptionsThinking(t *testing.T) {
 			wantEffort: new(fantasyopenai.ReasoningEffortXHigh),
 			wantOpts:   true,
 		},
-		{name: "max is rejected", think: thinking.NewValue("max"), wantErr: true},
+		{name: "on uses medium", think: thinking.NewValue(true), wantEffort: new(fantasyopenai.ReasoningEffortMedium), wantOpts: true},
+		{name: "max passes through", think: thinking.NewValue("max"), wantEffort: new(fantasyopenai.ReasoningEffortMax), wantOpts: true},
 	}
 
 	for _, tt := range tests {

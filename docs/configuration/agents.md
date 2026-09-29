@@ -26,7 +26,7 @@ inherit: [Base] # Parents. Absent = inherit; present = replace. Slices replaced.
 model:
   provider: ollama # Provider name (must match providers/*.yaml)
   name: qwen3:8b # Model identifier
-  think: high # off/false, on/true/auto, or a provider-supported effort
+  think: high # off/false, on/true, auto (server default), or an explicit effort
   context: 65536 # Context window in tokens
   generation: # All pointer fields — omit to inherit
     temperature: 0.7

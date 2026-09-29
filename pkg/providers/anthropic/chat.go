@@ -22,7 +22,7 @@ func (c *Client) Chat(
 	req request.Request,
 	streamFunc stream.Func,
 ) (message.Message, usage.Usage, error) {
-	if req.Think != nil && req.Think.Bool() && req.Generation != nil && req.Generation.Temperature != nil {
+	if req.Think != nil && req.Think.Bool() && !req.Think.IsAuto() && req.Generation != nil && req.Generation.Temperature != nil {
 		debug.Log("[anthropic] thinking enabled — ignoring temperature=%.2f (requires 1.0)",
 			*req.Generation.Temperature)
 	}
@@ -35,7 +35,7 @@ func (c *Client) Chat(
 	call := adapter.ToCall(req.Messages, req.Tools)
 
 	// Thinking disables temperature — don't set it via SetGeneration.
-	if req.Think == nil || !req.Think.Bool() {
+	if req.Think == nil || !req.Think.Bool() || req.Think.IsAuto() {
 		adapter.SetGeneration(&call, req.Generation)
 	} else if req.Generation != nil {
 		// Apply all generation params except temperature when thinking is enabled.
@@ -67,7 +67,7 @@ func (c *Client) Chat(
 
 // buildProviderOptions sets Anthropic-specific thinking options.
 func buildProviderOptions(req request.Request) (fantasy.ProviderOptions, error) {
-	if req.Think == nil || req.Think.IsUnset() || req.Think.IsOff() {
+	if req.Think == nil || req.Think.IsUnset() || req.Think.IsAuto() || req.Think.IsOff() {
 		return fantasy.ProviderOptions{}, nil
 	}
 
@@ -94,7 +94,7 @@ func buildProviderOptions(req request.Request) (fantasy.ProviderOptions, error) 
 }
 
 func anthropicEffort(value *thinking.Value) (fanthropic.Effort, bool, error) {
-	if value == nil || value.IsAuto() {
+	if value == nil || value.IsAuto() || value.IsOn() {
 		return fanthropic.EffortHigh, true, nil
 	}
 

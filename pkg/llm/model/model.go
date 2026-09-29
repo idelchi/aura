@@ -1,6 +1,8 @@
 package model
 
 import (
+	"slices"
+
 	"github.com/dustin/go-humanize"
 
 	"github.com/idelchi/aura/pkg/llm/thinking"
@@ -21,6 +23,8 @@ type Model struct {
 	// CapabilitiesKnown distinguishes reported capabilities from missing metadata.
 	// When false, an absent capability does not establish that it is unsupported.
 	CapabilitiesKnown bool `json:"capabilities_known,omitempty"`
+	// KnownCapabilities tracks individual reported fields when metadata is partial.
+	KnownCapabilities capabilities.Capabilities `json:"known_capabilities,omitempty"`
 	// ReasoningEfforts lists explicit reasoning efforts reported for this model.
 	ReasoningEfforts []thinking.Effort `json:"reasoning_efforts,omitempty"`
 	// Family is the model family name (e.g., "gpt", "llama").
@@ -65,4 +69,19 @@ func (c ContextLength) PercentUsed(inputTokens int) float64 {
 // Matches returns true if the pattern matches this model's name.
 func (m Model) Matches(pattern string) bool {
 	return wildcard.MatchAny(pattern, m.Name)
+}
+
+// Knows reports whether the presence or absence of a capability is authoritative.
+func (m Model) Knows(capability capabilities.Capability) bool {
+	return m.CapabilitiesKnown || m.KnownCapabilities.Has(capability)
+}
+
+// SetCapability records a reported capability, including an explicit false value.
+func (m *Model) SetCapability(capability capabilities.Capability, supported bool) {
+	m.KnownCapabilities.Add(capability)
+	if supported {
+		m.Capabilities.Add(capability)
+	} else {
+		m.Capabilities = slices.DeleteFunc(m.Capabilities, func(c capabilities.Capability) bool { return c == capability })
+	}
 }

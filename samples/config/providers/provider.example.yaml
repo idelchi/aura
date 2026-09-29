@@ -62,6 +62,13 @@ llamacpp:
   # Values: chat, embed, rerank, transcribe, synthesize.
   capabilities: [chat]
 
+# llama-swap backed by llama.cpp workers — per-model native routing.
+llamaswap:
+  url: http://host.docker.internal:8080
+  type: llamaswap
+  timeout: 10m
+  capabilities: [chat]
+
 # GitHub Copilot — uses OAuth device code flow (aura login copilot).
 copilot:
   type: copilot

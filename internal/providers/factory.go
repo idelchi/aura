@@ -17,6 +17,7 @@ import (
 	"github.com/idelchi/aura/pkg/providers/copilot"
 	"github.com/idelchi/aura/pkg/providers/google"
 	"github.com/idelchi/aura/pkg/providers/llamacpp"
+	"github.com/idelchi/aura/pkg/providers/llamaswap"
 	"github.com/idelchi/aura/pkg/providers/ollama"
 	"github.com/idelchi/aura/pkg/providers/openai"
 	"github.com/idelchi/aura/pkg/providers/openrouter"
@@ -74,6 +75,8 @@ func New(provider config.Provider) (Provider, error) {
 		}
 	case "llamacpp":
 		p = llamacpp.New(provider.URL, provider.Token, timeout)
+	case "llamaswap":
+		p = llamaswap.New(provider.URL, provider.Token, timeout)
 	case "openai":
 		p = openai.New(provider.URL, provider.Token, timeout)
 	case "anthropic":
@@ -119,7 +122,7 @@ func New(provider config.Provider) (Provider, error) {
 	}
 
 	// Fantasy-based providers have built-in retry. Only wrap native providers.
-	nativeProvider := provider.Type == "ollama" || provider.Type == "llamacpp"
+	nativeProvider := provider.Type == "ollama" || provider.Type == "llamacpp" || provider.Type == "llamaswap"
 
 	if provider.Retry.MaxAttempts > 0 && nativeProvider {
 		p, err = wrapRetry(p, provider.Retry)

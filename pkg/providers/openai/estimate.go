@@ -2,11 +2,15 @@ package openai
 
 import (
 	"context"
+	"errors"
+	"net/http"
 
+	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/packages/param"
 	"github.com/openai/openai-go/v3/responses"
 
 	"github.com/idelchi/aura/pkg/llm/request"
+	"github.com/idelchi/aura/pkg/providers"
 	"github.com/idelchi/aura/pkg/providers/adapter"
 )
 
@@ -21,6 +25,15 @@ func (c *Client) Estimate(ctx context.Context, req request.Request, content stri
 		},
 	})
 	if err != nil {
+		var apiErr *openai.Error
+		if errors.As(err, &apiErr) {
+			switch apiErr.StatusCode {
+			case http.StatusNotFound, http.StatusNotImplemented, http.StatusMethodNotAllowed:
+				return 0, providers.ErrEstimateNotSupported
+			default:
+				return 0, providers.ClassifyHTTPError(apiErr.StatusCode, "openai", apiErr.Message, 0)
+			}
+		}
 		return 0, adapter.MapError(err)
 	}
 

@@ -17,7 +17,7 @@ type ShowResponse struct {
 
 // Modalities contains supported input/output modalities.
 type Modalities struct {
-	Vision bool `json:"vision"`
+	Vision *bool `json:"vision"`
 }
 
 // GenerationSettings contains default generation parameters.
@@ -27,8 +27,8 @@ type GenerationSettings struct {
 
 // TemplateCaps contains chat template capability flags.
 type TemplateCaps struct {
-	SupportsPreserveReasoning bool `json:"supports_preserve_reasoning"`
-	SupportsToolCalls         bool `json:"supports_tool_calls"`
+	SupportsReasoningEffort *bool `json:"supports_reasoning_effort"`
+	SupportsToolCalls       *bool `json:"supports_tool_calls"`
 }
 
 // Error represents an API error response.
@@ -61,7 +61,7 @@ func (e *Error) FromResponse(resp *http.Response) error {
 
 // Show fetches model properties from the /props endpoint.
 func (c *Client) Show(ctx context.Context, name string) (ShowResponse, error) {
-	u, err := c.WithEndpoint("/props")
+	u, err := c.modelEndpoint(name, "/props")
 	if err != nil {
 		return ShowResponse{}, err
 	}

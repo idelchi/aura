@@ -49,7 +49,7 @@ type Provider struct {
 	// URL is the API endpoint for the provider. Optional for providers with default endpoints (e.g., Anthropic).
 	URL string
 	// Type is the provider type (e.g., ollama, llamacpp, openrouter, openai, anthropic).
-	Type string `validate:"required,oneof=ollama llamacpp openrouter openai anthropic google copilot codex"`
+	Type string `validate:"required,oneof=ollama llamacpp llamaswap openrouter openai anthropic google copilot codex"`
 	// Token is the authentication token for API access.
 	Token string
 	// Models controls which models appear in visual listings.

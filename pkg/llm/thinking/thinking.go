@@ -15,6 +15,8 @@ const (
 	ModeUnset Mode = ""
 	// ModeOff means thinking should be explicitly disabled where the provider supports it.
 	ModeOff Mode = "off"
+	// ModeOn explicitly enables thinking using the provider's default effort.
+	ModeOn Mode = "on"
 	// ModeAuto means thinking should use the provider or model default.
 	ModeAuto Mode = "auto"
 	// ModeEffort means thinking should use an explicit effort level.
@@ -67,7 +69,7 @@ var Levels = []string{
 }
 
 // Value represents a thinking configuration: nil, bool, or string effort.
-// nil means unset, bool false means off, bool true means auto, and string means
+// nil means unset, bool false means off, bool true means on, "auto" leaves the server default alone, and other strings mean
 // explicit provider-neutral effort.
 type Value struct {
 	Value any // bool | string; nil = unset
@@ -99,7 +101,7 @@ func (t Value) Mode() Mode {
 		return ModeUnset
 	case bool:
 		if v {
-			return ModeAuto
+			return ModeOn
 		}
 
 		return ModeOff
@@ -107,6 +109,8 @@ func (t Value) Mode() Mode {
 		switch v {
 		case "":
 			return ModeUnset
+		case string(ModeOn):
+			return ModeOn
 		case string(ModeOff):
 			return ModeOff
 		case string(ModeAuto):
@@ -138,6 +142,11 @@ func (t Value) IsAuto() bool {
 	return t.Mode() == ModeAuto
 }
 
+// IsOn returns true when thinking is explicitly enabled.
+func (t Value) IsOn() bool {
+	return t.Mode() == ModeOn
+}
+
 // Effort returns the explicit effort value, if one was configured.
 func (t Value) Effort() (Effort, bool) {
 	v, ok := t.Value.(string)
@@ -152,11 +161,11 @@ func (t Value) Effort() (Effort, bool) {
 func (t Value) Bool() bool {
 	mode := t.Mode()
 
-	return mode == ModeAuto || mode == ModeEffort
+	return mode == ModeOn || mode == ModeAuto || mode == ModeEffort
 }
 
 // String returns the value as a string.
-// For string efforts, returns the effort directly. For bool true, returns "auto".
+// For string efforts, returns the effort directly. For bool true, returns "on".
 // For bool false or nil, returns "off".
 func (t Value) String() string {
 	if effort, ok := t.Effort(); ok {
@@ -164,8 +173,8 @@ func (t Value) String() string {
 	}
 
 	switch t.Mode() {
-	case ModeAuto:
-		return string(ModeAuto)
+	case ModeOn, ModeAuto:
+		return string(t.Mode())
 	case ModeEffort:
 		return "off"
 	case ModeOff, ModeUnset:
@@ -182,11 +191,11 @@ func (t Value) Raw() any {
 	}
 
 	switch t.Mode() {
-	case ModeAuto:
+	case ModeOn:
 		return true
 	case ModeOff:
 		return false
-	case ModeUnset, ModeEffort:
+	case ModeUnset, ModeAuto, ModeEffort:
 		return nil
 	default:
 		return nil
@@ -229,13 +238,15 @@ func (t *Value) UnmarshalYAML(unmarshal func(any) error) error {
 }
 
 // ParseValue parses a CLI string into a Value.
-// Accepts: "off", "false", "0" -> false; "on", "auto", "true", "1" -> true;
+// Accepts: "off", "false", "0" -> false; "on", "true", "1" -> true; "auto" -> server default;
 // effort strings -> explicit effort.
 func ParseValue(s string) (Value, error) {
 	switch s {
 	case "off", "false", "0":
 		return NewValue(false), nil
-	case "on", "auto", "true", "1":
+	case "auto":
+		return NewValue("auto"), nil
+	case "on", "true", "1":
 		return NewValue(true), nil
 	default:
 		if _, ok := ParseEffort(s); ok {

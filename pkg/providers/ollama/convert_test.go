@@ -358,6 +358,24 @@ func TestToChatRequestThinkingEnabled(t *testing.T) {
 	}
 }
 
+func TestToChatRequestAutoLeavesServerDefault(t *testing.T) {
+	t.Parallel()
+	client, err := ollama.New("http://localhost", "", 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, err := client.ToChatRequest(request.Request{
+		Model: model.Model{Name: "arbitrary-model"},
+		Think: thinking.NewValue("auto").Ptr(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req.Think != nil {
+		t.Fatalf("auto must omit the Ollama think field, got %#v", req.Think)
+	}
+}
+
 func TestToChatRequestThinkingDisabled(t *testing.T) {
 	t.Parallel()
 

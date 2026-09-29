@@ -18,7 +18,7 @@ import (
 func TestGatewayThinkingRequest(t *testing.T) {
 	t.Parallel()
 
-	for _, effort := range []string{"low", "medium", "high"} {
+	for _, effort := range []string{"none", "low", "medium", "high", "max"} {
 		t.Run(effort, func(t *testing.T) {
 			t.Parallel()
 
@@ -39,7 +39,7 @@ func TestGatewayThinkingRequest(t *testing.T) {
 						t.Errorf("gateway request lost model or effort: %+v", body)
 					}
 					w.Header().Set("Content-Type", "text/event-stream")
-					_, _ = fmt.Fprint(w, "data: "+`{"id":"completion-1","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"role":"assistant","content":"OK"}}]}`+"\n\n")
+					_, _ = fmt.Fprint(w, "data: "+`{"id":"completion-1","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"role":"assistant","reasoning_content":"Working it out.","content":"OK"}}]}`+"\n\n")
 					_, _ = fmt.Fprint(w, "data: "+`{"id":"completion-1","object":"chat.completion.chunk","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}`+"\n\ndata: [DONE]\n\n")
 				default:
 					t.Errorf("unexpected request: %s", r.URL.Path)
@@ -62,7 +62,7 @@ func TestGatewayThinkingRequest(t *testing.T) {
 				Think:    think.Ptr(),
 				Messages: message.Messages{{Role: roles.User, Content: "Reply OK."}},
 			}, nil)
-			if err != nil || msg.Content != "OK" {
+			if err != nil || msg.Content != "OK" || msg.Thinking != "Working it out." {
 				t.Fatalf("gateway response = %q, error = %v", msg.Content, err)
 			}
 		})

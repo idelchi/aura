@@ -16,7 +16,7 @@ func (c *Client) Estimate(
 	req request.Request,
 	content string,
 ) (int, error) {
-	endpoint, err := c.WithEndpoint("/tokenize")
+	endpoint, err := c.modelEndpoint(req.Model.Name, "/tokenize")
 	if err != nil {
 		return 0, err
 	}

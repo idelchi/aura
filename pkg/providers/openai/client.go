@@ -56,6 +56,7 @@ func New(baseURL, token string, timeout time.Duration) *Client {
 		fantasyopenai.WithHTTPClient(httpClient),
 		fantasyopenai.WithBaseURL(baseURL),
 		fantasyopenai.WithUseResponsesAPI(),
+		fantasyopenai.WithLanguageModelOptions(fantasyopenai.WithLanguageModelStreamExtraFunc(streamReasoning)),
 	}
 
 	if token != "" {

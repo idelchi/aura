@@ -14,7 +14,7 @@ import (
 type Request struct {
 	// Model is the LLM model to use.
 	Model model.Model
-	// Think configures reasoning mode (nil=unset, false=off, true=auto, string=explicit effort).
+	// Think configures reasoning mode (nil=unset, false=off, true=on, "auto"=server default, other strings=explicit effort).
 	Think *thinking.Value
 	// Messages is the conversation history.
 	Messages message.Messages

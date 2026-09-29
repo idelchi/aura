@@ -32,7 +32,7 @@ func (c *Client) ToChatRequest(request request.Request) (*api.ChatRequest, error
 	}
 
 	// Handle thinking configuration — convert domain type to Ollama API type at the boundary.
-	if request.Think != nil && !request.Think.IsUnset() {
+	if request.Think != nil && !request.Think.IsUnset() && !request.Think.IsAuto() {
 		think, err := toAPIThinkValue(*request.Think)
 		if err != nil {
 			return nil, err
@@ -109,7 +109,7 @@ func (c *Client) ToChatRequest(request request.Request) (*api.ChatRequest, error
 }
 
 func toAPIThinkValue(value thinking.Value) (any, error) {
-	if value.IsAuto() {
+	if value.IsOn() {
 		return true, nil
 	}
 

@@ -13,6 +13,7 @@ import (
 	"github.com/idelchi/aura/pkg/llm/request"
 	"github.com/idelchi/aura/pkg/llm/roles"
 	"github.com/idelchi/aura/pkg/llm/stream"
+	"github.com/idelchi/aura/pkg/llm/thinking"
 	"github.com/idelchi/aura/pkg/llm/tool/call"
 	"github.com/idelchi/aura/pkg/llm/usage"
 	"github.com/idelchi/aura/pkg/providers"
@@ -147,9 +148,19 @@ func toChatParams(req request.Request) openai.ChatCompletionNewParams {
 		params.Tools = tools
 	}
 
-	if req.Think != nil && req.Think.Bool() {
-		params.ReasoningEffort = shared.ReasoningEffort(req.Think.String())
+	extra := map[string]any{"reasoning_format": "auto"}
+	if value := req.Think; value != nil && !value.IsUnset() && !value.IsAuto() {
+		enabled := !value.IsOff()
+		if effort, ok := value.Effort(); ok {
+			params.ReasoningEffort = shared.ReasoningEffort(effort)
+			enabled = effort != thinking.None
+		}
+		extra["chat_template_kwargs"] = map[string]any{"enable_thinking": enabled}
 	}
+	if req.Generation != nil && req.Generation.ThinkBudget != nil {
+		extra["thinking_budget_tokens"] = *req.Generation.ThinkBudget
+	}
+	params.SetExtraFields(extra)
 
 	if g := req.Generation; g != nil {
 		if g.Temperature != nil {
@@ -235,7 +246,7 @@ func toAPIMessage(msg message.Message) openai.ChatCompletionMessageParamUnion {
 
 		return openai.AssistantMessage(msg.Content)
 	case roles.Tool:
-		return openai.ToolMessage(msg.ToolCallID, msg.Content)
+		return openai.ToolMessage(msg.Content, msg.ToolCallID)
 	default:
 		return openai.UserMessage(msg.Content)
 	}

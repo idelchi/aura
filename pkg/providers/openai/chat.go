@@ -86,6 +86,10 @@ func reasoningEffort(value *thinking.Value) (fantasyopenai.ReasoningEffort, bool
 		return "", false, nil
 	}
 
+	if value.IsOn() {
+		return fantasyopenai.ReasoningEffortMedium, true, nil
+	}
+
 	if value.IsOff() {
 		return fantasyopenai.ReasoningEffortNone, true, nil
 	}
@@ -96,10 +100,8 @@ func reasoningEffort(value *thinking.Value) (fantasyopenai.ReasoningEffort, bool
 	}
 
 	switch effort {
-	case thinking.None, thinking.Minimal, thinking.Low, thinking.Medium, thinking.High, thinking.XHigh:
+	case thinking.None, thinking.Minimal, thinking.Low, thinking.Medium, thinking.High, thinking.XHigh, thinking.Max:
 		return fantasyopenai.ReasoningEffort(effort), true, nil
-	case thinking.Max:
-		return "", false, fmt.Errorf("openai thinking effort %q is not supported", effort)
 	default:
 		return "", false, fmt.Errorf("openai thinking effort %q is not supported", effort)
 	}
