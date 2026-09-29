@@ -129,6 +129,7 @@ func (a *Assistant) SwitchModel(ctx context.Context, providerName, modelName str
 	if err != nil {
 		return fmt.Errorf("resolving model on %q: %w", providerName, err)
 	}
+	a.ClearModelListCache()
 
 	// Save state for rollback.
 	prevProvider := a.agent.Provider

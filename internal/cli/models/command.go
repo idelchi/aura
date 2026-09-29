@@ -2,7 +2,6 @@ package models
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -78,7 +77,6 @@ func Command(flags *core.Flags) *cli.Command {
 			}
 
 			appCache := cache.New(flags.WriteHome(), flags.NoCache)
-			modelsCache := appCache.Domain("models")
 
 			// Refresh catwalk registry (needed for enrichment on cache miss).
 			registry.Refresh(ctx, appCache.Domain("catwalk"))
@@ -114,7 +112,7 @@ func Command(flags *core.Flags) *cli.Command {
 					continue
 				}
 
-				allModels, fetchErr := fetchModels(ctx, name, *p, modelsCache)
+				allModels, fetchErr := providers.CachedModels(ctx, *p)
 
 				if i > 0 {
 					fmt.Fprintln(cmd.Writer)
@@ -145,37 +143,4 @@ func Command(flags *core.Flags) *cli.Command {
 			return nil
 		},
 	}
-}
-
-// fetchModels returns models for a provider, using the cache when available.
-// On cache miss, fetches live from the provider and caches the result.
-// Returns the error so callers can display it instead of silently showing "No models found.".
-func fetchModels(ctx context.Context, name string, p config.Provider, domain *cache.Domain) (model.Models, error) {
-	cacheKey := name + ".json"
-
-	if data, ok := domain.Read(cacheKey); ok {
-		var cached model.Models
-
-		if err := json.Unmarshal(data, &cached); err == nil {
-			return cached, nil
-		}
-	}
-
-	provider, err := providers.New(p)
-	if err != nil {
-		return nil, err
-	}
-
-	allModels, err := provider.Models(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if data, err := json.Marshal(allModels); err == nil {
-		if err := domain.Write(cacheKey, data); err != nil {
-			debug.Log("[models] cache write %q: %v", name, err)
-		}
-	}
-
-	return allModels, nil
 }

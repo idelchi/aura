@@ -8,6 +8,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
+
+	"github.com/idelchi/aura/pkg/providers/capabilities"
 )
 
 type DisplayOptions struct {
@@ -46,23 +48,23 @@ func (m Model) Context(opts DisplayOptions) string {
 	return fmt.Sprintf("[%s: %s]", opts.ContextLabel, opts.ContextValue(ctx))
 }
 
+// CapabilityIndicator distinguishes supported, unknown and unsupported features.
+func (m Model) CapabilityIndicator(capability capabilities.Capability, label string) string {
+	if m.Capabilities.Has(capability) {
+		return label
+	}
+	if !m.Knows(capability) {
+		return label + "?"
+	}
+	return ""
+}
+
 // Display returns a formatted, colorized string for a single model.
 func (m Model) Display(opts DisplayOptions) string {
 	namePadding := opts.NameWidth - ansi.StringWidth(m.Name)
 
-	// Each icon slot is exactly 1 display cell: letter (1 cell) or space (1 cell).
-	// Slots are separated by a single space, giving a fixed 3-cell icon column.
-	thinking := " "
-
-	if m.Capabilities.Thinking() {
-		thinking = opts.ThinkingIcon("T")
-	}
-
-	vision := " "
-
-	if m.Capabilities.Vision() {
-		vision = opts.VisionIcon("V")
-	}
+	thinking := opts.ThinkingIcon(fmt.Sprintf("%-2s", m.CapabilityIndicator(capabilities.Thinking, "T")))
+	vision := opts.VisionIcon(fmt.Sprintf("%-2s", m.CapabilityIndicator(capabilities.Vision, "V")))
 
 	params := m.Params(opts)
 	paramsPadding := opts.MaxParamsLen - ansi.StringWidth(params)
@@ -119,6 +121,7 @@ func (ms Models) Display(w io.Writer, sortBy SortBy) error {
 	toolModels := ms.HasTools().Sort(sortBy)
 	embedModels := ms.IsEmbedding().Sort(sortBy)
 	otherModels := ms.IsGeneral().Sort(sortBy)
+	unknownModels := ms.UnknownTools().Sort(sortBy)
 
 	globalOpts := DisplayOptions{
 		Bullet:       bullet,
@@ -167,6 +170,8 @@ func (ms Models) Display(w io.Writer, sortBy SortBy) error {
 	printSection("Tool capable:", toolModels)
 	printSection("Embedding capable:", embedModels)
 	printSection("Other:", otherModels)
+	printSection("Tool capability unknown:", unknownModels)
+	fmt.Fprintln(w, "\nT: thinking, V: vision; ?: unknown")
 
 	return nil
 }

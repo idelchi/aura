@@ -556,6 +556,7 @@ func (a *Assistant) ResolveModel(
 	}
 
 	*cache = &m
+	a.ClearModelListCache()
 
 	if ag == a.agent {
 		if err := a.normalizeCurrentThinkForModel(m, false); err != nil {

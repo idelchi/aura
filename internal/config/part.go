@@ -6,6 +6,7 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 
 	"github.com/idelchi/aura/internal/task"
+	"github.com/idelchi/aura/pkg/cache"
 	"github.com/idelchi/godyl/pkg/path/file"
 	"github.com/idelchi/godyl/pkg/path/folder"
 )
@@ -94,6 +95,7 @@ var loaders = map[Part]loader{
 
 		cfg.Providers.Apply(func(p *Provider) {
 			p.AuthDirs = authDirs
+			p.Cache = cache.New(opts.WriteHome, opts.NoCache)
 		})
 
 		return nil

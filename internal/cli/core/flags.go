@@ -294,6 +294,7 @@ func (f Flags) ConfigOptions() config.Options {
 	return config.Options{
 		Homes:      f.Homes(),
 		WriteHome:  f.WriteHome(),
+		NoCache:    f.NoCache,
 		GlobalHome: f.Home,
 		SetVars:    f.Set,
 	}

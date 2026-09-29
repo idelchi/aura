@@ -73,7 +73,38 @@ func (m Model) Matches(pattern string) bool {
 
 // Knows reports whether the presence or absence of a capability is authoritative.
 func (m Model) Knows(capability capabilities.Capability) bool {
-	return m.CapabilitiesKnown || m.KnownCapabilities.Has(capability)
+	return m.CapabilitiesKnown || m.KnownCapabilities.Has(capability) || m.Capabilities.Has(capability)
+}
+
+// FillMissing supplements incomplete metadata without overriding fresh reports.
+func (m Model) FillMissing(previous Model) Model {
+	if m.Name != previous.Name {
+		return m
+	}
+	m.Capabilities = slices.Clone(m.Capabilities)
+	m.KnownCapabilities = slices.Clone(m.KnownCapabilities)
+	for _, name := range capabilities.Names() {
+		capability, _ := capabilities.Parse(name)
+		if !m.Knows(capability) && previous.Knows(capability) {
+			m.SetCapability(capability, previous.Capabilities.Has(capability))
+		}
+	}
+	if m.ContextLength == 0 {
+		m.ContextLength = previous.ContextLength
+	}
+	if m.ParameterCount == 0 {
+		m.ParameterCount = previous.ParameterCount
+	}
+	if m.Size == 0 {
+		m.Size = previous.Size
+	}
+	if m.Family == "" {
+		m.Family = previous.Family
+	}
+	if m.ReasoningEfforts == nil && m.Capabilities.ThinkingLevels() {
+		m.ReasoningEfforts = slices.Clone(previous.ReasoningEfforts)
+	}
+	return m
 }
 
 // SetCapability records a reported capability, including an explicit false value.

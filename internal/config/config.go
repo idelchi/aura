@@ -718,6 +718,7 @@ func (c Config) ToolsWithTrace(agent, mode string, rt *Runtime) ([]ToolTrace, er
 type Options struct {
 	Homes          []string          // all config dirs in merge order (global first, then --config entries)
 	WriteHome      string            // primary home for writes (sessions, debug, auth, plugins)
+	NoCache        bool              // bypass cached reads while retaining fresh observations
 	GlobalHome     string            // ~/.aura — kept for approval provenance + global auth dir
 	LaunchDir      string            // CWD at process start, before --workdir
 	WorkDir        string            // CWD after --workdir processing

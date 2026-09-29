@@ -14,6 +14,7 @@ import (
 	"github.com/idelchi/aura/internal/slash"
 	"github.com/idelchi/aura/internal/ui"
 	"github.com/idelchi/aura/pkg/llm/model"
+	"github.com/idelchi/aura/pkg/providers/capabilities"
 )
 
 // Model creates the /model command for listing and switching models across providers.
@@ -180,15 +181,10 @@ func isCloud(name string, provs config.StringCollection[config.Provider]) bool {
 
 // modelIcons returns capability icons for a model.
 func modelIcons(m model.Model) string {
-	var icons string
-
-	if m.Capabilities.Thinking() {
-		icons += " T"
+	icons := strings.TrimSpace(m.CapabilityIndicator(capabilities.Thinking, "T") + " " +
+		m.CapabilityIndicator(capabilities.Vision, "V"))
+	if icons == "" {
+		return ""
 	}
-
-	if m.Capabilities.Vision() {
-		icons += " V"
-	}
-
-	return icons
+	return " " + icons
 }

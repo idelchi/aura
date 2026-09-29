@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/idelchi/aura/pkg/cache"
 	"github.com/idelchi/aura/pkg/llm/model"
 	"github.com/idelchi/aura/pkg/yamlutil"
 	"github.com/idelchi/godyl/pkg/path/files"
@@ -72,6 +73,8 @@ type Provider struct {
 	// AuthDirs is the ordered list of directories to search for stored auth tokens.
 	// Populated by config.New(), not from YAML. Order: project auth dir, then global auth dir.
 	AuthDirs []string `yaml:"-"`
+	// Cache stores provider catalogs and verified model metadata. Runtime only.
+	Cache *cache.Cache `yaml:"-" json:"-"`
 }
 
 // ApplyDefaults sets sane defaults for zero-valued fields.

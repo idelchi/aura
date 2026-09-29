@@ -131,6 +131,9 @@ func New(provider config.Provider) (Provider, error) {
 		}
 	}
 
+	if provider.Cache != nil {
+		p = newCachedProvider(p, provider)
+	}
 	return p, nil
 }
 

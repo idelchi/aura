@@ -77,17 +77,28 @@ func (ms Models) IsEmbedding() Models {
 	return capable
 }
 
-// IsGeneral returns general-purpose models (neither embedding nor tool-specific).
+// IsGeneral returns models with known absent tool support, excluding embeddings.
 func (ms Models) IsGeneral() Models {
 	var general Models
 
 	for _, m := range ms {
-		if !m.Capabilities.Embedding() && !m.Capabilities.Tools() {
+		if !m.Capabilities.Embedding() && !m.Capabilities.Tools() && m.Knows(capabilities.Tools) {
 			general = append(general, m)
 		}
 	}
 
 	return general
+}
+
+// UnknownTools returns non-embedding models whose tool support is unreported.
+func (ms Models) UnknownTools() Models {
+	var unknown Models
+	for _, m := range ms {
+		if !m.Capabilities.Embedding() && !m.Knows(capabilities.Tools) {
+			unknown = append(unknown, m)
+		}
+	}
+	return unknown
 }
 
 // WithCapability returns models that have the given capability.
