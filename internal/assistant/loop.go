@@ -199,7 +199,13 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 	a.send(ui.SpinnerMessage{Text: "Processing input..."})
 
 	for _, input := range inputs {
-		if a.addUserInput(ctx, input) {
+		added, err := a.addUserInput(ctx, input)
+		if err != nil {
+			a.EmitStatus()
+
+			return err
+		}
+		if added {
 			anyAdded = true
 		}
 	}
@@ -671,8 +677,9 @@ func (a *Assistant) ShouldContinue() bool {
 // addUserInput parses directives from raw input text and adds the message
 // to the conversation builder. If images are found and the model supports
 // vision, images are embedded directly. Otherwise, original text is preserved.
-// Returns false if the message was rejected by the size guard.
-func (a *Assistant) addUserInput(ctx context.Context, input string) bool {
+// Empty input is a no-op. Rejected input returns an error so automation cannot
+// mistake it for a completed turn; the interactive loop reports it and stays open.
+func (a *Assistant) addUserInput(ctx context.Context, input string) (bool, error) {
 	visionCfg := a.cfg.Features.Vision
 
 	parsed := directive.Parse(ctx, input, a.effectiveWorkDir(), directive.Config{
@@ -694,7 +701,7 @@ func (a *Assistant) addUserInput(ctx context.Context, input string) bool {
 	}
 
 	if strings.TrimSpace(text) == "" && !parsed.HasImages() {
-		return false
+		return false, nil
 	}
 
 	est, msg := a.CheckInput(ctx, text)
@@ -708,40 +715,23 @@ func (a *Assistant) addUserInput(ctx context.Context, input string) bool {
 
 		if compactErr != nil {
 			debug.Log("[input] pre-input compaction failed: %v", compactErr)
-
-			if errors.Is(compactErr, ErrCompactionConfig) {
-				a.send(
-					ui.CommandResult{
-						Message: fmt.Sprintf("compaction is misconfigured: %v", compactErr),
-						Level:   ui.LevelWarn,
-					},
-				)
-
-				return false
-			}
-
-			a.send(
-				ui.CommandResult{
-					Message: fmt.Sprintf("pre-input compaction failed: %v — context remains large", compactErr),
-					Level:   ui.LevelWarn,
-				},
-			)
+			return false, fmt.Errorf("input rejected: %s (compaction: %w)", msg, compactErr)
 		}
 
-		// Re-check after compaction
+		// A successful summary or a skipped compaction does not prove admission
+		// is possible. Require enough space before treating this turn as accepted.
 		est, msg = a.CheckInput(ctx, text)
 		if msg != "" {
-			a.send(ui.CommandResult{Message: msg, Level: ui.LevelWarn})
-
-			return false
+			return false, fmt.Errorf("input rejected after compaction: %s", msg)
 		}
 	}
 
 	// Guardrail check: validate user message before it enters conversation.
 	if blocked, raw, grErr := a.CheckGuardrail(ctx, "user_messages", "", text); blocked || grErr != nil {
-		a.send(ui.CommandResult{Message: formatGuardrailBlock("user_messages", raw, grErr), Level: ui.LevelWarn})
-
-		return false
+		if grErr != nil {
+			return false, fmt.Errorf("user input guardrail: %w", grErr)
+		}
+		return false, errors.New(formatGuardrailBlock("user_messages", raw, grErr))
 	}
 
 	// Always send images when present — not all providers/models accurately report
@@ -750,7 +740,7 @@ func (a *Assistant) addUserInput(ctx context.Context, input string) bool {
 	if !parsed.HasImages() {
 		a.builder.AddUserMessage(ctx, text, est)
 
-		return true
+		return true, nil
 	}
 
 	msgImages := make(message.Images, len(parsed.Images))
@@ -760,7 +750,7 @@ func (a *Assistant) addUserInput(ctx context.Context, input string) bool {
 
 	a.builder.AddUserMessageWithImages(ctx, text, msgImages, est)
 
-	return true
+	return true, nil
 }
 
 // cleanParseError extracts the meaningful part from verbose tool parse errors.

@@ -373,8 +373,9 @@ func (a *Assistant) CompactWith(ctx context.Context, force bool, keepLast int) e
 	preCompactLen := len(history)
 
 	// Clamp keepLast so compaction can always proceed when there are enough messages.
-	// Minimum viable: system prompt (1) + at least 1 non-system message to compact.
-	maxKeep := len(history) - 2
+	// Count the same non-internal messages as splitHistory: the system prompt
+	// plus at least one message to compact. Bookmarks must not consume keepLast.
+	maxKeep := len(history.WithoutInternalMessages()) - 2
 	if maxKeep < 0 {
 		return errors.New("not enough messages to compact")
 	}

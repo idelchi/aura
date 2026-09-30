@@ -51,6 +51,11 @@ Automatic compaction runs before a model request needs the space, not after a co
 or process exit therefore does not pay for a discarded summary. Explicit `/compact` and bounded overflow recovery
 are unchanged. Compaction time includes failed attempts as well as successful summaries.
 
+The recent-message count excludes internal UI bookkeeping such as bookmarks. Tool calls and their results remain
+together when choosing the preserved tail. Before accepting new input, Aura rechecks the input budget after compaction;
+a summary that leaves too little space is an admission failure. Automation, including `/until`, stops on that error
+instead of retrying rejected input. Interactive sessions stay open so you can compact, clear context or revise the input.
+
 Local token estimates are calibrated upward by observed provider input overhead, including chat templates not
 represented in stored messages. This remains an estimate, not an exact tokenizer; native context-overflow recovery
 is still required. Changing models or resetting token state clears the calibration.

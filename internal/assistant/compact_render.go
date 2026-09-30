@@ -2,7 +2,6 @@ package assistant
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -49,41 +48,16 @@ func splitHistory(history message.Messages, keepLast int) (toCompact, preserved 
 	}
 
 	// Skip system prompt
-	msgs := history[1:]
+	msgs := history[1:].WithoutInternalMessages()
 	if keepLast == 0 {
 		return msgs, nil
 	}
 
-	// Count non-internal messages to see if we have enough to split.
-	nonInternal := 0
-
-	for _, msg := range msgs {
-		if !msg.IsInternal() {
-			nonInternal++
-		}
-	}
-
-	if nonInternal <= keepLast {
+	if len(msgs) <= keepLast {
 		return nil, msgs.ForPreservation()
 	}
 
-	// Backward walk skipping internal types to find split point.
-	splitIdx := len(msgs) // default: compact everything
-	kept := 0
-
-	for i, v := range slices.Backward(msgs) {
-		if v.IsInternal() {
-			continue
-		}
-
-		kept++
-
-		if kept >= keepLast {
-			splitIdx = i
-
-			break
-		}
-	}
+	splitIdx := len(msgs) - keepLast
 
 	// Adjust split boundary for tool call/result pair integrity.
 	// If the first preserved message is a Tool result, move it (and any preceding
