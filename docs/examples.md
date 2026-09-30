@@ -88,12 +88,15 @@ aura run '/until --max 5 bash:"curl -sf http://localhost:8080/health" "Service i
 tools:
   bash:
     rewrite: |
-      if command -v rtk >/dev/null 2>&1 && REWRITTEN=$(rtk rewrite {{ .Command }} 2>/dev/null); then
+      if command -v rtk >/dev/null 2>&1 && REWRITTEN=$(rtk rewrite '{{ .Command | replace "'" "'\"'\"'" }}' 2>/dev/null); then
         eval "${REWRITTEN}"
       else
         {{ .Command }}
       fi
 ```
+
+The quoted argument passes the whole command to RTK as data, including shell
+operators, newlines and embedded single quotes. Unsupported commands run unchanged.
 
 ### Activate a virtualenv
 
