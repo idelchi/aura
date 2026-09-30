@@ -7,7 +7,9 @@ import (
 	"github.com/idelchi/aura/internal/agent"
 	"github.com/idelchi/aura/internal/debug"
 	"github.com/idelchi/aura/internal/providers"
+	"github.com/idelchi/aura/pkg/llm/generation"
 	"github.com/idelchi/aura/pkg/llm/model"
+	"github.com/idelchi/aura/pkg/llm/thinking"
 )
 
 // FeatureResolution holds the resolved provider/model/prompt for a secondary LLM call
@@ -17,6 +19,8 @@ type FeatureResolution struct {
 	mdl        model.Model
 	contextLen int
 	prompt     string
+	think      *thinking.Value
+	generation *generation.Generation
 }
 
 // FeatureAgentConfig holds the inputs for resolving a feature agent.
@@ -59,6 +63,8 @@ func (a *Assistant) ResolveAgent(ctx context.Context, cfg FeatureAgentConfig) (F
 			mdl:        mdl,
 			contextLen: a.agent.Model.Context,
 			prompt:     rendered.String(),
+			think:      a.agent.Model.Think.Ptr(),
+			generation: a.agent.Model.Generation,
 		}, nil
 	}
 
@@ -83,6 +89,8 @@ func (a *Assistant) ResolveAgent(ctx context.Context, cfg FeatureAgentConfig) (F
 			mdl:        mdl,
 			contextLen: overrideAgent.Model.Context,
 			prompt:     overrideAgent.Prompt,
+			think:      overrideAgent.Model.Think.Ptr(),
+			generation: overrideAgent.Model.Generation,
 		}, nil
 	}
 

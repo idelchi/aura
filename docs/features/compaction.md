@@ -66,6 +66,11 @@ Agents override compaction via `features.compaction` in their frontmatter. Resol
 3. Neither → use the default agent from `compaction.yaml`.
 4. No agent or prompt at all → **prune-only**: mechanical pruning without LLM summarization.
 
+Self-compaction inherits the active agent's current `model.think` and `model.generation` settings,
+including thinking budgets, sampling controls and output limits. A dedicated compaction agent uses
+its own settings. These apply to every chunk and overflow retry; unset values remain unset.
+Compaction uses its summary prompt and sends no tools.
+
 ```yaml
 # Self-compact
 features:

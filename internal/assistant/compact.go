@@ -11,10 +11,8 @@ import (
 
 	"github.com/idelchi/aura/internal/debug"
 	"github.com/idelchi/aura/internal/injector"
-	"github.com/idelchi/aura/internal/providers"
 	"github.com/idelchi/aura/internal/ui"
 	"github.com/idelchi/aura/pkg/llm/message"
-	"github.com/idelchi/aura/pkg/llm/model"
 	"github.com/idelchi/aura/pkg/llm/request"
 	"github.com/idelchi/aura/pkg/llm/stream"
 	providererrors "github.com/idelchi/aura/pkg/providers"
@@ -439,11 +437,9 @@ func (a *Assistant) CompactWith(ctx context.Context, force bool, keepLast int) e
 		var err error
 
 		if cfg.Chunks > 1 {
-			summary, err = a.CompactChunks(ctx, resolved.provider, resolved.mdl, resolved.contextLen,
-				resolved.prompt, toCompact, cfg.Chunks, maxLen)
+			summary, err = a.CompactChunks(ctx, resolved, toCompact, cfg.Chunks, maxLen)
 		} else {
-			summary, err = a.CompactOnce(ctx, resolved.provider, resolved.mdl, resolved.contextLen,
-				resolved.prompt, toCompact, maxLen, true)
+			summary, err = a.CompactOnce(ctx, resolved, toCompact, maxLen, true)
 		}
 
 		if err == nil {
@@ -540,10 +536,7 @@ func (a *Assistant) todoState() string {
 // When includeTodos is true, the todo list is appended to the compaction prompt.
 func (a *Assistant) CompactOnce(
 	ctx context.Context,
-	provider providers.Provider,
-	mdl model.Model,
-	contextLen int,
-	systemPrompt string,
+	resolved FeatureResolution,
 	toCompact message.Messages,
 	maxLen int,
 	includeTodos bool,
@@ -554,18 +547,20 @@ func (a *Assistant) CompactOnce(
 		todoState = a.todoState()
 	}
 
-	reqMessages := buildCompactionMessages(systemPrompt, toCompact, maxLen, todoState)
+	reqMessages := buildCompactionMessages(resolved.prompt, toCompact, maxLen, todoState)
 
 	req := request.Request{
-		Model:         mdl,
+		Model:         resolved.mdl,
+		Think:         resolved.think,
+		Generation:    resolved.generation,
 		Messages:      reqMessages,
-		ContextLength: contextLen,
+		ContextLength: resolved.contextLen,
 		Truncate:      true,
 		Shift:         true,
 		// No tools — compaction must not make tool calls
 	}
 
-	response, _, err := provider.Chat(ctx, req, noopStream)
+	response, _, err := resolved.provider.Chat(ctx, req, noopStream)
 	if err != nil {
 		return "", fmt.Errorf("compaction chat: %w", err)
 	}
@@ -586,10 +581,7 @@ func (a *Assistant) CompactOnce(
 // them sequentially, passing each chunk's summary as context to the next.
 func (a *Assistant) CompactChunks(
 	ctx context.Context,
-	provider providers.Provider,
-	mdl model.Model,
-	contextLen int,
-	systemPrompt string,
+	resolved FeatureResolution,
 	toCompact message.Messages,
 	n int,
 	maxLen int,
@@ -606,7 +598,7 @@ func (a *Assistant) CompactChunks(
 		debug.Log("[compact] compacting chunk %d/%d: %d messages, lastChunk=%v",
 			i+1, len(chunks), len(chunk), lastChunk)
 
-		summary, err := a.attemptChunkCompaction(ctx, provider, mdl, contextLen, systemPrompt,
+		summary, err := a.attemptChunkCompaction(ctx, resolved,
 			chunk, maxLen, prevSummary, i+1, len(chunks), lastChunk)
 		if err != nil {
 			return "", fmt.Errorf("chunk %d/%d: %w", i+1, len(chunks), err)
@@ -622,10 +614,7 @@ func (a *Assistant) CompactChunks(
 // a previous summary and todo state (only for the last chunk).
 func (a *Assistant) attemptChunkCompaction(
 	ctx context.Context,
-	provider providers.Provider,
-	mdl model.Model,
-	contextLen int,
-	systemPrompt string,
+	resolved FeatureResolution,
 	chunk message.Messages,
 	maxLen int,
 	prevSummary string,
@@ -639,17 +628,19 @@ func (a *Assistant) attemptChunkCompaction(
 		todoState = a.todoState()
 	}
 
-	reqMessages := buildChunkMessages(systemPrompt, chunk, maxLen, todoState, prevSummary, chunkNum, totalChunks)
+	reqMessages := buildChunkMessages(resolved.prompt, chunk, maxLen, todoState, prevSummary, chunkNum, totalChunks)
 
 	req := request.Request{
-		Model:         mdl,
+		Model:         resolved.mdl,
+		Think:         resolved.think,
+		Generation:    resolved.generation,
 		Messages:      reqMessages,
-		ContextLength: contextLen,
+		ContextLength: resolved.contextLen,
 		Truncate:      true,
 		Shift:         true,
 	}
 
-	response, _, err := provider.Chat(ctx, req, noopStream)
+	response, _, err := resolved.provider.Chat(ctx, req, noopStream)
 	if err != nil {
 		return "", fmt.Errorf("compaction chat (chunk %d/%d): %w", chunkNum, totalChunks, err)
 	}
