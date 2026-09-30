@@ -88,7 +88,9 @@ go:lint:
 go:fix:
   inherit: [go:format] # copies event, matcher, files, timeout, silent from go:format
   depends: [go:format]
-  command: golangci-lint run --fix $FILE
+  command: |
+    go_packages=$(for f in ${FILE}; do (cd "$(dirname "${f}")" && pwd); done | sort -u)
+    golangci-lint run --fix ${go_packages}
 ```
 
 ## Per-Agent and Per-Mode Filtering
@@ -132,17 +134,18 @@ go:format:
   matcher: "Patch|Write"
   files: "*.go"
   silent: true
-  command: golangci-lint fmt $FILE
+  command: golangci-lint fmt ${FILE}
   timeout: 15
 
 go:fix:
   inherit: [go:format]
   depends: [go:format]
   command: |
-    golangci-lint run --fix $FILE
-    for f in $FILE; do
-      while gopls codeaction -kind=quickfix -exec -write $f 2>/dev/null; do :; done
-      gopls codeaction -kind=source.organizeImports -exec -write $f 2>/dev/null
+    go_packages=$(for f in ${FILE}; do (cd "$(dirname "${f}")" && pwd); done | sort -u)
+    golangci-lint run --fix ${go_packages}
+    for f in ${FILE}; do
+      while gopls codeaction -kind=source.fixAll -exec -write ${f} 2>/dev/null; do :; done
+      gopls codeaction -kind=source.organizeImports -exec -write ${f} 2>/dev/null
     done
   timeout: 30
 
@@ -150,10 +153,19 @@ go:lint:
   inherit: [go:format]
   depends: [go:fix]
   silent: false
-  command: golangci-lint run $FILE
+  command: |
+    go_packages=$(for f in ${FILE}; do (cd "$(dirname "${f}")" && pwd); done | sort -u)
+    golangci-lint run ${go_packages}
 ```
 
 Execution order: `go:format` → `go:fix` → `go:lint`.
+
+Lint the affected packages so declarations in sibling files participate in type
+checking. Use `source.fixAll` for automatic gopls fixes, alongside import
+organization. Gopls reserves this category for fixes intended to be safe to apply
+automatically. A blanket `quickfix` loop can delete functions and types that have
+not yet acquired callers during incremental editing. See the
+[gopls quick-fix documentation](https://go.dev/gopls/features/diagnostics#quick-fixes).
 
 ## Example: Pre-Hook Validation
 

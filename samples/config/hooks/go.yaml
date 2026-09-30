@@ -15,9 +15,10 @@ go:fix:
   depends: [go:format]
   silent: false
   command: |
-    golangci-lint run --fix ${FILE}
+    go_packages=$(for f in ${FILE}; do (cd "$(dirname "${f}")" && pwd); done | sort -u)
+    golangci-lint run --fix ${go_packages}
     for f in ${FILE}; do
-      while gopls codeaction -kind=quickfix -exec -write -diff ${f} 2>/dev/null; do :; done
+      while gopls codeaction -kind=source.fixAll -exec -write -diff ${f} 2>/dev/null; do :; done
       gopls codeaction -kind=source.organizeImports -exec -write -diff ${f} 2>/dev/null
     done
     go fix -diff ./...
@@ -29,4 +30,6 @@ go:lint:
   inherit: [go:format]
   depends: [go:fix]
   silent: false
-  command: golangci-lint run ${FILE}
+  command: |
+    go_packages=$(for f in ${FILE}; do (cd "$(dirname "${f}")" && pwd); done | sort -u)
+    golangci-lint run ${go_packages}
