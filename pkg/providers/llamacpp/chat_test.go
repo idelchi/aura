@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/idelchi/aura/pkg/llm/generation"
 	"github.com/idelchi/aura/pkg/llm/message"
 	"github.com/idelchi/aura/pkg/llm/model"
 	"github.com/idelchi/aura/pkg/llm/request"
@@ -15,6 +16,41 @@ import (
 	"github.com/idelchi/aura/pkg/llm/thinking"
 	"github.com/idelchi/aura/pkg/llm/tool/call"
 )
+
+func TestChatForwardsTopK(t *testing.T) {
+	t.Parallel()
+	for _, topK := range []*int{nil, new(0), new(20)} {
+		name := "unset"
+		if topK != nil {
+			name = fmt.Sprint(*topK)
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var body struct {
+					TopK *int `json:"top_k"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Fatal(err)
+				}
+				if (body.TopK == nil) != (topK == nil) || (topK != nil && body.TopK != nil && *body.TopK != *topK) {
+					t.Errorf("top_k = %v, want %v", body.TopK, topK)
+				}
+				w.Header().Set("Content-Type", "text/event-stream")
+				_, _ = fmt.Fprint(w, "data: "+`{"id":"c","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"content":"answer"},"finish_reason":"stop"}]}`+"\n\ndata: [DONE]\n\n")
+			}))
+			defer server.Close()
+			_, _, err := New(server.URL, "", time.Second).Chat(t.Context(), request.Request{
+				Model:      model.Model{Name: "arbitrary-model"},
+				Messages:   message.Messages{{Role: roles.User, Content: "hi"}},
+				Generation: &generation.Generation{TopK: topK},
+			}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
 
 func TestChatPreservesRetainedReasoning(t *testing.T) {
 	t.Parallel()

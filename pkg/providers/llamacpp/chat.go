@@ -157,8 +157,13 @@ func toChatParams(req request.Request) openai.ChatCompletionNewParams {
 		}
 		extra["chat_template_kwargs"] = map[string]any{"enable_thinking": enabled}
 	}
-	if req.Generation != nil && req.Generation.ThinkBudget != nil {
-		extra["thinking_budget_tokens"] = *req.Generation.ThinkBudget
+	if g := req.Generation; g != nil {
+		if g.ThinkBudget != nil {
+			extra["thinking_budget_tokens"] = *g.ThinkBudget
+		}
+		if g.TopK != nil {
+			extra["top_k"] = *g.TopK
+		}
 	}
 	params.SetExtraFields(extra)
 
