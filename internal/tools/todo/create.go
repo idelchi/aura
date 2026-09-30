@@ -19,7 +19,7 @@ type CreateItemInput struct {
 // CreateInput defines the parameters for the TodoCreate tool.
 type CreateInput struct {
 	Summary string            `json:"summary,omitempty" jsonschema:"description=Executive summary describing the overall goal"`
-	Items   []CreateItemInput `json:"items,omitempty"   jsonschema:"description=List of tasks to create"                       validate:"omitempty,dive"`
+	Items   []CreateItemInput `json:"items,omitempty"   jsonschema:"description=Tasks to create; supply a nonempty array to populate the todo list" validate:"omitempty,dive"`
 }
 
 // Create implements the TodoCreate tool.
@@ -35,6 +35,7 @@ func NewCreate(list *todo.List) *Create {
 		Text: tool.Text{
 			Description: heredoc.Doc(`
 					Create or update a todo list for multi-step tasks.
+					Supply items to create tasks. A summary alone does not create tasks.
 
 					Items start as pending. First item is auto-set to in_progress.
 				`),
@@ -49,6 +50,9 @@ func NewCreate(list *todo.List) *Create {
 					- {summary, items}: Set both summary and tasks
 					- {summary}: Update summary only, keep existing tasks
 					- {items}: Replace tasks only, keep existing summary
+
+					To create a plan, provide a nonempty items array. Writing the plan
+					in summary alone leaves the task list unchanged.
 
 					First item is automatically marked as in_progress.
 				`),
@@ -117,6 +121,11 @@ func (t *Create) Execute(_ context.Context, args map[string]any) (string, error)
 		t.list.Replace(todos)
 
 		result = fmt.Sprintf("Created %d tasks. First task is now in_progress.", len(todos))
+	} else {
+		result = fmt.Sprintf("Updated summary only. Existing tasks: %d. No tasks were created.", t.list.Len())
+		if t.list.Len() == 0 {
+			result += "\nThe todo list is empty. Supply a nonempty items array to create tasks."
+		}
 	}
 
 	if params.Summary != "" {

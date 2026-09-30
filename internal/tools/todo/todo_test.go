@@ -137,13 +137,49 @@ func TestTodoProgressInvalidIndex(t *testing.T) {
 func TestTodoCreateSummaryOnly(t *testing.T) {
 	t.Parallel()
 
-	createTool, _, _ := newTools(t)
+	list := todo.New()
+	createTool := todotool.NewCreate(list)
 
-	_, err := createTool.Execute(context.Background(), map[string]any{
+	result, err := createTool.Execute(context.Background(), map[string]any{
 		"summary": "Just a summary",
 	})
 	if err != nil {
-		t.Errorf("unexpected error creating with summary only: %v", err)
+		t.Fatalf("unexpected error creating with summary only: %v", err)
+	}
+
+	if list.Len() != 0 || list.Summary != "Just a summary" {
+		t.Fatalf("summary-only update changed task state: %+v", list)
+	}
+
+	for _, expected := range []string{"Existing tasks: 0", "No tasks were created", "nonempty items array"} {
+		if !strings.Contains(result, expected) {
+			t.Errorf("result missing %q: %s", expected, result)
+		}
+	}
+}
+
+func TestTodoCreateSummaryOnlyPreservesTasks(t *testing.T) {
+	t.Parallel()
+
+	list := todo.New()
+	list.Add(todo.Todo{Content: "Keep this task", Status: todo.Completed})
+	createTool := todotool.NewCreate(list)
+
+	result, err := createTool.Execute(context.Background(), map[string]any{"summary": "Updated goal"})
+	if err != nil {
+		t.Fatalf("summary update failed: %v", err)
+	}
+
+	if list.Len() != 1 || list.Get()[0].Content != "Keep this task" || list.Get()[0].Status != todo.Completed {
+		t.Fatalf("summary update changed existing tasks: %+v", list)
+	}
+
+	if !strings.Contains(result, "Existing tasks: 1") || !strings.Contains(result, "No tasks were created") {
+		t.Errorf("summary result does not describe preserved tasks: %s", result)
+	}
+
+	if strings.Contains(result, "todo list is empty") {
+		t.Errorf("summary update incorrectly reports an empty list: %s", result)
 	}
 }
 
