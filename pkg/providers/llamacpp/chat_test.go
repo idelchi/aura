@@ -13,7 +13,75 @@ import (
 	"github.com/idelchi/aura/pkg/llm/request"
 	"github.com/idelchi/aura/pkg/llm/roles"
 	"github.com/idelchi/aura/pkg/llm/thinking"
+	"github.com/idelchi/aura/pkg/llm/tool/call"
 )
+
+func TestChatPreservesRetainedReasoning(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		thinking string
+		calls    []call.Call
+	}{
+		{name: "answer", thinking: "retained reasoning"},
+		{name: "tool call", thinking: "retained reasoning", calls: []call.Call{{ID: "call-1", Name: "Read", Arguments: map[string]any{"path": "main.go"}}}},
+		{name: "stripped reasoning"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var body struct {
+					Messages []struct {
+						Role, Content string
+						Reasoning     *string `json:"reasoning_content"`
+						Calls         []struct {
+							ID string
+						} `json:"tool_calls"`
+					}
+				}
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Error(err)
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				if len(body.Messages) < 2 {
+					t.Errorf("missing history: %+v", body)
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				got := body.Messages[1]
+				if got.Role != "assistant" || got.Content != "answer" || len(got.Calls) != len(tc.calls) {
+					t.Errorf("assistant history changed: %+v", got)
+				}
+				if tc.thinking == "" {
+					if got.Reasoning != nil {
+						t.Errorf("stripped reasoning was sent: %q", *got.Reasoning)
+					}
+				} else if got.Reasoning == nil || *got.Reasoning != tc.thinking {
+					t.Errorf("retained reasoning missing or changed: %+v", got)
+				}
+				if len(got.Calls) > 0 && got.Calls[0].ID != "call-1" {
+					t.Errorf("tool call ID changed: %+v", got.Calls)
+				}
+				w.Header().Set("Content-Type", "text/event-stream")
+				_, _ = fmt.Fprint(w, "data: "+`{"id":"c","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"content":"done"},"finish_reason":"stop"}]}`+"\n\ndata: [DONE]\n\n")
+			}))
+			defer server.Close()
+			history := message.Messages{
+				{Role: roles.User, Content: "start"},
+				{Role: roles.Assistant, Content: "answer", Thinking: tc.thinking, Calls: tc.calls},
+			}
+			if len(tc.calls) > 0 {
+				history = append(history, message.Message{Role: roles.Tool, ToolCallID: "call-1", Content: "file contents"})
+			}
+			history = append(history, message.Message{Role: roles.User, Content: "continue"})
+			_, _, err := New(server.URL, "", time.Second).Chat(t.Context(), request.Request{Model: model.Model{Name: "arbitrary-model"}, Messages: history}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
 
 func TestThinkingWireContract(t *testing.T) {
 	t.Parallel()

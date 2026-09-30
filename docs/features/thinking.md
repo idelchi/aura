@@ -32,6 +32,8 @@ For Ollama, [most thinking models](https://docs.ollama.com/capabilities/thinking
 
 For llama.cpp and llama-swap, `on`/`off` set `chat_template_kwargs.enable_thinking`; explicit efforts additionally set `reasoning_effort`. `auto` sends neither control. Aura requests separate reasoning output using `reasoning_format: auto`, and forwards an optional `generation.think_budget` as `thinking_budget_tokens`. This uses the server's template contract, without model-name rules.
 
+Retained assistant thinking is sent back to llama.cpp and llama-swap as `reasoning_content`, including turns that call tools. The agent's history management controls which thinking is retained; the provider forwards that retained content.
+
 For OpenAI-compatible gateways such as Bifrost, `on` requests `medium` effort, `off` requests `none`, and `auto` omits the override. Explicit efforts pass through unless model metadata rejects them. The upstream must support that contract: effort alone cannot enable a llama.cpp template whose server default is disabled and which requires `enable_thinking`. Use the native provider when those template controls are needed. Streamed `reasoning_content` is retained separately from answer text.
 
 Set per-agent in the agent frontmatter via `model.think`.

@@ -218,6 +218,11 @@ func toAPIMessage(msg message.Message) openai.ChatCompletionMessageParamUnion {
 
 		return openai.UserMessage(msg.Content)
 	case roles.Assistant:
+		assistant := openai.AssistantMessage(msg.Content)
+		if msg.Thinking != "" {
+			assistant.OfAssistant.SetExtraFields(map[string]any{"reasoning_content": msg.Thinking})
+		}
+
 		if len(msg.Calls) > 0 {
 			toolCalls := make([]openai.ChatCompletionMessageToolCallUnionParam, len(msg.Calls))
 			for i, tc := range msg.Calls {
@@ -234,17 +239,10 @@ func toAPIMessage(msg message.Message) openai.ChatCompletionMessageParamUnion {
 				}
 			}
 
-			return openai.ChatCompletionMessageParamUnion{
-				OfAssistant: &openai.ChatCompletionAssistantMessageParam{
-					Content: openai.ChatCompletionAssistantMessageParamContentUnion{
-						OfString: param.NewOpt(msg.Content),
-					},
-					ToolCalls: toolCalls,
-				},
-			}
+			assistant.OfAssistant.ToolCalls = toolCalls
 		}
 
-		return openai.AssistantMessage(msg.Content)
+		return assistant
 	case roles.Tool:
 		return openai.ToolMessage(msg.Content, msg.ToolCallID)
 	default:
