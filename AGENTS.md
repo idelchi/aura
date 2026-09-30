@@ -6,7 +6,7 @@ Use `CLAUDE.md` as the broader project reference. This file captures the rules a
 
 - This is unreleased `v0.0.0`. Prefer the clean architecture over compatibility shims, small diffs, or preserving old signatures.
 - Multiple agents may work in this repo at once. Never revert, reset, checkout, stash, or discard changes you did not intentionally make unless the user explicitly asks.
-- Do not stage or commit unless the user explicitly asks in the current turn.
+- Commit completed, validated Aura changes in house style: short, lowercase imperative subjects matching recent commits. Stage only your own changes. The user handles pushing unless explicitly requested otherwise.
 - Build binaries outside the repo, for example `/tmp/aura-build/aura`.
 - Use `/usr/local/go/bin/go` for Go commands.
 - Do not use `golangci-lint` or `go vet` unless the user explicitly asks.

@@ -21,9 +21,9 @@ Never build "aura" and output it's binary directly in the project directory. Wri
 
 If as a part of tests, you need to add debug output, favor utilizing the debug logger (activated with `--debug`) instead of `fmt.Println` or similar. This keeps debug output separate from normal output and avoids confusion when multiple agents are running concurrently. This also means that you can leave valuable debug information inside the code/app without needing to remove it later.
 
-## Git — Hands Off
+## Git
 
-**Never run `git add`, `git commit`, `git push`, `git checkout` or any staging/committing command.** The user handles all git operations. No exceptions.
+Commit completed, validated Aura changes in house style: short, lowercase imperative subjects matching recent commits. Stage only your own changes. The user handles pushing unless explicitly requested otherwise.
 
 ## Concurrent Agents
 
