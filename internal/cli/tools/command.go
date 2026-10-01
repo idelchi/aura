@@ -331,7 +331,7 @@ func printToolDetails(cmd *cli.Command, t tool.Tool) {
 	fmt.Fprintln(cmd.Writer, "Parameters:")
 
 	schema := t.Schema()
-	for name, prop := range schema.Parameters.Properties {
+	for name, prop := range schema.Parameters.Properties.FromOldest() {
 		fmt.Fprintf(cmd.Writer, "  - %s: %s\n", name, prop.Description)
 	}
 }

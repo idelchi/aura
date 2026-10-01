@@ -42,6 +42,7 @@ require (
 	github.com/mark3labs/mcp-go v0.48.0
 	github.com/ollama/ollama v0.20.7
 	github.com/openai/openai-go/v3 v3.50.0
+	github.com/pb33f/ordered-map/v2 v2.3.1
 	github.com/philippgille/chromem-go v0.7.0
 	github.com/pkoukk/tiktoken-go v0.1.8
 	github.com/revrost/go-openrouter v1.2.0
@@ -135,7 +136,6 @@ require (
 	github.com/mattn/go-isatty v0.0.21 // indirect
 	github.com/mattn/go-runewidth v0.0.23 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
-	github.com/pb33f/ordered-map/v2 v2.3.1 // indirect
 	github.com/pjbgf/sha1cd v0.5.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect

@@ -7,6 +7,8 @@ import (
 
 	"github.com/idelchi/aura/pkg/llm/message"
 	"github.com/idelchi/aura/pkg/llm/tool"
+
+	orderedmap "github.com/pb33f/ordered-map/v2"
 )
 
 // boundProbe reuses the runner fixture while checking arguments seen by its hooks.
@@ -16,7 +18,7 @@ type boundProbe struct {
 
 // Schema exposes the required field to be hidden by configuration.
 func (p *boundProbe) Schema() tool.Schema {
-	return tool.Schema{Name: p.name, Parameters: tool.Parameters{Type: "object", Properties: map[string]tool.Property{"scope": {Type: "string"}}, Required: []string{"scope"}}}
+	return tool.Schema{Name: p.name, Parameters: tool.Parameters{Type: "object", Properties: orderedmap.New[string, tool.Property](orderedmap.WithInitialData(orderedmap.Pair[string, tool.Property]{Key: "scope", Value: tool.Property{Type: "string"}})), Required: []string{"scope"}}}
 }
 
 // Pre ensures bindings were applied before optional tool hooks.
@@ -48,7 +50,7 @@ func TestSubagentBindings(t *testing.T) {
 	if !probe.executed || probe.pathsCallCount == 0 {
 		t.Fatal("bound execution lost optional hooks/paths")
 	}
-	if _, visible := provider.requests[0].Tools[0].Parameters.Properties["scope"]; visible {
+	if _, visible := provider.requests[0].Tools[0].Parameters.Properties.Get("scope"); visible {
 		t.Fatal("fixed input in model schema")
 	}
 }

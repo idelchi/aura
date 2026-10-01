@@ -1,26 +1,36 @@
 package providers
 
-import "github.com/idelchi/aura/pkg/llm/tool"
+import (
+	"github.com/idelchi/aura/pkg/llm/tool"
+	orderedmap "github.com/pb33f/ordered-map/v2"
+)
 
 // Ptr returns a pointer to the given value.
 //
 //go:fix inline
 func Ptr[T any](v T) *T { return new(v) }
 
-// BuildPropertyMap converts tool properties to the generic map format
-// used by OpenAI-compatible provider SDKs.
-func BuildPropertyMap(props map[string]tool.Property) map[string]any {
-	properties := make(map[string]any, len(props))
-
-	for name, prop := range props {
-		properties[name] = BuildPropertyEntry(prop)
+// BuildPropertyMap retains declaration order for JSON-based SDKs. Pass false
+// only for SDKs that inspect ordinary maps instead of marshaling their values.
+func BuildPropertyMap(props *tool.Properties, preserveOrder bool) any {
+	if preserveOrder {
+		properties := orderedmap.New[string, any]()
+		for name, prop := range props.FromOldest() {
+			properties.Set(name, BuildPropertyEntry(prop, true))
+		}
+		return properties
 	}
 
+	// Some SDKs inspect ordinary maps instead of marshaling arbitrary JSON values.
+	properties := make(map[string]any, props.Len())
+	for name, prop := range props.FromOldest() {
+		properties[name] = BuildPropertyEntry(prop, false)
+	}
 	return properties
 }
 
 // BuildPropertyEntry converts a single Property to a JSON Schema map, recursing into nested types.
-func BuildPropertyEntry(prop tool.Property) map[string]any {
+func BuildPropertyEntry(prop tool.Property, preserveOrder bool) map[string]any {
 	m := map[string]any{
 		"type": prop.Type,
 	}
@@ -34,11 +44,11 @@ func BuildPropertyEntry(prop tool.Property) map[string]any {
 	}
 
 	if prop.Items != nil {
-		m["items"] = BuildPropertyEntry(*prop.Items)
+		m["items"] = BuildPropertyEntry(*prop.Items, preserveOrder)
 	}
 
-	if len(prop.Properties) > 0 {
-		m["properties"] = BuildPropertyMap(prop.Properties)
+	if prop.Properties.Len() > 0 {
+		m["properties"] = BuildPropertyMap(prop.Properties, preserveOrder)
 	}
 
 	if len(prop.Required) > 0 {
@@ -50,10 +60,10 @@ func BuildPropertyEntry(prop tool.Property) map[string]any {
 
 // BuildParametersMap converts tool parameters to the full JSON Schema map
 // format used by OpenAI and OpenRouter.
-func BuildParametersMap(p tool.Parameters) map[string]any {
+func BuildParametersMap(p tool.Parameters, preserveOrder bool) map[string]any {
 	result := map[string]any{
 		"type":       p.Type,
-		"properties": BuildPropertyMap(p.Properties),
+		"properties": BuildPropertyMap(p.Properties, preserveOrder),
 	}
 
 	if len(p.Required) > 0 {

@@ -1,27 +1,32 @@
 package mcp
 
 import (
-	mcplib "github.com/mark3labs/mcp-go/mcp"
+	"maps"
+	"slices"
 
 	"github.com/idelchi/aura/internal/debug"
 	"github.com/idelchi/aura/pkg/llm/tool"
+
+	mcplib "github.com/mark3labs/mcp-go/mcp"
+	orderedmap "github.com/pb33f/ordered-map/v2"
 )
 
 // convertSchema converts an MCP tool to tool.Schema.
 func convertSchema(name string, mcpTool mcplib.Tool) tool.Schema {
 	params := tool.Parameters{
 		Type:       "object",
-		Properties: make(map[string]tool.Property),
+		Properties: orderedmap.New[string, tool.Property](),
 	}
 
 	if len(mcpTool.InputSchema.Required) > 0 {
 		params.Required = mcpTool.InputSchema.Required
 	}
 
-	// Parse Properties from InputSchema (map[string]any)
-	for propName, propVal := range mcpTool.InputSchema.Properties {
+	// The MCP SDK exposes unordered maps; stabilize their order at this boundary.
+	for _, propName := range slices.Sorted(maps.Keys(mcpTool.InputSchema.Properties)) {
+		propVal := mcpTool.InputSchema.Properties[propName]
 		if propMap, ok := propVal.(map[string]any); ok {
-			params.Properties[propName] = convertProperty(name, propName, propMap)
+			params.Properties.Set(propName, convertProperty(name, propName, propMap))
 		} else {
 			debug.Log("[mcp] tool %s: property %q has unexpected type %T, skipping", name, propName, propVal)
 		}
@@ -60,11 +65,12 @@ func convertProperty(toolName, propName string, propMap map[string]any) tool.Pro
 
 	// Nested: object properties
 	if props, ok := propMap["properties"].(map[string]any); ok {
-		prop.Properties = make(map[string]tool.Property)
+		prop.Properties = orderedmap.New[string, tool.Property]()
 
-		for childName, childVal := range props {
+		for _, childName := range slices.Sorted(maps.Keys(props)) {
+			childVal := props[childName]
 			if childMap, ok := childVal.(map[string]any); ok {
-				prop.Properties[childName] = convertProperty(toolName, propName+"."+childName, childMap)
+				prop.Properties.Set(childName, convertProperty(toolName, propName+"."+childName, childMap))
 			} else {
 				debug.Log(
 					"[mcp] tool %s: property %s.%s has unexpected type %T, skipping",

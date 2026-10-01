@@ -32,7 +32,7 @@ func (c *Client) Chat(
 		return message.Message{}, usage.Usage{}, adapter.MapError(err)
 	}
 
-	call := adapter.ToCall(req.Messages, req.Tools)
+	call := adapter.ToCall(req.Messages, req.Tools, true)
 
 	// Thinking disables temperature — don't set it via SetGeneration.
 	if req.Think == nil || !req.Think.Bool() || req.Think.IsAuto() {

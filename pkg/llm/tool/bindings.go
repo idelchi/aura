@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+
+	orderedmap "github.com/pb33f/ordered-map/v2"
 )
 
 // Bindings fixes top-level tool arguments by exact tool name. Bound arguments
@@ -97,10 +99,10 @@ type Bound struct {
 // Schema hides fixed fields and removes their model-facing required entries.
 func (b *Bound) Schema() Schema {
 	schema := b.Tool.Schema()
-	schema.Parameters.Properties = maps.Clone(schema.Parameters.Properties)
+	schema.Parameters.Properties = orderedmap.From(schema.Parameters.Properties.FromOldest())
 	schema.Parameters.Required = slices.Clone(schema.Parameters.Required)
 	for name := range b.fixed {
-		delete(schema.Parameters.Properties, name)
+		schema.Parameters.Properties.Delete(name)
 		schema.Parameters.Required = slices.DeleteFunc(schema.Parameters.Required, func(key string) bool { return key == name })
 	}
 	return schema

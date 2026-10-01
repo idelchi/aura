@@ -27,7 +27,7 @@ import (
 // System messages are converted to Fantasy system messages within the Prompt.
 // Provider-specific options (thinking, reasoning, store) are NOT set here — each
 // provider adds them via Call.ProviderOptions after calling ToCall.
-func ToCall(msgs message.Messages, tools tool.Schemas) fantasy.Call {
+func ToCall(msgs message.Messages, tools tool.Schemas, preserveToolOrder bool) fantasy.Call {
 	prompt := make(fantasy.Prompt, 0, len(msgs))
 
 	for _, msg := range msgs {
@@ -36,7 +36,7 @@ func ToCall(msgs message.Messages, tools tool.Schemas) fantasy.Call {
 
 	return fantasy.Call{
 		Prompt: prompt,
-		Tools:  ToTools(tools),
+		Tools:  ToTools(tools, preserveToolOrder),
 	}
 }
 
@@ -130,7 +130,7 @@ func ToMessage(msg message.Message) fantasy.Message {
 }
 
 // ToTools converts Aura tool schemas to Fantasy FunctionTools.
-func ToTools(schemas tool.Schemas) []fantasy.Tool {
+func ToTools(schemas tool.Schemas, preserveOrder bool) []fantasy.Tool {
 	if len(schemas) == 0 {
 		return nil
 	}
@@ -141,7 +141,7 @@ func ToTools(schemas tool.Schemas) []fantasy.Tool {
 		tools[i] = fantasy.FunctionTool{
 			Name:        s.Name,
 			Description: s.Description,
-			InputSchema: providers.BuildParametersMap(s.Parameters),
+			InputSchema: providers.BuildParametersMap(s.Parameters, preserveOrder),
 		}
 	}
 

@@ -25,7 +25,7 @@ func TestToolBindingsLifecycle(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, visible := probe.Schema().Parameters.Properties["command"]; visible {
+		if _, visible := probe.Schema().Parameters.Properties.Get("command"); visible {
 			t.Fatal("fixed command visible after", rebuild)
 		}
 		for name, execute := range map[string]func() (string, error){
@@ -60,7 +60,7 @@ func TestToolBindingsLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, visible := deferred.Schema().Parameters.Properties["command"]; visible {
+	if _, visible := deferred.Schema().Parameters.Properties.Get("command"); visible {
 		t.Fatal("deferred schema leaked fixed input")
 	}
 	if a.rt.LoadedTools == nil {
@@ -80,7 +80,7 @@ func TestToolBindingsLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, visible := probe.Schema().Parameters.Properties["command"]; !visible {
+	if _, visible := probe.Schema().Parameters.Properties.Get("command"); !visible {
 		t.Fatal("clearing bindings did not restore schema")
 	}
 }

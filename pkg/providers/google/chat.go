@@ -26,7 +26,8 @@ func (c *Client) Chat(
 		return message.Message{}, usage.Usage{}, adapter.MapError(err)
 	}
 
-	call := adapter.ToCall(req.Messages, req.Tools)
+	// Fantasy's Google adapter inspects ordinary maps when building typed schemas.
+	call := adapter.ToCall(req.Messages, req.Tools, false)
 	adapter.SetGeneration(&call, req.Generation)
 
 	opts, err := buildProviderOptions(req)

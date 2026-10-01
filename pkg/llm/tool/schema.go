@@ -3,13 +3,13 @@ package tool
 import (
 	"errors"
 	"fmt"
-	"maps"
 	"math"
 	"slices"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/invopop/jsonschema"
+	orderedmap "github.com/pb33f/ordered-map/v2"
 )
 
 // Schemas is a collection of tool schemas.
@@ -24,7 +24,7 @@ type Schema struct {
 
 // ParamNames returns sorted parameter names for error messages.
 func (s Schema) ParamNames() []string {
-	return slices.Sorted(maps.Keys(s.Parameters.Properties))
+	return slices.Sorted(s.Parameters.Properties.KeysFromOldest())
 }
 
 // ValidateArgs validates dynamic arguments against the schema.
@@ -34,7 +34,7 @@ func (s Schema) ValidateArgs(args map[string]any) error {
 
 	// Unknown fields.
 	for key := range args {
-		if _, ok := s.Parameters.Properties[key]; !ok {
+		if _, ok := s.Parameters.Properties.Get(key); !ok {
 			errs = append(errs, fmt.Sprintf("unknown parameter %q", key))
 		}
 	}
@@ -47,7 +47,7 @@ func (s Schema) ValidateArgs(args map[string]any) error {
 	}
 
 	// Type + enum checks for present params.
-	for name, prop := range s.Parameters.Properties {
+	for name, prop := range s.Parameters.Properties.FromOldest() {
 		val, ok := args[name]
 		if !ok {
 			continue
@@ -127,10 +127,13 @@ func enumContains(enum []any, val any) bool {
 	return false
 }
 
+// Properties retains the declaration order used by constrained-generation providers.
+type Properties = orderedmap.OrderedMap[string, Property]
+
 // Parameters describes the input parameters for a tool.
 type Parameters struct {
 	Type       string
-	Properties map[string]Property
+	Properties *Properties
 	Required   []string
 }
 
@@ -145,7 +148,7 @@ type Property struct {
 	Items *Property
 
 	// Properties and Required describe fields for object types.
-	Properties map[string]Property
+	Properties *Properties
 	Required   []string
 }
 
@@ -173,11 +176,11 @@ func GenerateSchema[T any](t Tool) Schema {
 
 	reflected := reflector.Reflect(new(T))
 
-	properties := make(map[string]Property)
+	properties := orderedmap.New[string, Property]()
 
 	if reflected.Properties != nil {
 		for pair := reflected.Properties.Oldest(); pair != nil; pair = pair.Next() {
-			properties[pair.Key] = convertProperty(pair.Value)
+			properties.Set(pair.Key, convertProperty(pair.Value))
 		}
 	}
 
@@ -220,10 +223,10 @@ func convertProperty(schema *jsonschema.Schema) Property {
 
 	// Recurse into object properties.
 	if schema.Properties != nil {
-		prop.Properties = make(map[string]Property)
+		prop.Properties = orderedmap.New[string, Property]()
 
 		for pair := schema.Properties.Oldest(); pair != nil; pair = pair.Next() {
-			prop.Properties[pair.Key] = convertProperty(pair.Value)
+			prop.Properties.Set(pair.Key, convertProperty(pair.Value))
 		}
 	}
 
@@ -240,7 +243,7 @@ func (s Schema) Render() string {
 
 	fmt.Fprintf(&b, "tool: %s\n%s\n", s.Name, s.Description)
 
-	for name, prop := range s.Parameters.Properties {
+	for name, prop := range s.Parameters.Properties.FromOldest() {
 		fmt.Fprintf(&b, "  param %s (%s): %s\n", name, prop.Type, prop.Description)
 
 		if len(prop.Enum) > 0 {

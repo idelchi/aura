@@ -149,7 +149,7 @@ func TestConvertSchema(t *testing.T) {
 		t.Errorf("schema.Parameters.Required = %v, want [path]", schema.Parameters.Required)
 	}
 
-	pathProp, ok := schema.Parameters.Properties["path"]
+	pathProp, ok := schema.Parameters.Properties.Get("path")
 	if !ok {
 		t.Fatalf("schema.Parameters.Properties missing %q key", "path")
 	}
@@ -162,7 +162,7 @@ func TestConvertSchema(t *testing.T) {
 		t.Errorf("path property Description = %q, want %q", pathProp.Description, "the file path")
 	}
 
-	countProp, ok := schema.Parameters.Properties["count"]
+	countProp, ok := schema.Parameters.Properties.Get("count")
 	if !ok {
 		t.Fatalf("schema.Parameters.Properties missing %q key", "count")
 	}

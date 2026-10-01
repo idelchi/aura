@@ -153,7 +153,7 @@ func toChatParams(req request.Request) openai.ChatCompletionNewParams {
 					Function: shared.FunctionDefinitionParam{
 						Name:        s.Name,
 						Description: param.NewOpt(s.Description),
-						Parameters:  providers.BuildParametersMap(s.Parameters),
+						Parameters:  providers.BuildParametersMap(s.Parameters, true),
 					},
 				},
 			}

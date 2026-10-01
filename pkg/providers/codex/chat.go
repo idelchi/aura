@@ -26,7 +26,7 @@ func (c *Client) Chat(ctx context.Context, req request.Request, fn stream.Func) 
 		return message.Message{}, usage.Usage{}, adapter.MapError(err)
 	}
 
-	call := adapter.ToCall(req.Messages, req.Tools)
+	call := adapter.ToCall(req.Messages, req.Tools, true)
 	adapter.SetGeneration(&call, req.Generation)
 
 	// Codex backend requires instructions field — extract system messages.

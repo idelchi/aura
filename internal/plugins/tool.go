@@ -3,8 +3,10 @@ package plugins
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"reflect"
+	"slices"
 
 	"github.com/idelchi/aura/internal/config"
 	"github.com/idelchi/aura/internal/debug"
@@ -15,6 +17,8 @@ import (
 	"github.com/idelchi/godyl/pkg/env"
 	"github.com/idelchi/godyl/pkg/path/file"
 	"github.com/idelchi/godyl/pkg/path/folder"
+
+	orderedmap "github.com/pb33f/ordered-map/v2"
 )
 
 // PluginTool wraps a Yaegi-interpreted plugin's tool exports as a compiled tool.Tool.
@@ -299,13 +303,15 @@ func (p *Plugin) probeTool(cfg config.Plugin) error {
 
 // convertParams maps SDK tool parameter types to the compiled tool.Parameters.
 func convertParams(s sdk.ToolSchema) tool.Parameters {
-	props := make(map[string]tool.Property, len(s.Parameters.Properties))
-	for name, p := range s.Parameters.Properties {
-		props[name] = tool.Property{
+	// The plugin SDK exposes unordered maps; stabilize them before provider conversion.
+	props := orderedmap.New[string, tool.Property]()
+	for _, name := range slices.Sorted(maps.Keys(s.Parameters.Properties)) {
+		p := s.Parameters.Properties[name]
+		props.Set(name, tool.Property{
 			Type:        p.Type,
 			Description: p.Description,
 			Enum:        p.Enum,
-		}
+		})
 	}
 
 	params := tool.Parameters{

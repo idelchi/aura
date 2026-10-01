@@ -36,10 +36,10 @@ func ToTool(s tool.Schema) api.Tool {
 }
 
 // convertProperties recursively converts tool properties to Ollama format.
-func convertProperties(props map[string]tool.Property) *api.ToolPropertiesMap {
+func convertProperties(props *tool.Properties) *api.ToolPropertiesMap {
 	properties := api.NewToolPropertiesMap()
 
-	for name, prop := range props {
+	for name, prop := range props.FromOldest() {
 		properties.Set(name, convertProperty(prop))
 	}
 
@@ -57,10 +57,10 @@ func convertProperty(prop tool.Property) api.ToolProperty {
 	if prop.Items != nil {
 		// Items is typed as `any` in the Ollama SDK, so we can pass a rich map
 		// that includes `required` (which ToolProperty doesn't support directly).
-		tp.Items = providers.BuildPropertyEntry(*prop.Items)
+		tp.Items = providers.BuildPropertyEntry(*prop.Items, true)
 	}
 
-	if len(prop.Properties) > 0 {
+	if prop.Properties.Len() > 0 {
 		tp.Properties = convertProperties(prop.Properties)
 	}
 

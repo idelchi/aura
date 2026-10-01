@@ -41,7 +41,7 @@ func parseKVArgs(pairs []string, schema tool.Schema) (map[string]any, error) {
 			return nil, fmt.Errorf("invalid argument %q — expected key=value format", pair)
 		}
 
-		prop, exists := schema.Parameters.Properties[key]
+		prop, exists := schema.Parameters.Properties.Get(key)
 		if !exists {
 			return nil, fmt.Errorf("unknown parameter %q\nValid parameters: %s",
 				key, strings.Join(schema.ParamNames(), ", "))

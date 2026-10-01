@@ -15,6 +15,8 @@ import (
 	"github.com/idelchi/aura/pkg/llm/tool"
 	"github.com/idelchi/aura/pkg/llm/tool/call"
 	"github.com/idelchi/aura/pkg/providers/ollama"
+
+	orderedmap "github.com/pb33f/ordered-map/v2"
 )
 
 func TestToAPIMessageUser(t *testing.T) {
@@ -238,11 +240,9 @@ func TestToTools(t *testing.T) {
 			Name:        "search",
 			Description: "search the web",
 			Parameters: tool.Parameters{
-				Type: "object",
-				Properties: map[string]tool.Property{
-					"query": {Type: "string", Description: "search query"},
-				},
-				Required: []string{"query"},
+				Type:       "object",
+				Properties: orderedmap.New[string, tool.Property](orderedmap.WithInitialData(orderedmap.Pair[string, tool.Property]{Key: "query", Value: tool.Property{Type: "string", Description: "search query"}})),
+				Required:   []string{"query"},
 			},
 		},
 		{
@@ -250,7 +250,7 @@ func TestToTools(t *testing.T) {
 			Description: "do math",
 			Parameters: tool.Parameters{
 				Type:       "object",
-				Properties: map[string]tool.Property{},
+				Properties: orderedmap.New[string, tool.Property](),
 				Required:   []string{},
 			},
 		},
@@ -294,7 +294,7 @@ func TestToChatRequest(t *testing.T) {
 				Description: "ping a host",
 				Parameters: tool.Parameters{
 					Type:       "object",
-					Properties: map[string]tool.Property{},
+					Properties: orderedmap.New[string, tool.Property](),
 					Required:   []string{},
 				},
 			},

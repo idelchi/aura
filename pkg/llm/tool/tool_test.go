@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/idelchi/aura/pkg/llm/tool"
+
+	orderedmap "github.com/pb33f/ordered-map/v2"
 )
 
 // stubTool is a minimal Tool implementation for collection tests.
@@ -35,10 +37,10 @@ func makeSchema(t *testing.T, requiredField string) tool.Schema {
 		Description: "test schema",
 		Parameters: tool.Parameters{
 			Type: "object",
-			Properties: map[string]tool.Property{
-				requiredField: {Type: "string", Description: "a string param"},
-				"count":       {Type: "integer", Description: "an integer param"},
-			},
+			Properties: orderedmap.New[string, tool.Property](orderedmap.WithInitialData(
+				orderedmap.Pair[string, tool.Property]{Key: requiredField, Value: tool.Property{Type: "string", Description: "a string param"}},
+				orderedmap.Pair[string, tool.Property]{Key: "count", Value: tool.Property{Type: "integer", Description: "an integer param"}},
+			)),
 			Required: []string{requiredField},
 		},
 	}

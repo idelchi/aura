@@ -26,7 +26,7 @@ func (c *Client) Chat(
 		return message.Message{}, usage.Usage{}, adapter.MapError(err)
 	}
 
-	call := adapter.ToCall(req.Messages, req.Tools)
+	call := adapter.ToCall(req.Messages, req.Tools, true)
 	adapter.SetGeneration(&call, req.Generation)
 
 	opts, err := buildProviderOptions(req)
