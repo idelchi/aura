@@ -3,6 +3,7 @@ package llamacpp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/openai/openai-go/v3"
@@ -14,6 +15,7 @@ import (
 	"github.com/idelchi/aura/pkg/llm/roles"
 	"github.com/idelchi/aura/pkg/llm/stream"
 	"github.com/idelchi/aura/pkg/llm/thinking"
+	"github.com/idelchi/aura/pkg/llm/tool"
 	"github.com/idelchi/aura/pkg/llm/tool/call"
 	"github.com/idelchi/aura/pkg/llm/usage"
 	"github.com/idelchi/aura/pkg/providers"
@@ -37,6 +39,7 @@ func (c *Client) Chat(
 	params := toChatParams(req)
 
 	s := c.Client.Client.Chat.Completions.NewStreaming(ctx, params)
+	defer s.Close()
 
 	acc := openai.ChatCompletionAccumulator{}
 
@@ -85,6 +88,10 @@ func (c *Client) Chat(
 	}
 
 	if err := s.Err(); err != nil {
+		if isToolParseError(err) {
+			return message.Message{}, usage.Usage{}, fmt.Errorf("%w: %w", tool.ErrToolCallParse, err)
+		}
+
 		return message.Message{}, usage.Usage{}, adapter.MapError(err)
 	}
 
@@ -113,6 +120,13 @@ func (c *Client) Chat(
 	}
 
 	return msg, u, nil
+}
+
+// isToolParseError recognizes llama.cpp's generated-response parser failure.
+// It can arrive as either an HTTP error or an error event in a successful stream.
+// Other server and transport failures must not trigger tool-format correction.
+func isToolParseError(err error) bool {
+	return strings.Contains(err.Error(), "The model produced output that does not match the expected peg-native format")
 }
 
 // toChatParams converts an aura request to OpenAI Chat Completions format.
@@ -261,7 +275,7 @@ func toolCallToCommon(tc openai.FinishedChatCompletionToolCall) (call.Call, erro
 
 	if tc.Arguments != "" {
 		if err := json.Unmarshal([]byte(tc.Arguments), &args); err != nil {
-			return call.Call{}, err
+			return call.Call{}, fmt.Errorf("%w: decoding arguments for %s: %w", tool.ErrToolCallParse, tc.Name, err)
 		}
 	}
 
