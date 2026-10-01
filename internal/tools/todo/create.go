@@ -51,9 +51,6 @@ func NewCreate(list *todo.List) *Create {
 					- {summary}: Update summary only, keep existing tasks
 					- {items}: Replace tasks only, keep existing summary
 
-					To create a plan, provide a nonempty items array. Writing the plan
-					in summary alone leaves the task list unchanged.
-
 					First item is automatically marked as in_progress.
 				`),
 			Examples: heredoc.Doc(`
