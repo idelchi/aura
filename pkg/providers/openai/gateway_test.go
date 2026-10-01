@@ -48,7 +48,7 @@ func TestGatewayThinkingRequest(t *testing.T) {
 			}))
 			defer server.Close()
 
-			client := New(server.URL+"/v1", "test-key", time.Second)
+			client := New(server.URL+"/v1", "test-key", time.Second, nil)
 			m, err := client.Model(t.Context(), "a9/gpt-oss:20b")
 			if err != nil {
 				t.Fatal(err)

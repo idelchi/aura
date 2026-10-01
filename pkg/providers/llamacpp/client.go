@@ -29,7 +29,7 @@ func New(serverURL, token string, timeout time.Duration, options ...Option) *Cli
 	debug.Log("[llamacpp] initialized (url=%s)", serverURL)
 
 	client := &Client{
-		Client:  openaiProvider.New(apiURL, token, timeout),
+		Client:  openaiProvider.New(apiURL, token, timeout, nil),
 		baseURL: serverURL,
 	}
 	for _, option := range options {

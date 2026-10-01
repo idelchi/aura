@@ -53,6 +53,9 @@ func New(provider config.Provider) (Provider, error) {
 	debug.Log("[provider] creating %s (url=%s timeout=%s)", provider.Type, provider.URL, timeout)
 
 	var p Provider
+	if len(provider.Headers) > 0 && provider.Type != "openai" {
+		return nil, fmt.Errorf("provider %q does not support configured headers", provider.Type)
+	}
 
 	switch provider.Type {
 	case "openrouter":
@@ -78,7 +81,7 @@ func New(provider config.Provider) (Provider, error) {
 	case "llamaswap":
 		p = llamaswap.New(provider.URL, provider.Token, timeout)
 	case "openai":
-		p = openai.New(provider.URL, provider.Token, timeout)
+		p = openai.New(provider.URL, provider.Token, timeout, provider.Headers)
 	case "anthropic":
 		p = anthropic.New(provider.URL, provider.Token, timeout)
 	case "google":

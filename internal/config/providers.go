@@ -53,6 +53,8 @@ type Provider struct {
 	Type string `validate:"required,oneof=ollama llamacpp llamaswap openrouter openai anthropic google copilot codex"`
 	// Token is the authentication token for API access.
 	Token string
+	// Headers adds HTTP headers for OpenAI-compatible providers. Values support environment expansion.
+	Headers map[string]string `yaml:"headers"`
 	// Models controls which models appear in visual listings.
 	Models ModelFilter `yaml:"models"`
 	// KeepAlive controls how long models stay loaded in VRAM after a request (Ollama only).
@@ -118,6 +120,9 @@ func loadProviders(ff files.Files) (StringCollection[Provider], error) {
 			}
 
 			val.Token = os.ExpandEnv(val.Token)
+			for name, value := range val.Headers {
+				val.Headers[name] = os.ExpandEnv(value)
+			}
 			val.Source = f.Path()
 			result[strings.ToLower(key)] = val
 		}

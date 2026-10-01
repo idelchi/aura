@@ -21,7 +21,7 @@ func (c *Client) Chat(
 	req request.Request,
 	streamFunc stream.Func,
 ) (message.Message, usage.Usage, error) {
-	lm, err := c.Fantasy.LanguageModel(ctx, req.Model.Name)
+	lm, err := c.LanguageModel(ctx, req)
 	if err != nil {
 		return message.Message{}, usage.Usage{}, adapter.MapError(err)
 	}

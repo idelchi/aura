@@ -31,7 +31,7 @@ func TestEstimateEndpointAvailability(t *testing.T) {
 				}
 			}))
 			defer server.Close()
-			n, err := New(server.URL+"/v1", "", time.Second).Estimate(t.Context(), request.Request{Model: model.Model{Name: "route/model"}}, "Hello")
+			n, err := New(server.URL+"/v1", "", time.Second, nil).Estimate(t.Context(), request.Request{Model: model.Model{Name: "route/model"}}, "Hello")
 			switch status {
 			case 200:
 				if err != nil || n != 3 {

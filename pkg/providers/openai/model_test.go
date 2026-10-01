@@ -35,7 +35,7 @@ func TestModelFromCatalog(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := New(server.URL+"/v1", "test-key", time.Second)
+	client := New(server.URL+"/v1", "test-key", time.Second, nil)
 	for _, name := range []string{"gpt-4o-mini", "openai/gpt-4o-mini"} {
 		m, err := client.Model(t.Context(), name)
 		if err != nil {
@@ -72,7 +72,7 @@ func TestModelCatalogFailure(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := New(server.URL+"/v1", "test-key", time.Second)
+	client := New(server.URL+"/v1", "test-key", time.Second, nil)
 	if _, err := client.Model(t.Context(), "openai/gpt-4o-mini"); err == nil {
 		t.Fatal("expected catalog authentication error")
 	}

@@ -39,6 +39,10 @@ provider_name:
   # Auth token. Falls back to AURA_PROVIDERS_{NAME}_TOKEN env var.
   # token: ""
 
+  # Additional HTTP headers (openai type only). Values support environment expansion.
+  # headers:
+  #   X-Custom-Header: value
+
   # How long models stay loaded in VRAM (Ollama only). Go duration syntax.
   # keep_alive: 15m
 
@@ -121,6 +125,21 @@ codex:
 ---
 
 ## Local servers and gateways
+
+For the `openai` type, `generation.think_budget` is forwarded as the
+`thinking_budget_tokens` extension on both Chat Completions and Responses requests.
+Use it with a compatible backend; the OpenAI API itself does not support this numeric
+budget. Omitting it leaves the backend default unchanged. Bifrost requires its
+documented passthrough header to retain extensions:
+
+```yaml
+bifrost:
+  type: openai
+  url: https://bifrost.example.com/v1
+  token: ${BIFROST_TOKEN}
+  headers:
+    x-bf-passthrough-extra-params: "true"
+```
 
 Use `llamacpp` for llama-server and its native router. Use `llamaswap` for llama-swap backed by llama.cpp workers:
 
