@@ -89,8 +89,9 @@ go:fix:
   inherit: [go:format] # copies event, matcher, files, timeout, silent from go:format
   depends: [go:format]
   command: |
-    go_packages=$(for f in ${FILE}; do (cd "$(dirname "${f}")" && pwd); done | sort -u)
-    golangci-lint run --fix ${go_packages}
+    for f in ${FILE}; do
+      gopls codeaction -kind=source.organizeImports -exec -write ${f}
+    done
 ```
 
 ## Per-Agent and Per-Mode Filtering
@@ -131,37 +132,36 @@ Hooks that run after your tool calls:
 
 go:format:
   event: post
-  matcher: "Patch|Write"
+  matcher: "Patch|Write|Edit"
   files: "*.go"
-  silent: true
-  command: golangci-lint fmt ${FILE}
+  silent: false
+  command: |
+    golangci-lint fmt --diff ${FILE}
+    golangci-lint fmt ${FILE}
   timeout: 15
 
 go:fix:
   inherit: [go:format]
   depends: [go:format]
   command: |
-    go_packages=$(for f in ${FILE}; do (cd "$(dirname "${f}")" && pwd); done | sort -u)
-    golangci-lint run --fix ${go_packages}
     for f in ${FILE}; do
-      while gopls codeaction -kind=source.fixAll -exec -write ${f} 2>/dev/null; do :; done
-      gopls codeaction -kind=source.organizeImports -exec -write ${f} 2>/dev/null
+      while gopls codeaction -kind=source.fixAll -exec -write -diff ${f} 2>/dev/null; do :; done
+      gopls codeaction -kind=source.organizeImports -exec -write -diff ${f} 2>/dev/null
     done
   timeout: 30
-
-go:lint:
-  inherit: [go:format]
-  depends: [go:fix]
-  silent: false
-  command: |
-    go_packages=$(for f in ${FILE}; do (cd "$(dirname "${f}")" && pwd); done | sort -u)
-    golangci-lint run ${go_packages}
 ```
 
-Execution order: `go:format` → `go:fix` → `go:lint`.
+Execution order: `go:format` → `go:fix`. Patch, Write, and Edit receive the same
+formatting and gopls assistance; LSP diagnostics remain available during editing.
 
-Lint the affected packages so declarations in sibling files participate in type
-checking. Use `source.fixAll` for automatic gopls fixes, alongside import
+Run package-wide fixes, builds, tests, and lint checks after a coherent change and
+before completion, following the project's verification instructions. Record this
+checkpoint in the shared `.aura/AGENTS.md` or the project's `AGENTS.md`; these
+editing hooks do not perform full verification. Complete related edits before
+checking the package so temporary errors do not repeatedly trigger the full
+fix/lint chain. Update module dependencies after their imports have been added.
+
+Use `source.fixAll` for automatic gopls fixes, alongside import
 organization. Gopls reserves this category for fixes intended to be safe to apply
 automatically. A blanket `quickfix` loop can delete functions and types that have
 not yet acquired callers during incremental editing. See the
