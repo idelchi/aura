@@ -27,6 +27,12 @@ func (p compactionRequestProbe) Chat(_ context.Context, req request.Request, _ s
 	return p.chat(req)
 }
 
+// Per-turn config reload clears resolved metadata, so the probe must own model
+// discovery as well as generation instead of contacting a live provider.
+func (p compactionRequestProbe) Model(_ context.Context, name string) (model.Model, error) {
+	return model.Model{Name: name}, nil
+}
+
 // TestCompactionInferenceSettings exercises agent selection and both request paths.
 // Self-use reads runtime settings; dedicated compaction never inherits the caller's controls.
 func TestCompactionInferenceSettings(t *testing.T) {
