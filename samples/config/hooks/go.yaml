@@ -1,28 +1,35 @@
 go:format:
   description: Format Go files with golangci-lint after edits
   event: post
-  matcher: "Patch|Write"
+  matcher: "Patch|Write|Edit"
   files: "*.go"
   silent: false
   command: |
-    golangci-lint fmt --diff ${FILE}
-    golangci-lint fmt ${FILE}
+    jq -r '.file_paths[] | select(endswith(".go"))' |
+    while IFS= read -r file; do
+      [ -f "${file}" ] || continue
+      golangci-lint fmt --diff "${file}"
+      golangci-lint fmt "${file}" || exit
+    done
   timeout: 15
 
 go:fix:
-  description: Auto-fix Go lint issues and organize imports after formatting
+  description: Apply available gopls fixes and organize imports after formatting
   inherit: [go:format]
   depends: [go:format]
   silent: false
   command: |
-    go_packages=$(for f in ${FILE}; do (cd "$(dirname "${f}")" && pwd); done | sort -u)
-    golangci-lint run --fix ${go_packages}
-    for f in ${FILE}; do
-      while gopls codeaction -kind=source.fixAll -exec -write -diff ${f} 2>/dev/null; do :; done
-      gopls codeaction -kind=source.organizeImports -exec -write -diff ${f} 2>/dev/null
+    jq -r '.file_paths[] | select(endswith(".go"))' |
+    while IFS= read -r file; do
+      [ -f "${file}" ] || continue
+      for kind in source.fixAll source.organizeImports; do
+        while true; do
+          actions=$(gopls codeaction -kind="${kind}" "${file}") || exit
+          [ -n "${actions}" ] || break
+          gopls codeaction -kind="${kind}" -exec -write -diff "${file}" || exit
+        done
+      done
     done
-    go fix -diff ./...
-    go fix ./...
   timeout: 30
 
 go:lint:
@@ -31,5 +38,12 @@ go:lint:
   depends: [go:fix]
   silent: false
   command: |
-    go_packages=$(for f in ${FILE}; do (cd "$(dirname "${f}")" && pwd); done | sort -u)
-    golangci-lint run ${go_packages}
+    go_packages=$(jq -r '.file_paths[] | select(endswith(".go"))' |
+      while IFS= read -r file; do
+        [ -f "${file}" ] || continue
+        dirname "${file}"
+      done | sort -u)
+    [ -n "${go_packages}" ] || exit 0
+    printf '%s\n' "${go_packages}" | while IFS= read -r package; do
+      golangci-lint run "${package}" || exit
+    done

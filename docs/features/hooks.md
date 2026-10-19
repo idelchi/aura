@@ -50,8 +50,8 @@ When file paths are present, `$FILE` is set to a space-separated list of matched
 | Exit code | Pre hook                  | Post hook                 |
 | --------- | ------------------------- | ------------------------- |
 | `0`       | Parse stdout for JSON     | Parse stdout for JSON     |
-| `2`       | Block tool execution      | Append stderr as feedback |
-| other     | Append stderr as feedback | Append stderr as feedback |
+| `2`       | Block tool execution      | Report status and output  |
+| other     | Report status and output  | Report status and output  |
 
 ## JSON Stdout (exit 0)
 
@@ -131,28 +131,45 @@ Hooks that run after your tool calls:
 # .aura/config/hooks/go.yaml
 
 go:format:
+  description: Format Go files with golangci-lint after edits
   event: post
   matcher: "Patch|Write|Edit"
   files: "*.go"
   silent: false
   command: |
-    golangci-lint fmt --diff ${FILE}
-    golangci-lint fmt ${FILE}
+    jq -r '.file_paths[] | select(endswith(".go"))' |
+    while IFS= read -r file; do
+      [ -f "${file}" ] || continue
+      golangci-lint fmt --diff "${file}"
+      golangci-lint fmt "${file}" || exit
+    done
   timeout: 15
 
 go:fix:
+  description: Apply available gopls fixes and organize imports after formatting
   inherit: [go:format]
   depends: [go:format]
+  silent: false
   command: |
-    for f in ${FILE}; do
-      while gopls codeaction -kind=source.fixAll -exec -write -diff ${f} 2>/dev/null; do :; done
-      gopls codeaction -kind=source.organizeImports -exec -write -diff ${f} 2>/dev/null
+    jq -r '.file_paths[] | select(endswith(".go"))' |
+    while IFS= read -r file; do
+      [ -f "${file}" ] || continue
+      for kind in source.fixAll source.organizeImports; do
+        while true; do
+          actions=$(gopls codeaction -kind="${kind}" "${file}") || exit
+          [ -n "${actions}" ] || break
+          gopls codeaction -kind="${kind}" -exec -write -diff "${file}" || exit
+        done
+      done
     done
   timeout: 30
 ```
 
 Execution order: `go:format` → `go:fix`. Patch, Write, and Edit receive the same
 formatting and gopls assistance; LSP diagnostics remain available during editing.
+Deleted files are skipped. The hooks read JSON paths so filenames containing spaces
+remain intact. Gopls actions are listed before execution: no matching action is a
+normal no-op, while genuine errors remain visible. This example requires `jq`.
 
 Run package-wide fixes, builds, tests, and lint checks after a coherent change and
 before completion, following the project's verification instructions. Record this
@@ -197,7 +214,6 @@ Injectors are plugins that fire at specific points in the assistant loop and inj
 | `done-reminder`           | AfterResponse      | Reminds LLM to call Done tool when stopping                                             |
 | `loop-detection`          | AfterToolExecution | Detects repeated identical tool calls                                                   |
 | `failure-circuit-breaker` | AfterToolExecution | Stops after 3+ consecutive different tool failures                                      |
-| `repeated-patch`          | AfterToolExecution | Warns after 5+ patches to same file                                                     |
 
 Example injectors ship under `.aura/plugins/injectors/` and are not installed by `aura init`. Copy them to your own `.aura/plugins/` directory to activate them.
 

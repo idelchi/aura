@@ -2,14 +2,12 @@ package patch
 
 import (
 	"context"
-	"errors"
 	"os"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
 
 	"github.com/idelchi/aura/internal/debug"
-	"github.com/idelchi/aura/internal/diffpreview"
 	"github.com/idelchi/aura/internal/tools/filetime"
 	"github.com/idelchi/aura/pkg/llm/tool"
 	"github.com/idelchi/godyl/pkg/path/file"
@@ -53,6 +51,7 @@ func New() *Tool {
 					*** End Patch
 
 					Lines prefixed with + are added, - are removed, space is context for matching.
+					To rename a file, put *** Move to: new/path immediately after its Update File header.
 				`),
 			Examples: heredoc.Doc(`
 					{"patch": "*** Begin Patch\n*** Add File: hello.txt\n+Hello World\n*** End Patch"}
@@ -73,8 +72,8 @@ func (t *Tool) Schema() tool.Schema {
 	return tool.GenerateSchema[Inputs](t)
 }
 
-// parseAndValidate parses the patch string and validates all hunks.
-// Validation is structural only (e.g. file exists) — filetime checks belong in Pre.
+// parseAndValidate validates the input and every affected path.
+// Content preflight happens against the staged filesystem in Preview and Execute.
 func (t *Tool) parseAndValidate(ctx context.Context, args map[string]any) ([]Hunk, error) {
 	params, err := tool.ValidateInput[Inputs](args, t.Schema())
 	if err != nil {
@@ -84,12 +83,6 @@ func (t *Tool) parseAndValidate(ctx context.Context, args map[string]any) ([]Hun
 	hunks, err := Parse(params.Patch)
 	if err != nil {
 		return nil, err
-	}
-
-	for _, hunk := range hunks {
-		if err := hunk.Validate(ctx); err != nil {
-			return nil, err
-		}
 	}
 
 	for _, hunk := range hunks {
@@ -111,41 +104,13 @@ func (t *Tool) Preview(ctx context.Context, args map[string]any) (string, error)
 		return "", err
 	}
 
+	prepared, err := prepare(ctx, hunks)
+	if err != nil {
+		return "", err
+	}
 	var parts []string
-
-	for _, hunk := range hunks {
-		var d string
-
-		switch h := hunk.(type) {
-		case *AddFile:
-			d = diffpreview.ForNewFile(h.Path, h.Content)
-		case *DeleteFile:
-			path := tool.ResolvePath(ctx, os.ExpandEnv(h.Path))
-
-			content, err := file.New(path).Read()
-			if err != nil {
-				return "", err
-			}
-
-			d = diffpreview.ForDeletedFile(h.Path, string(content))
-		case *UpdateFile:
-			path := tool.ResolvePath(ctx, os.ExpandEnv(h.Path))
-
-			content, err := file.New(path).Read()
-			if err != nil {
-				return "", err
-			}
-
-			original := string(content)
-
-			modified, err := h.ApplyToContent(original)
-			if err != nil {
-				return "", err
-			}
-
-			d = diffpreview.Generate(h.Path, original, modified, h.MoveTo)
-		}
-
+	for _, c := range prepared.changes {
+		d := c.Preview()
 		if d != "" {
 			parts = append(parts, d)
 		}
@@ -161,22 +126,11 @@ func (t *Tool) Execute(ctx context.Context, args map[string]any) (string, error)
 		return "", err
 	}
 
-	if len(hunks) == 0 {
-		return "", errors.New("no operations found in patch")
+	prepared, err := prepare(ctx, hunks)
+	if err != nil {
+		return "", err
 	}
-
-	var results []string
-
-	for _, hunk := range hunks {
-		result, err := hunk.Execute(ctx)
-		if err != nil {
-			return "", err
-		}
-
-		results = append(results, result)
-	}
-
-	return "Success. Updated files:\n" + strings.Join(results, "\n"), nil
+	return prepared.Apply(ctx)
 }
 
 // Pre parses the patch, validates hunks, and enforces filetime per policy.
@@ -217,9 +171,7 @@ func (t *Tool) Pre(ctx context.Context, args map[string]any) error {
 	return nil
 }
 
-// Post updates filetime state after successful patch.
-// Uses Parse (not parseAndValidate) because Validate checks file existence,
-// which may be wrong after Execute (files created/deleted/moved).
+// Post updates filetime state after a successful patch.
 func (t *Tool) Post(ctx context.Context, args map[string]any) {
 	params, err := tool.ValidateInput[Inputs](args, t.Schema())
 	if err != nil {

@@ -574,7 +574,6 @@ func BuildSDKContext(state *injector.State) sdk.Context {
 			Total:      state.Todo.Total,
 		},
 
-		PatchCounts: state.PatchCounts,
 		ToolHistory: convertToolHistory(state.ToolHistory),
 
 		Session: struct {

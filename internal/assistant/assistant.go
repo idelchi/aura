@@ -44,7 +44,6 @@ type loopState struct {
 	iteration          int
 	overflowRecoveries int // consecutive context-overflow recoveries without a successful chat
 	toolHistory        []injector.ToolCall
-	patchCounts        map[string]int
 	pendingEject       bool
 	toolsFilters       []config.Tools // cumulative restrictions for this user turn
 	streamStarted      bool           // true once the stream callback fires this chat() call
@@ -338,7 +337,6 @@ func New(p Params) (*Assistant, error) {
 		setVars:             p.SetVars,
 		done:                make(chan struct{}),
 		primaryFallbacks:    primaryFallbacks,
-		loop:                loopState{patchCounts: make(map[string]int)},
 		tracker:             filetime.NewTracker(cfg.Features.ToolExecution.ReadBefore.ToPolicy()),
 		configOpts:          p.ConfigOpts,
 		invocationOverrides: p.InvocationOverrides,
@@ -589,9 +587,8 @@ func (a *Assistant) InjectorState() *injector.State {
 			InProgress: len(a.tools.todo.FindInProgress()),
 			Total:      a.tools.todo.Len(),
 		},
-		Mode:        r.Mode,
-		Auto:        r.Auto,
-		PatchCounts: a.loop.patchCounts,
+		Mode: r.Mode,
+		Auto: r.Auto,
 		Tokens: injector.TokenSnapshot{
 			Estimate: a.Tokens(),
 			LastAPI:  a.tokens.lastAPIInput,
@@ -635,14 +632,6 @@ func (a *Assistant) Track(name string, args map[string]any, result, toolErr stri
 	a.loop.toolHistory = append(a.loop.toolHistory, injector.ToolCall{
 		Name: name, Args: args, Result: result, Error: toolErr, Duration: duration,
 	})
-
-	// Track patches for RepeatedPatch injector.
-	// Only increment — turn-level reset happens in loopState initialization.
-	if name == "Patch" || name == "Edit" {
-		if path, ok := args["path"].(string); ok {
-			a.loop.patchCounts[path]++
-		}
-	}
 }
 
 // send emits a UI event, aborting silently if the active context is cancelled.

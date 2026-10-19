@@ -55,7 +55,7 @@ func (pc *PluginCommand) ToSlashCommand() slash.Command {
 // the slash.Context methods available to commands at runtime.
 //
 // Missing fields vs hook context: MessageCount, ModelInfo, Workdir,
-// ToolHistory, PatchCounts — commands run between turns so these are
+// ToolHistory — commands run between turns so these are
 // unavailable or stale. The subset is sufficient for stateful commands.
 func buildSDKContextFromSlash(sctx slash.Context) sdk.Context {
 	r := sctx.Resolved()

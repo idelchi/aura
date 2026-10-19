@@ -167,9 +167,18 @@ Loose Markdown files directly or recursively beneath `.aura/skills/` remain supp
 
 `MemoryWrite` takes `key`, `content`, and optional `scope`. `MemoryRead` supports read by `key`, list all, or search by `query`.
 
+## Targeted Edits
+
+`Edit` looks for `old_string` exactly first. If there is no exact match, it tolerates
+CRLF/LF differences and trailing spaces or tabs. Leading indentation must still match.
+Ambiguous matches report their line numbers; add context or explicitly use `replace_all`.
+A missing match can include a short nearby excerpt to help retry, but that approximate
+match is never applied automatically. An empty `new_string` deletes the matched text.
+Replacement text follows the file's newline style; unrelated content is preserved.
+
 ## Patch Format
 
-`*** Begin Patch` / `*** End Patch` markers with three operations: `*** Add File`, `*** Update File`, `*** Delete File`. Updates use `@@` context markers, `-` for removals, `+` for additions. Fuzzy context matching — exact line numbers not required.
+`*** Begin Patch` / `*** End Patch` markers with three operations: `*** Add File`, `*** Update File`, `*** Delete File`. Updates use `@@` context markers, `-` for removals, `+` for additions. Fuzzy context matching — exact line numbers not required. To rename, place `*** Move to: new/path` immediately after an Update File header.
 
     *** Begin Patch
     *** Update File: path/to/file.go
@@ -178,6 +187,12 @@ Loose Markdown files directly or recursively beneath `.aura/skills/` remain supp
     +new line
     *** Delete File: obsolete.go
     *** End Patch
+
+Patch checks every operation against an in-memory view before changing files. Later
+operations see earlier changes in the same patch, including newly added or moved files.
+A missing file or mismatched context leaves the filesystem unchanged. This is not a
+filesystem transaction: an unexpected I/O failure during writing can still leave partial
+changes, which the error lists so the agent can inspect and recover.
 
 ## Global Tool Filters
 

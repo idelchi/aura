@@ -298,7 +298,6 @@ The repository includes examples under `.aura/plugins/` (not installed by `aura 
 | `done-reminder`           | AfterResponse      | Reminds LLM to call Done when stopping             |
 | `loop-detection`          | AfterToolExecution | Detects repeated identical tool calls              |
 | `failure-circuit-breaker` | AfterToolExecution | Stops after 3+ consecutive different tool failures |
-| `repeated-patch`          | AfterToolExecution | Warns after N patches to same file                 |
 
 **Diagnostics:**
 

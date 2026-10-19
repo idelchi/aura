@@ -3,10 +3,8 @@ package edit
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
 
@@ -19,10 +17,10 @@ import (
 
 // Inputs defines the parameters for the Edit tool.
 type Inputs struct {
-	FilePath   string `json:"file_path"   jsonschema:"required,description=The absolute path to the file to modify"                         validate:"required"`
-	OldString  string `json:"old_string"  jsonschema:"required,description=The text to replace"                                             validate:"required"`
-	NewString  string `json:"new_string"  jsonschema:"required,description=The text to replace it with (must be different from old_string)" validate:"required"`
-	ReplaceAll bool   `json:"replace_all" jsonschema:"description=Replace all occurrences of old_string (default false)"`
+	FilePath   string  `json:"file_path"   jsonschema:"required,description=The absolute path to the file to modify"                               validate:"required"`
+	OldString  string  `json:"old_string"  jsonschema:"required,description=The text to replace"                                                   validate:"required"`
+	NewString  *string `json:"new_string"  jsonschema:"required,description=The replacement text; use an empty string to delete the matched text" validate:"required"`
+	ReplaceAll bool    `json:"replace_all" jsonschema:"description=Replace all occurrences of old_string (default false)"`
 }
 
 // Tool implements targeted string replacement.
@@ -35,18 +33,18 @@ func New() *Tool {
 	return &Tool{
 		Text: tool.Text{
 			Description: heredoc.Doc(`
-					Performs exact string replacements in files.
+					Replaces text in files, trying exact matches first, then line-ending and trailing-whitespace normalization.
 
 					Use this for targeted edits to existing files — changing a variable name,
 					fixing a line, updating a value. For new files or complete rewrites, use Write.
 					For multi-hunk changes with context markers, use Patch.
 
 					The file must have been Read first. The edit fails if old_string is not found,
-					or if multiple matches exist without replace_all.
+					or if multiple matches exist without replace_all. Leading indentation must match.
 				`),
 			Usage: heredoc.Doc(`
 					Provide file_path, old_string (exact text to find), and new_string (replacement).
-					Set replace_all to true to replace every occurrence.
+					Set replace_all to true to replace every occurrence. Use an empty new_string to delete the match.
 
 					Include enough surrounding context in old_string to ensure a unique match.
 				`),
@@ -98,7 +96,7 @@ func (t *Tool) Preview(ctx context.Context, args map[string]any) (string, error)
 
 	original := string(content)
 
-	modified, err := replace(original, params.OldString, params.NewString, params.ReplaceAll)
+	modified, _, err := replace(original, params.OldString, *params.NewString, params.ReplaceAll)
 	if err != nil {
 		return "", err
 	}
@@ -128,18 +126,13 @@ func (t *Tool) Execute(ctx context.Context, args map[string]any) (string, error)
 
 	original := string(content)
 
-	modified, err := replace(original, params.OldString, params.NewString, params.ReplaceAll)
+	modified, n, err := replace(original, params.OldString, *params.NewString, params.ReplaceAll)
 	if err != nil {
 		return "", err
 	}
 
 	if err := f.Write([]byte(modified)); err != nil {
 		return "", tool.FileError("writing", path, err)
-	}
-
-	n := strings.Count(original, params.OldString)
-	if !params.ReplaceAll {
-		n = 1
 	}
 
 	return fmt.Sprintf("E %s (%d replacement(s))", f, n), nil
@@ -170,29 +163,4 @@ func (t *Tool) Paths(ctx context.Context, args map[string]any) (read, write []st
 	p := tool.ResolvePath(ctx, os.ExpandEnv(params.FilePath))
 
 	return []string{p}, []string{p}, nil
-}
-
-// replace performs the string replacement with validation.
-func replace(content, old, new_ string, all bool) (string, error) {
-	if old == new_ {
-		return "", errors.New("old_string and new_string are identical")
-	}
-
-	count := strings.Count(content, old)
-	if count == 0 {
-		return "", errors.New("old_string not found in file")
-	}
-
-	if count > 1 && !all {
-		return "", fmt.Errorf(
-			"found %d matches for old_string — use replace_all to replace all, or add more context to match uniquely",
-			count,
-		)
-	}
-
-	if all {
-		return strings.ReplaceAll(content, old, new_), nil
-	}
-
-	return strings.Replace(content, old, new_, 1), nil
 }

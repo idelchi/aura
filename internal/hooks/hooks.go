@@ -5,8 +5,8 @@
 //
 // Exit code semantics:
 //   - 0: success — parse stdout for optional {"message": "...", "deny": true, "reason": "..."}
-//   - 2: block (pre) or feedback (post) — stderr is returned as the message
-//   - other: non-blocking — stderr (or stdout) is returned as feedback to the LLM
+//   - 2: block (pre) or feedback (post) — stderr, or stdout when stderr is empty
+//   - other: non-blocking — exit status and stderr (or stdout) are returned as feedback
 package hooks
 
 import (
@@ -24,6 +24,7 @@ import (
 	"github.com/idelchi/aura/internal/config"
 	"github.com/idelchi/aura/internal/debug"
 	"github.com/idelchi/aura/internal/task"
+	"github.com/idelchi/aura/internal/tools/patch"
 	"github.com/idelchi/godyl/pkg/dag"
 	"github.com/idelchi/godyl/pkg/env"
 	"github.com/idelchi/godyl/pkg/path/file"
@@ -220,7 +221,7 @@ func (r Runner) runAll(ctx context.Context, entries []Entry, event Event, canBlo
 			r.OnStart(entry.Name)
 		}
 
-		result := r.execute(ctx, entry, string(eventJSON), matched)
+		result := r.execute(ctx, entry, string(eventJSON), matched, canBlock)
 
 		if result.Blocked && canBlock {
 			debug.Log("[hooks] %s blocked by %s: %s → %s", event.Tool.Name, entry.Name, entry.Command, result.Message)
@@ -228,11 +229,6 @@ func (r Runner) runAll(ctx context.Context, entries []Entry, event Event, canBlo
 			result.Message = fmt.Sprintf("[Hook: %s]:\n%s", entry.Name, result.Message)
 
 			return result
-		} else if result.Blocked {
-			debug.Log(
-				"[hooks] post-hook %s returned deny but post-hooks cannot block (tool already executed)",
-				entry.Name,
-			)
 		}
 
 		if result.Message != "" {
@@ -248,7 +244,7 @@ func (r Runner) runAll(ctx context.Context, entries []Entry, event Event, canBlo
 }
 
 // execute runs a single hook command and interprets exit code + output.
-func (r Runner) execute(ctx context.Context, entry Entry, eventJSON string, filePaths []string) Result {
+func (r Runner) execute(ctx context.Context, entry Entry, eventJSON string, filePaths []string, canBlock bool) Result {
 	ctx, cancel := context.WithTimeout(ctx, entry.Timeout)
 	defer cancel()
 
@@ -329,9 +325,15 @@ func (r Runner) execute(ctx context.Context, entry Entry, eventJSON string, file
 
 	switch exitCode {
 	case 0:
-		return r.parseSuccessOutput(stdout.String())
+		return r.parseSuccessOutput(stdout.String(), canBlock)
 	case 2:
 		msg := strings.TrimSpace(stderr.String())
+		if msg == "" {
+			msg = strings.TrimSpace(stdout.String())
+		}
+		if !canBlock {
+			return Result{Message: hookFailure(exitCode, msg)}
+		}
 		if msg == "" {
 			msg = "hook blocked: " + entry.Command
 		}
@@ -345,12 +347,20 @@ func (r Runner) execute(ctx context.Context, entry Entry, eventJSON string, file
 
 		debug.Log("[hooks] exit %d from %s: %s", exitCode, entry.Command, msg)
 
-		return Result{Message: msg}
+		return Result{Message: hookFailure(exitCode, msg)}
 	}
 }
 
+func hookFailure(code int, output string) string {
+	message := fmt.Sprintf("hook command exited with status %d", code)
+	if output != "" {
+		message += ":\n" + output
+	}
+	return message
+}
+
 // parseSuccessOutput parses optional JSON from stdout on exit 0.
-func (r Runner) parseSuccessOutput(stdout string) Result {
+func (r Runner) parseSuccessOutput(stdout string, canBlock bool) Result {
 	stdout = strings.TrimSpace(stdout)
 	if stdout == "" {
 		return Result{}
@@ -366,10 +376,14 @@ func (r Runner) parseSuccessOutput(stdout string) Result {
 	if out.Deny {
 		msg := out.Reason
 		if msg == "" {
-			msg = "denied by hook"
+			if canBlock {
+				msg = "denied by hook"
+			} else {
+				msg = "post-hook requested denial after the tool completed"
+			}
 		}
 
-		return Result{Blocked: true, Message: msg}
+		return Result{Blocked: canBlock, Message: msg}
 	}
 
 	return Result{Message: out.Message}
@@ -433,9 +447,11 @@ func extractPaths(toolInput any) []string {
 		return nil
 	}
 
-	// Write, Read, etc. — use "path" field
-	if p, ok := args["path"].(string); ok && p != "" {
-		return []string{p}
+	// Write and Read use path; Edit uses file_path.
+	for _, key := range []string{"path", "file_path"} {
+		if p, ok := args[key].(string); ok && p != "" {
+			return []string{p}
+		}
 	}
 
 	// Patch — file paths embedded in patch content
@@ -446,28 +462,19 @@ func extractPaths(toolInput any) []string {
 	return nil
 }
 
-// extractPatchPaths parses file paths from patch header lines.
-// Matches: "*** Add File: <path>", "*** Update File: <path>", "*** Delete File: <path>".
-func extractPatchPaths(patch string) []string {
-	prefixes := []string{
-		"*** Add File: ",
-		"*** Update File: ",
-		"*** Delete File: ",
+// extractPatchPaths returns the affected paths, including move destinations.
+func extractPatchPaths(input string) []string {
+	hunks, err := patch.Parse(input)
+	if err != nil {
+		return nil
 	}
-
 	var paths []string
-
-	for line := range strings.SplitSeq(patch, "\n") {
-		line = strings.TrimSpace(line)
-
-		for _, prefix := range prefixes {
-			if after, ok := strings.CutPrefix(line, prefix); ok {
-				if p := strings.TrimSpace(after); p != "" {
-					paths = append(paths, p)
-				}
+	for _, hunk := range hunks {
+		for _, path := range hunk.WritePaths() {
+			if !slices.Contains(paths, path) {
+				paths = append(paths, path)
 			}
 		}
 	}
-
 	return paths
 }

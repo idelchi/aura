@@ -89,7 +89,6 @@ type State struct {
 	Todo         TodoState
 	Mode         string
 	Auto         bool
-	PatchCounts  map[string]int
 	Error        error
 	ErrorInfo    ErrorState
 

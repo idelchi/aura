@@ -221,7 +221,7 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 
 	a.builder.StartAssistant()
 
-	a.loop = loopState{patchCounts: make(map[string]int)}
+	a.loop = loopState{}
 	a.toggles.doneSignaled = false // Reset per conversation turn
 	debug.Log(
 		"[loop] max_steps=%d token_budget=%d",

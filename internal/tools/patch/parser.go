@@ -9,8 +9,7 @@ import (
 // Hunk represents a single patch operation with behavioral methods.
 type Hunk interface {
 	isHunk()
-	Execute(ctx context.Context) (string, error)
-	Validate(ctx context.Context) error
+	Prepare(*preparation) (change, error)
 	Track(ctx context.Context)
 	WritePaths() []string
 }

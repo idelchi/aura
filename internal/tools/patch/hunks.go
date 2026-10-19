@@ -9,31 +9,9 @@ import (
 
 	"github.com/idelchi/aura/internal/tools/filetime"
 	"github.com/idelchi/aura/pkg/llm/tool"
-	"github.com/idelchi/godyl/pkg/path/file"
-	"github.com/idelchi/godyl/pkg/path/folder"
 )
 
 // AddFile behavioral methods
-
-func (h *AddFile) Execute(ctx context.Context) (string, error) {
-	f := file.New(tool.ResolvePath(ctx, os.ExpandEnv(h.Path)))
-
-	if dir := f.Dir(); dir != "." {
-		if err := folder.New(dir).Create(); err != nil {
-			return "", tool.FileError("creating directory", dir, err)
-		}
-	}
-
-	if err := f.Write([]byte(h.Content)); err != nil {
-		return "", tool.FileError("writing", f.Path(), err)
-	}
-
-	return "A " + f.Path(), nil
-}
-
-func (h *AddFile) Validate(_ context.Context) error {
-	return nil
-}
 
 func (h *AddFile) Track(ctx context.Context) {
 	filetime.FromContext(ctx).RecordRead(tool.ResolvePath(ctx, os.ExpandEnv(h.Path)))
@@ -44,20 +22,6 @@ func (h *AddFile) WritePaths() []string {
 }
 
 // DeleteFile behavioral methods
-
-func (h *DeleteFile) Execute(ctx context.Context) (string, error) {
-	path := tool.ResolvePath(ctx, os.ExpandEnv(h.Path))
-
-	if err := file.New(path).Remove(); err != nil {
-		return "", tool.FileError("deleting", path, err)
-	}
-
-	return "D " + path, nil
-}
-
-func (h *DeleteFile) Validate(_ context.Context) error {
-	return nil
-}
 
 func (h *DeleteFile) Track(ctx context.Context) {
 	filetime.FromContext(ctx).ClearRead(tool.ResolvePath(ctx, os.ExpandEnv(h.Path)))
@@ -113,57 +77,6 @@ func (h *UpdateFile) ApplyToContent(content string) (string, error) {
 	}
 
 	return strings.Join(lines, "\n"), nil
-}
-
-func (h *UpdateFile) Execute(ctx context.Context) (string, error) {
-	src := file.New(tool.ResolvePath(ctx, os.ExpandEnv(h.Path)))
-
-	content, err := src.Read()
-	if err != nil {
-		return "", tool.FileError("reading", src.Path(), err)
-	}
-
-	modified, err := h.ApplyToContent(string(content))
-	if err != nil {
-		return "", err
-	}
-
-	// Handle move/rename
-	dst := src
-
-	if h.MoveTo != "" {
-		dst = file.New(tool.ResolvePath(ctx, os.ExpandEnv(h.MoveTo)))
-	}
-
-	if dir := dst.Dir(); dir != "." {
-		if err := folder.New(dir).Create(); err != nil {
-			return "", tool.FileError("creating directory", dir, err)
-		}
-	}
-
-	if err := dst.Write([]byte(modified)); err != nil {
-		return "", tool.FileError("writing", dst.Path(), err)
-	}
-
-	// Remove source if moved
-	if h.MoveTo != "" && dst != src {
-		if err := src.Remove(); err != nil {
-			return "", tool.FileError("removing", src.Path(), err)
-		}
-
-		return fmt.Sprintf("R %s -> %s", src, dst), nil
-	}
-
-	return "M " + src.Path(), nil
-}
-
-func (h *UpdateFile) Validate(ctx context.Context) error {
-	path := tool.ResolvePath(ctx, os.ExpandEnv(h.Path))
-	if !file.New(path).Exists() {
-		return fmt.Errorf("patch failed: %s does not exist, use Add File to create it", path)
-	}
-
-	return nil
 }
 
 func (h *UpdateFile) Track(ctx context.Context) {

@@ -184,8 +184,7 @@ type Context struct {
 		Total      int
 	}
 
-	// Tool/patch tracking
-	PatchCounts map[string]int
+	// Tool history
 	ToolHistory []ToolCall
 
 	// Session identity
