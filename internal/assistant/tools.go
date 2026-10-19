@@ -108,9 +108,8 @@ func (a *Assistant) executeTools(ctx context.Context, toolCalls []call.Call) {
 					)
 				} else {
 					msg = fmt.Sprintf(
-						"Error: tool %q is not available in %q mode. Switch to a mode that enables it.",
+						"Error: tool %q is not available to the current agent.",
 						tc.Name,
-						a.agent.Mode,
 					)
 				}
 			}
