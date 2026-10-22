@@ -55,6 +55,12 @@ guardrail:
 
 If both are set, `prompt` takes precedence.
 
+The selected agent's thinking and generation settings apply to each check. In
+self-guardrail mode these come from the current agent; a dedicated guardrail
+agent uses its own settings. A normal instruction-following model can perform
+these checks when given the policy and response contract; a specialized safety
+model or a second resident model is not required.
+
 ## Response Protocol
 
 The guardrail request uses `response_format: json_schema` to force structured output:

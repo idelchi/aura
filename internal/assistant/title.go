@@ -59,6 +59,8 @@ func (a *Assistant) GenerateTitle(ctx context.Context) (string, error) {
 			message.Message{Role: roles.User, Content: userContent},
 		),
 		ContextLength: resolved.contextLen,
+		Think:         resolved.think,
+		Generation:    resolved.generation,
 		Truncate:      true,
 		Shift:         true,
 	}

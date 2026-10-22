@@ -12,6 +12,7 @@ import (
 
 	"github.com/idelchi/aura/pkg/llm/message"
 	"github.com/idelchi/aura/pkg/llm/request"
+	"github.com/idelchi/aura/pkg/llm/responseformat"
 	"github.com/idelchi/aura/pkg/llm/roles"
 	"github.com/idelchi/aura/pkg/llm/stream"
 	"github.com/idelchi/aura/pkg/llm/thinking"
@@ -160,6 +161,23 @@ func toChatParams(req request.Request) openai.ChatCompletionNewParams {
 		}
 
 		params.Tools = tools
+	}
+
+	if format := req.ResponseFormat; format != nil {
+		switch format.Type {
+		case responseformat.Text:
+			params.ResponseFormat.OfText = &shared.ResponseFormatTextParam{}
+		case responseformat.JSONObject:
+			params.ResponseFormat.OfJSONObject = &shared.ResponseFormatJSONObjectParam{}
+		case responseformat.JSONSchema:
+			params.ResponseFormat.OfJSONSchema = &shared.ResponseFormatJSONSchemaParam{
+				JSONSchema: shared.ResponseFormatJSONSchemaJSONSchemaParam{
+					Name:   format.EffectiveName(),
+					Schema: format.Schema,
+					Strict: param.NewOpt(format.Strict),
+				},
+			}
+		}
 	}
 
 	extra := map[string]any{"reasoning_format": "auto"}

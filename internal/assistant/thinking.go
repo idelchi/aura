@@ -133,6 +133,8 @@ func (a *Assistant) CallRewrite(
 			message.Message{Role: roles.User, Content: thinkingContent},
 		),
 		ContextLength: resolved.contextLen,
+		Think:         resolved.think,
+		Generation:    resolved.generation,
 		Truncate:      true,
 		Shift:         true,
 	}

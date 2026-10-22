@@ -119,6 +119,8 @@ func (a *Assistant) CheckGuardrail(ctx context.Context, scope, toolName, content
 			message.Message{Role: roles.User, Content: content},
 		),
 		ContextLength: resolved.contextLen,
+		Think:         resolved.think,
+		Generation:    resolved.generation,
 		Truncate:      true,
 		Shift:         true,
 		// No tools — guardrail must not make tool calls

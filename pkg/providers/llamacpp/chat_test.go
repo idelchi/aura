@@ -12,10 +12,67 @@ import (
 	"github.com/idelchi/aura/pkg/llm/message"
 	"github.com/idelchi/aura/pkg/llm/model"
 	"github.com/idelchi/aura/pkg/llm/request"
+	"github.com/idelchi/aura/pkg/llm/responseformat"
 	"github.com/idelchi/aura/pkg/llm/roles"
 	"github.com/idelchi/aura/pkg/llm/thinking"
 	"github.com/idelchi/aura/pkg/llm/tool/call"
 )
+
+func TestChatResponseFormats(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		format *responseformat.ResponseFormat
+	}{
+		{name: "unset"},
+		{name: "text", format: &responseformat.ResponseFormat{Type: responseformat.Text}},
+		{name: "json_object", format: &responseformat.ResponseFormat{Type: responseformat.JSONObject}},
+		{name: "json_schema", format: &responseformat.ResponseFormat{
+			Type: responseformat.JSONSchema, Name: "classification", Strict: true,
+			Schema: map[string]any{"type": "object", "properties": map[string]any{"safe": map[string]any{"type": "boolean"}}, "required": []string{"safe"}, "additionalProperties": false},
+		}},
+		{name: "default_schema_name", format: &responseformat.ResponseFormat{Type: responseformat.JSONSchema, Schema: map[string]any{"type": "object"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			params := toChatParams(request.Request{Model: model.Model{Name: "test"}, ResponseFormat: tc.format})
+			data, err := json.Marshal(params)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var body struct {
+				Format *struct {
+					Type   string `json:"type"`
+					Schema struct {
+						Name   string          `json:"name"`
+						Strict bool            `json:"strict"`
+						Schema json.RawMessage `json:"schema"`
+					} `json:"json_schema"`
+				} `json:"response_format"`
+			}
+			if err := json.Unmarshal(data, &body); err != nil {
+				t.Fatal(err)
+			}
+			if tc.format == nil {
+				if body.Format != nil {
+					t.Error("unconstrained request acquired a response format")
+				}
+				return
+			}
+			if body.Format == nil || body.Format.Type != string(tc.format.Type) {
+				t.Fatalf("response format lost: %s", data)
+			}
+			if tc.format.Type == responseformat.JSONSchema {
+				want, err := json.Marshal(tc.format.Schema)
+				if err != nil {
+					t.Fatal(err)
+				}
+				got := body.Format.Schema
+				if got.Name != tc.format.EffectiveName() || got.Strict != tc.format.Strict || string(got.Schema) != string(want) {
+					t.Fatalf("schema contract changed: %+v", got)
+				}
+			}
+		})
+	}
+}
 
 func TestChatForwardsTopK(t *testing.T) {
 	t.Parallel()
