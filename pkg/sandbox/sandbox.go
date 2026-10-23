@@ -91,6 +91,19 @@ func (s *Sandbox) HasRules() bool {
 
 // Apply enforces the sandbox by applying all registered Landlock rules.
 func (s *Sandbox) Apply() error {
+	if len(s.ReadWrite.Folders) > 0 {
+		abi, err := syscall.LandlockGetABIVersion()
+		if err != nil {
+			return fmt.Errorf("checking Landlock ABI: %w", err)
+		}
+
+		// WithRefer plus BestEffort disables all enforcement on ABI 1.
+		// Refuse that downgrade instead of silently dropping the sandbox.
+		if abi < 2 {
+			return fmt.Errorf("writable directories require Landlock ABI 2 or newer (kernel provides ABI %d)", abi)
+		}
+	}
+
 	rules := make([]landlock.Rule, 0, s.NumberOfRules())
 
 	for _, dir := range s.ReadOnly.Folders {
@@ -102,7 +115,7 @@ func (s *Sandbox) Apply() error {
 	}
 
 	for _, dir := range s.ReadWrite.Folders {
-		rules = append(rules, landlock.RWDirs(dir))
+		rules = append(rules, landlock.RWDirs(dir).WithRefer())
 	}
 
 	for _, file := range s.ReadWrite.Files {

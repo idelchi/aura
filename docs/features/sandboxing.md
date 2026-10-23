@@ -48,6 +48,12 @@ sandbox:
 
 Paths support environment variable expansion (`$HOME`, etc.).
 
+Writable directories permit moves and hard links between directories within the
+writable paths. Moving or linking a file across a read-only boundary remains
+blocked. These operations require Landlock ABI 2 or newer; when Landlock is
+available but too old, applying a sandbox with writable directories returns an
+error rather than dropping filesystem enforcement.
+
 ## Mode and Agent Overrides
 
 Modes and agents can extend or override sandbox restrictions via their `features:` frontmatter. Sandbox config follows the same override semantics as all other features.
