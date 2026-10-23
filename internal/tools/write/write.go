@@ -34,8 +34,7 @@ func New() *Tool {
 			Description: heredoc.Doc(`
 					Write complete content to a file. Creates parent directories if needed.
 
-					Use this for new files or full rewrites. For targeted string replacements,
-					use Edit. For multi-hunk changes with context markers, use Patch.
+					Use this for new files or full rewrites. Existing content is replaced in full.
 
 					If the file already exists, you must Read it first.
 				`),

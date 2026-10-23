@@ -36,8 +36,7 @@ func New() *Tool {
 					Replaces text in files, trying exact matches first, then line-ending and trailing-whitespace normalization.
 
 					Use this for targeted edits to existing files — changing a variable name,
-					fixing a line, updating a value. For new files or complete rewrites, use Write.
-					For multi-hunk changes with context markers, use Patch.
+					fixing a line, updating a value. This tool requires an existing file.
 
 					The file must have been Read first. The edit fails if old_string is not found,
 					or if multiple matches exist without replace_all. Leading indentation must match.

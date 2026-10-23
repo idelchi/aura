@@ -46,9 +46,13 @@ You have NO tools available. Do not attempt to make tool calls.
 {{ end -}}
 
 Do a thorough analysis of the request and create a detailed plan of action.
-First execute your tool calls to gather information and create the todo list using TodoCreate, then respond with an overview of the plan.
+{{ if .Tools.Eager -}}
+Use the available tools to gather information before presenting the plan.
+{{ end -}}
 Once you are done planning, inform the user with a summary of the plan. Once you have provided the user with the summary, STOP and wait for further instructions.
 
+{{ if has "TodoCreate" .Tools.Eager -}}
 You MUST execute the TodoCreate tool when in planning mode, unless you are actively discussing with the user. Make sure that the todo list is as granular with steps as possible.
+{{ end -}}
 
 The goal of the plan mode is to reach a complete plan that can be executed in edit mode later on, in discussion with the user.

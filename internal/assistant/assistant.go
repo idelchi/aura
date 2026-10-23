@@ -650,9 +650,15 @@ func (a *Assistant) Send(event ui.Event) { a.send(event) }
 // SetWorkDir overrides the effective working directory for task workdir: support.
 // Rebuilds system prompt and sandbox to reflect the new directory.
 func (a *Assistant) SetWorkDir(wd string) error {
+	previous, previousPath := a.taskWorkDir, a.paths.Work
 	a.taskWorkDir = wd
+	a.paths.Work = a.effectiveWorkDir()
 
-	return a.rebuildState()
+	if err := a.rebuildState(); err != nil {
+		a.taskWorkDir, a.paths.Work = previous, previousPath
+		return err
+	}
+	return nil
 }
 
 // effectiveWorkDir returns the task workdir override if set, otherwise configOpts.WorkDir.

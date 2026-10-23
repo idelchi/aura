@@ -71,6 +71,21 @@ Tools:
 {{ end -}}
 ```
 
+The shipped system prompts and the default compositor include the effective working
+directory, including task-level overrides. Agent profiles do not need to repeat it.
+Custom system prompts control their own composition and can include `{{ .WorkDir }}`.
+
+Keep tool-specific guidance conditional on the callable tool set:
+
+```
+{{ if has "TodoCreate" .Tools.Eager }}
+Use TodoCreate to record a multi-step plan.
+{{ end }}
+```
+
+Deferred tools enter this set after they are loaded. Agent, mode and task filters
+are applied before rendering the prompt.
+
 ## Inheritance
 
 Child body is appended after parent bodies. Duplicate parents are resolved once.

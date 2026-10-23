@@ -223,8 +223,12 @@ func (c Config) ReadAutoload(path string, paths Paths) (string, error) {
 
 // defaultCompositor is registered as the "system" template when an agent has no
 // explicit system prompt (system: ""). It provides the standard composition
-// layout: agent body, then files, workspace, and mode.
-const defaultCompositor = `{{ template "agent" . }}
+// layout: working directory, agent body, then files, workspace, and mode.
+const defaultCompositor = `{{ if .WorkDir -}}
+Working directory: {{ .WorkDir }}
+
+{{ end -}}
+{{ template "agent" . }}
 {{ range .Files }}
 ### {{ .Name }}
 {{ include .TemplateName $ }}

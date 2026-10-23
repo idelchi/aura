@@ -42,19 +42,23 @@ After receiving any tool result:
 ## System Information
 
 Date: {{ now | date "2006-01-02" }}
+{{- if .WorkDir }}
+Working directory: {{ .WorkDir }}
+{{- end }}
 {{- if .Sandbox.Requested }}
 
 ## Restrictions
 
 {{ .Sandbox.Display }}
 {{- end }}
-{{- if .ReadBefore.Write }}
+{{- if and .ReadBefore.Write (or (has "Edit" .Tools.Eager) (has "Write" .Tools.Eager) (has "Patch" .Tools.Eager)) }}
 
 ## File Editing Policy
 
-Files must be Read before editing. Each Patch or Write clears the read state, so consecutive edits to the same file require a Read in between.
-{{- if .ReadBefore.Delete }} Files must also be Read before deleting.
+Read existing files before editing. Successful edits preserve that read state; reread when a tool reports that the file changed.
 {{- end }}
+{{- if and .ReadBefore.Delete (or (has "Delete" .Tools.Eager) (has "Patch" .Tools.Eager)) }}
+Read existing files before deleting them.
 {{- end }}
 {{- if .ToolPolicy.Display }}
 
