@@ -55,7 +55,7 @@ func New() *Tool {
 	return &Tool{
 		Text: tool.Text{
 			Description: heredoc.Doc(`
-					Executes multiple independent tool calls concurrently for faster results.
+					Executes multiple independent tool calls, parallelizing those safe to run concurrently.
 
 					Use this when you need to perform several independent operations — reading
 					multiple files, searching in different paths, running multiple commands —
@@ -72,8 +72,8 @@ func New() *Tool {
 					- Operations must happen in a specific order
 					- You're modifying the same file in multiple calls
 
-					1-25 tool calls per batch. All calls start in parallel; ordering is NOT
-					guaranteed. Partial failures do not stop other calls.
+					1-25 tool calls per batch. Parallel-safe calls run concurrently, then
+					other calls run sequentially. Partial failures do not stop other calls.
 				`),
 			Examples: heredoc.Doc(`
 					{"calls": [{"name": "Read", "arguments": {"file_path": "/tmp/a.go"}}, {"name": "Read", "arguments": {"file_path": "/tmp/b.go"}}]}
@@ -97,6 +97,10 @@ func (t *Tool) Schema() tool.Schema {
 func (t *Tool) Sandboxable() bool {
 	return false
 }
+
+// Parallel prevents separate batches from concurrently dispatching file mutations.
+// Each batch still parallelizes its own independent, parallel-safe subcalls.
+func (t *Tool) Parallel() bool { return false }
 
 // subResult holds the outcome of a single sub-call.
 type subResult struct {

@@ -33,7 +33,7 @@ Aura includes built-in tools that the LLM can invoke during conversations. Most 
 | **Vision**       | Image/PDF analysis via vision LLM           | No          | Yes      |
 | **Transcribe**   | Speech-to-text via whisper server           | No          | Yes      |
 | **Speak**        | Text-to-speech via TTS server               | No          | Yes      |
-| **Batch**        | Run multiple tool calls concurrently        | No          | Yes      |
+| **Batch**        | Group independent tool calls                | No          | No       |
 | **Task**         | Delegate to a subagent (opt-in)             | No          | Yes      |
 | **LoadTools**    | Load deferred tool schemas on demand        | No          | No       |
 | **MemoryRead**   | Read/list/search persistent memory          | No          | Yes      |
@@ -189,6 +189,8 @@ Use Patch when several changes must all pass content validation before any are w
 Write, Edit and Patch run sequentially by default, both in a normal tool response
 and inside Batch. This prevents simultaneous edits from overwriting one another;
 it does not coordinate separate Aura processes or external file changes.
+Batch groups themselves run sequentially, while each group can still parallelize
+its independent reads and other parallel-safe calls.
 
 ## Patch Format
 

@@ -19,7 +19,7 @@ func TestFileMutationsRunInOrder(t *testing.T) {
 			a := selectionAssistant(t)
 			a.toggles.auto = true
 			a.agent.Tools.Add(write.New()) // explicitly offer the opt-in Write tool
-			for _, name := range []string{"Write", "Edit", "Patch"} {
+			for _, name := range []string{"Write", "Edit", "Patch", "Batch"} {
 				if a.IsToolParallel(name) {
 					t.Fatalf("%s allows concurrent mutations", name)
 				}
