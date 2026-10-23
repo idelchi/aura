@@ -23,14 +23,29 @@ type Inputs struct {
 	ReplaceAll bool    `json:"replace_all" jsonschema:"description=Replace all occurrences of old_string (default false)"`
 }
 
+// Replacement describes one match against the original file.
+type Replacement struct {
+	OldString  string  `json:"old_string" jsonschema:"required,description=The original text to replace" validate:"required"`
+	NewString  *string `json:"new_string" jsonschema:"required,description=The replacement text; empty deletes the match" validate:"required"`
+	ReplaceAll bool    `json:"replace_all,omitempty" jsonschema:"description=Replace all occurrences (default false)"`
+}
+
+// MultipleInputs groups replacements in one file. All matches must validate before writing.
+type MultipleInputs struct {
+	FilePath string        `json:"file_path" jsonschema:"required,description=The absolute path to the file to modify" validate:"required"`
+	Edits    []Replacement `json:"edits" jsonschema:"required,description=One or more non-overlapping replacements against the original file" validate:"required,min=1,dive"`
+}
+
 // Tool implements targeted string replacement.
 type Tool struct {
 	tool.Base
+	multiple bool
 }
 
 // New creates a new Edit tool.
-func New() *Tool {
-	return &Tool{
+func New(multiple bool) *Tool {
+	t := &Tool{
+		multiple: multiple,
 		Text: tool.Text{
 			Description: heredoc.Doc(`
 					Replaces text in files, trying exact matches first, then line-ending and trailing-whitespace normalization.
@@ -54,20 +69,58 @@ func New() *Tool {
 				`),
 		},
 	}
+	if multiple {
+		t.Text.Usage = heredoc.Doc(`
+			Provide file_path and a non-empty edits array of {old_string, new_string, replace_all?}.
+			Use one entry for a simple edit; group related changes in the same file.
+			All old_string values match the original file, not earlier replacements.
+			Missing, ambiguous, or overlapping matches reject the whole group without writing.
+			Include enough context for a unique match; set replace_all to replace every occurrence.
+			Use an empty new_string to delete. Use a later call for changes that depend on this call.
+		`)
+		t.Text.Examples = heredoc.Doc(`
+			{"file_path": "/home/user/config.yaml", "edits": [{"old_string": "port: 8080", "new_string": "port: 9090"}]}
+			{"file_path": "/home/user/main.go", "edits": [{"old_string": "oldName", "new_string": "newName", "replace_all": true}, {"old_string": "// obsolete\n", "new_string": ""}]}
+		`)
+	}
+	return t
 }
 
 // Name returns the tool's identifier.
 func (t *Tool) Name() string { return "Edit" }
 
+// IsMultiple reports whether this instance exposes the grouped argument schema.
+func (t *Tool) IsMultiple() bool { return t.multiple }
+
 // Parallel prevents concurrent read-modify-write calls from losing file changes.
 func (t *Tool) Parallel() bool { return false }
 
 // Schema returns the provider-agnostic tool definition.
-func (t *Tool) Schema() tool.Schema { return tool.GenerateSchema[Inputs](t) }
+func (t *Tool) Schema() tool.Schema {
+	if t.multiple {
+		return tool.GenerateSchema[MultipleInputs](t)
+	}
+	return tool.GenerateSchema[Inputs](t)
+}
+
+// inputs selects one explicit schema; the model never has to choose between two argument forms.
+func (t *Tool) inputs(args map[string]any) (*MultipleInputs, error) {
+	if t.multiple {
+		return tool.ValidateInput[MultipleInputs](args, t.Schema())
+	}
+	params, err := tool.ValidateInput[Inputs](args, t.Schema())
+	if err != nil {
+		return nil, err
+	}
+	return &MultipleInputs{
+		FilePath: params.FilePath,
+		Edits:    []Replacement{{OldString: params.OldString, NewString: params.NewString, ReplaceAll: params.ReplaceAll}},
+	}, nil
+}
 
 // Pre enforces read-before-edit policy.
 func (t *Tool) Pre(ctx context.Context, args map[string]any) error {
-	params, err := tool.ValidateInput[Inputs](args, t.Schema())
+	params, err := t.inputs(args)
 	if err != nil {
 		return err
 	}
@@ -84,7 +137,7 @@ func (t *Tool) Pre(ctx context.Context, args map[string]any) error {
 
 // Preview generates a unified diff preview for confirmation dialogs.
 func (t *Tool) Preview(ctx context.Context, args map[string]any) (string, error) {
-	params, err := tool.ValidateInput[Inputs](args, t.Schema())
+	params, err := t.inputs(args)
 	if err != nil {
 		return "", err
 	}
@@ -98,7 +151,7 @@ func (t *Tool) Preview(ctx context.Context, args map[string]any) (string, error)
 
 	original := string(content)
 
-	modified, _, err := replace(original, params.OldString, *params.NewString, params.ReplaceAll)
+	modified, _, err := replaceMany(original, params.Edits)
 	if err != nil {
 		return "", err
 	}
@@ -108,7 +161,7 @@ func (t *Tool) Preview(ctx context.Context, args map[string]any) (string, error)
 
 // Execute performs the string replacement.
 func (t *Tool) Execute(ctx context.Context, args map[string]any) (string, error) {
-	params, err := tool.ValidateInput[Inputs](args, t.Schema())
+	params, err := t.inputs(args)
 	if err != nil {
 		return "", err
 	}
@@ -128,7 +181,7 @@ func (t *Tool) Execute(ctx context.Context, args map[string]any) (string, error)
 
 	original := string(content)
 
-	modified, n, err := replace(original, params.OldString, *params.NewString, params.ReplaceAll)
+	modified, n, err := replaceMany(original, params.Edits)
 	if err != nil {
 		return "", err
 	}
@@ -142,7 +195,7 @@ func (t *Tool) Execute(ctx context.Context, args map[string]any) (string, error)
 
 // Post records that the file content is known after editing.
 func (t *Tool) Post(ctx context.Context, args map[string]any) {
-	params, err := tool.ValidateInput[Inputs](args, t.Schema())
+	params, err := t.inputs(args)
 	if err != nil {
 		debug.Log("[edit] post-hook validate: %v", err)
 
@@ -157,7 +210,7 @@ func (t *Tool) WantsLSP() bool { return true }
 
 // Paths returns the filesystem paths this tool call will access.
 func (t *Tool) Paths(ctx context.Context, args map[string]any) (read, write []string, err error) {
-	params, err := tool.ValidateInput[Inputs](args, t.Schema())
+	params, err := t.inputs(args)
 	if err != nil {
 		return nil, nil, err
 	}

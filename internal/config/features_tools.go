@@ -62,6 +62,9 @@ type ToolExecution struct {
 	// ReadSmallFileTokens is the token threshold below which the Read tool ignores line ranges and returns the full
 	// file.
 	ReadSmallFileTokens int `yaml:"read_small_file_tokens"`
+	// EditMultiple exposes Edit as one or more replacements validated against the original file.
+	// nil = false; explicit false can override an inherited opt-in.
+	EditMultiple *bool `yaml:"edit_multiple"`
 	// MaxSteps caps normal LLM iterations before the final text-only wrap-up.
 	// After this limit, tools are disabled and the LLM must respond with text only.
 	MaxSteps int `yaml:"max_steps"`
@@ -111,6 +114,11 @@ type ToolExecution struct {
 // nil (default) = true.
 func (t ToolExecution) ParallelEnabled() bool {
 	return t.Parallel == nil || *t.Parallel
+}
+
+// EditMultipleEnabled reports whether Edit uses the grouped replacement schema.
+func (t ToolExecution) EditMultipleEnabled() bool {
+	return t.EditMultiple != nil && *t.EditMultiple
 }
 
 // ValidateResolved checks semantic constraints after defaults and overlays.

@@ -9,6 +9,7 @@ tools:
     max_tokens: 20000
     max_percentage: 90
   read_small_file_tokens: 4000
+  # edit_multiple: true # opt into grouped replacements in Edit (default false)
   max_steps: 300
   rejection_message: >-
     Error: Tool result too large (%d tokens, limit %d).

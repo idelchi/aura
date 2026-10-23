@@ -25,6 +25,25 @@ func TestFeaturesMergeFromOverride(t *testing.T) {
 	}
 }
 
+func TestEditMultipleOptInCanBeOverridden(t *testing.T) {
+	t.Parallel()
+	base := config.Features{}
+	if base.ToolExecution.EditMultipleEnabled() {
+		t.Fatal("multiple edits must be opt-in")
+	}
+	for _, enabled := range []bool{true, false} {
+		if err := base.MergeFrom(config.Features{ToolExecution: config.ToolExecution{EditMultiple: &enabled}}); err != nil {
+			t.Fatal(err)
+		}
+		if err := base.MergeFrom(config.Features{}); err != nil {
+			t.Fatal(err)
+		}
+		if base.ToolExecution.EditMultipleEnabled() != enabled {
+			t.Fatalf("explicit edit_multiple=%t was lost during merge", enabled)
+		}
+	}
+}
+
 func TestFeaturesMergeFromZeroNoOverride(t *testing.T) {
 	t.Parallel()
 

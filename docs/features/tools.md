@@ -185,7 +185,35 @@ A missing match can include a short nearby excerpt to help retry, but that appro
 match is never applied automatically. An empty `new_string` deletes the matched text.
 Replacement text follows the file's newline style; unrelated content is preserved.
 Separate Edit calls are independent: a later failure does not undo an earlier edit.
-Use Patch when several changes must all pass content validation before any are written.
+
+Agents that use Edit for related changes in one file can opt into grouped replacements:
+
+```yaml
+# Agent frontmatter (or tools.edit_multiple in config/features/tools.yaml)
+features:
+  tools:
+    edit_multiple: true
+```
+
+This changes Edit's arguments to `file_path` and a non-empty `edits` array:
+
+```json
+{"file_path":"/project/config.yaml","edits":[{"old_string":"port: 8080","new_string":"port: 9090"},{"old_string":"timeout: 30","new_string":"timeout: 60"}]}
+```
+
+Each entry has `old_string`, `new_string` and optional `replace_all`. All matches
+refer to the **original file**. Missing, ambiguous, overlapping or no-op entries
+reject the whole group before writing. One entry handles a simple edit. Changes
+that depend on an earlier replacement need separate calls. The same read-before,
+preview, permissions and sandbox checks apply. Post hooks run once; normal assistant
+dispatch also requests LSP diagnostics once for the completed group. This is validation
+before a single write, not a rollback guarantee for I/O failures or protection against
+outside writers.
+
+The default remains the existing single-replacement schema. Explicit
+`edit_multiple: false` overrides an inherited opt-in. The model sees only the
+selected schema. Use Patch for changes across files or for patch-oriented agents.
+
 Write, Edit and Patch run sequentially by default, both in a normal tool response
 and inside Batch. This prevents simultaneous edits from overwriting one another;
 it does not coordinate separate Aura processes or external file changes.

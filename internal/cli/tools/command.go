@@ -15,6 +15,7 @@ import (
 
 	"github.com/idelchi/aura/internal/cli/core"
 	"github.com/idelchi/aura/internal/config"
+	"github.com/idelchi/aura/internal/config/override"
 	"github.com/idelchi/aura/internal/debug"
 	"github.com/idelchi/aura/internal/lsp"
 	"github.com/idelchi/aura/internal/plugins"
@@ -122,6 +123,16 @@ func Command(flags *core.Flags) *cli.Command {
 				config.PartSkills, config.PartPlugins, config.PartProviders, config.PartMCPs,
 			)
 			if err != nil {
+				return core.OutputSetupError(cmd.Writer, tf.JSON, err)
+			}
+			// Direct execution and sandbox children must honor explicitly supplied
+			// feature overrides before constructing the tools and their schemas.
+			scratch := config.OverrideTarget{Features: cfg.Features}
+			if err := override.ApplyAll(&scratch, flags.Override); err != nil {
+				return core.OutputSetupError(cmd.Writer, tf.JSON, err)
+			}
+			cfg.Features = scratch.Features
+			if err := cfg.Features.ValidateResolved(); err != nil {
 				return core.OutputSetupError(cmd.Writer, tf.JSON, err)
 			}
 

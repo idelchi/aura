@@ -41,7 +41,7 @@ func TestEditAllowsDeletionButRequiresReplacementArgument(t *testing.T) {
 	if err := os.WriteFile(path, []byte("keep remove\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	tool := New()
+	tool := New(false)
 	args := map[string]any{"file_path": path, "old_string": " remove"}
 	for _, value := range []any{nil, 42} {
 		args["new_string"] = value
@@ -98,7 +98,7 @@ func TestEditPreviewAndExecutionAgree(t *testing.T) {
 	if err := os.WriteFile(path, []byte("a\r\nb\r\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	tool := New()
+	tool := New(false)
 	args := map[string]any{"file_path": path, "old_string": "a\nb", "new_string": "A\nB"}
 	preview, err := tool.Preview(context.Background(), args)
 	if err != nil || !strings.Contains(preview, "+A") {

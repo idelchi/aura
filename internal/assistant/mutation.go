@@ -14,6 +14,7 @@ import (
 	"github.com/idelchi/aura/internal/providers"
 	"github.com/idelchi/aura/internal/tools/ask"
 	"github.com/idelchi/aura/internal/tools/done"
+	"github.com/idelchi/aura/internal/tools/edit"
 	"github.com/idelchi/aura/internal/tools/loadtools"
 	"github.com/idelchi/aura/internal/ui"
 	"github.com/idelchi/aura/pkg/llm/thinking"
@@ -309,6 +310,13 @@ func (a *Assistant) rebuildState() error {
 	changed, err := a.tools.plugins.Select(effective.PluginConfig)
 	if err != nil {
 		return err
+	}
+	// Agent/mode/task switches can change Edit's argument format without changing
+	// plugin selection. Compare the actual registry, including on first assembly.
+	if current, getErr := a.rt.AllTools.Get("Edit"); getErr == nil {
+		if builtin, ok := current.(*edit.Tool); ok && builtin.IsMultiple() != effective.ToolExecution.EditMultipleEnabled() {
+			changed = true
+		}
 	}
 
 	// Runtime toggles (/sandbox, /readbefore) are written to cfg.Features

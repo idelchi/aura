@@ -71,7 +71,7 @@ func All(
 
 	tools := tool.Tools{
 		bash.New(cfg.Features.ToolExecution.Bash.Truncation, cfg.Features.ToolExecution.Bash.Rewrite),
-		edittool.New(),
+		edittool.New(cfg.Features.ToolExecution.EditMultipleEnabled()),
 		glob.New(),
 		ls.New(),
 		memread.New(paths.Home, paths.Global),

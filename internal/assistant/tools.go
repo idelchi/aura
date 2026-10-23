@@ -580,6 +580,11 @@ func (a *Assistant) executeSandboxed(ctx context.Context, toolName string, args 
 		cmdArgs = append(cmdArgs, "--without-plugins")
 	}
 
+	// The parent selected this argument schema using resolved agent/mode/task
+	// settings. A fresh child must execute the same schema, even when the global
+	// configuration selects the other form.
+	cmdArgs = append(cmdArgs, "--override", fmt.Sprintf("features.tools.edit_multiple=%t", a.cfg.Features.ToolExecution.EditMultipleEnabled()))
+
 	// Subcommand + subcommand-specific flags.
 	cmdArgs = append(cmdArgs, "tools", "--json", "--raw", "-H")
 

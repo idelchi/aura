@@ -1,8 +1,10 @@
 package edit
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -62,12 +64,12 @@ func matches(content, old string, overlapping bool) []match {
 	return found
 }
 
-func replace(content, old, replacement string, all bool) (string, int, error) {
+func findMatches(content, old, replacement string, all bool) ([]match, error) {
 	if old == "" {
-		return "", 0, errors.New("old_string must not be empty")
+		return nil, errors.New("old_string must not be empty")
 	}
 	if old == replacement {
-		return "", 0, errors.New("old_string and new_string are identical")
+		return nil, errors.New("old_string and new_string are identical")
 	}
 	// A single edit requires a unique position, including overlapping occurrences.
 	// replace_all retains the usual non-overlapping replacement semantics.
@@ -82,18 +84,51 @@ func replace(content, old, replacement string, all bool) (string, int, error) {
 		}
 	}
 	if len(found) == 0 {
-		return "", 0, errors.New(missingMatch(content, old))
+		return nil, errors.New(missingMatch(content, old))
 	}
 	if len(found) > 1 && !all {
 		lines := make([]string, 0, min(5, len(found)))
 		for _, candidate := range found[:min(5, len(found))] {
 			lines = append(lines, strconv.Itoa(1+strings.Count(content[:candidate.start], "\n")))
 		}
-		return "", 0, fmt.Errorf("found %d matches for old_string at lines %s; add context to select one, or use replace_all", len(found), strings.Join(lines, ", "))
+		return nil, fmt.Errorf("found %d matches for old_string at lines %s; add context to select one, or use replace_all", len(found), strings.Join(lines, ", "))
+	}
+	return found, nil
+}
+
+func replace(content, old, replacement string, all bool) (string, int, error) {
+	return replaceMany(content, []Replacement{{OldString: old, NewString: &replacement, ReplaceAll: all}})
+}
+
+// replaceMany resolves every match against the original bytes before applying any change.
+func replaceMany(content string, edits []Replacement) (string, int, error) {
+	type change struct {
+		match
+		text  string
+		index int
+	}
+	var changes []change
+	for index, edit := range edits {
+		found, err := findMatches(content, edit.OldString, *edit.NewString, edit.ReplaceAll)
+		if err != nil {
+			if len(edits) == 1 {
+				return "", 0, err
+			}
+			return "", 0, fmt.Errorf("edit %d: %w; no edits applied", index+1, err)
+		}
+		for _, candidate := range found {
+			changes = append(changes, change{candidate, *edit.NewString, index + 1})
+		}
+	}
+	slices.SortFunc(changes, func(a, b change) int { return cmp.Compare(a.start, b.start) })
+	for i := 1; i < len(changes); i++ {
+		if changes[i].start < changes[i-1].end {
+			return "", 0, fmt.Errorf("edits %d and %d overlap in the original file; use non-overlapping matches or separate calls; no edits applied", changes[i-1].index, changes[i].index)
+		}
 	}
 	var out strings.Builder
 	position := 0
-	for _, candidate := range found {
+	for _, candidate := range changes {
 		out.WriteString(content[position:candidate.start])
 		// Keep the matched region's newline style, falling back to the file's style
 		// for an inline match that introduces new lines.
@@ -101,7 +136,7 @@ func replace(content, old, replacement string, all bool) (string, int, error) {
 		if !strings.Contains(region, "\n") {
 			region = content
 		}
-		text := strings.ReplaceAll(replacement, "\r\n", "\n")
+		text := strings.ReplaceAll(candidate.text, "\r\n", "\n")
 		if i := strings.IndexByte(region, '\n'); i > 0 && region[i-1] == '\r' {
 			text = strings.ReplaceAll(text, "\n", "\r\n")
 		}
@@ -109,7 +144,7 @@ func replace(content, old, replacement string, all bool) (string, int, error) {
 		position = candidate.end
 	}
 	out.WriteString(content[position:])
-	return out.String(), len(found), nil
+	return out.String(), len(changes), nil
 }
 
 // missingMatch offers bounded evidence, never an approximate replacement.
