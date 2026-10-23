@@ -115,6 +115,17 @@ func (s Status) TokensDisplay() string {
 	)
 }
 
+// StepsDisplay formats the current iteration and its optional limit.
+func (s Status) StepsDisplay() string {
+	if s.Steps.Current <= 0 {
+		return ""
+	}
+	if s.Steps.Max > 0 {
+		return fmt.Sprintf("step %d/%d", s.Steps.Current, s.Steps.Max)
+	}
+	return fmt.Sprintf("step %d", s.Steps.Current)
+}
+
 // StatusLine returns the full status bar string with all parts joined by " • ".
 func (s Status) StatusLine(hints DisplayHints) string {
 	parts := []string{s.Agent, s.Mode, s.Model}
@@ -122,8 +133,8 @@ func (s Status) StatusLine(hints DisplayHints) string {
 	parts = append(parts, "think: "+s.Think.AsString())
 	parts = append(parts, s.Provider)
 
-	if s.Steps.Current > 0 {
-		parts = append(parts, fmt.Sprintf("step %d/%d", s.Steps.Current, s.Steps.Max))
+	if steps := s.StepsDisplay(); steps != "" {
+		parts = append(parts, steps)
 	}
 
 	if td := s.TokensDisplay(); td != "" {

@@ -126,8 +126,8 @@ func (h *Headless) processEvent(event ui.Event) {
 
 		var statusParts []string
 
-		if e.Status.Steps.Current > 0 {
-			statusParts = append(statusParts, fmt.Sprintf("step %d/%d", e.Status.Steps.Current, e.Status.Steps.Max))
+		if steps := e.Status.StepsDisplay(); steps != "" {
+			statusParts = append(statusParts, steps)
 		}
 
 		if td := e.Status.TokensDisplay(); td != "" {

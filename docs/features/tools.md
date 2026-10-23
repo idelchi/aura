@@ -121,6 +121,14 @@ These are agent configuration constraints, not a server-side authorization bound
 clients may have separate access. Hiding an argument from the schema is not a secret-storage guarantee; tool
 output and execution diagnostics may still expose it.
 
+## Iteration and token limits
+
+For long-running supervised work, `features.tools.max_steps: -1` disables the
+iteration limit. `token_budget: 0` disables the cumulative input/output token
+budget, and `aura run --timeout 0` has no wall-clock deadline. Positive step limits
+still allow their existing final text-only wrap-up. Context-window handling and
+cancellation remain active independently of these limits.
+
 ## Skills
 
 Skills are capabilities defined as packages under `.aura/skills/`. The LLM can invoke them through the `Skill` tool,

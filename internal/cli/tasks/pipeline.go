@@ -304,7 +304,7 @@ func runCommands(
 		// the model must not inherit the previous turn's exhausted counter.
 		if asst.SessionStats().Iterations > iterationsBefore {
 			steps := asst.Status().Steps
-			if steps.Current > steps.Max {
+			if steps.Max > 0 && steps.Current > steps.Max {
 				return fmt.Errorf("task %q command %d: %w (%d)", taskName, i+1, assistant.ErrMaxSteps, steps.Max)
 			}
 		}

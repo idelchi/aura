@@ -77,6 +77,14 @@ func TestStatusLine(t *testing.T) {
 		want   string
 	}{
 		{
+			name: "unlimited iterations",
+			status: ui.Status{Steps: struct {
+				Current int
+				Max     int
+			}{Current: 61, Max: -1}},
+			want: "think: false • step 61 • 🔓",
+		},
+		{
 			name: "minimal agent and provider only",
 			status: ui.Status{
 				Agent:    "Base",

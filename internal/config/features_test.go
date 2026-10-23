@@ -190,9 +190,15 @@ func TestFeaturesValidateResolvedToolExecution(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "negative max steps invalid",
+			name: "unlimited max steps valid",
 			feature: config.Features{
 				ToolExecution: config.ToolExecution{MaxSteps: -1},
+			},
+		},
+		{
+			name: "other negative max steps invalid",
+			feature: config.Features{
+				ToolExecution: config.ToolExecution{MaxSteps: -2},
 			},
 			wantErr: true,
 		},

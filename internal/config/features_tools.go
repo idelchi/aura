@@ -67,6 +67,7 @@ type ToolExecution struct {
 	EditMultiple *bool `yaml:"edit_multiple"`
 	// MaxSteps caps normal LLM iterations before the final text-only wrap-up.
 	// After this limit, tools are disabled and the LLM must respond with text only.
+	// -1 disables the iteration limit; zero selects the default during loading.
 	MaxSteps int `yaml:"max_steps"`
 	// TokenBudget is the cumulative token limit (input + output) for a session.
 	// Once reached, the assistant stops immediately. 0 = disabled.
@@ -123,8 +124,8 @@ func (t ToolExecution) EditMultipleEnabled() bool {
 
 // ValidateResolved checks semantic constraints after defaults and overlays.
 func (t ToolExecution) ValidateResolved() error {
-	if t.MaxSteps < 1 {
-		return fmt.Errorf("tools.max_steps must be at least 1, got %d", t.MaxSteps)
+	if t.MaxSteps == 0 || t.MaxSteps < -1 {
+		return fmt.Errorf("tools.max_steps must be positive or -1 (unlimited), got %d", t.MaxSteps)
 	}
 
 	if t.TokenBudget < 0 {

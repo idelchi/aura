@@ -250,7 +250,7 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 
 		// Hard stop: break if we exceed MaxSteps + 1 (allows one text-only response after tools disabled)
 		maxSteps := a.cfg.Features.ToolExecution.MaxSteps
-		if a.loop.iteration > maxSteps+1 {
+		if maxSteps > 0 && a.loop.iteration > maxSteps+1 {
 			debug.Log("[loop] hard stop at iteration %d (max_steps=%d)", a.loop.iteration, maxSteps)
 			a.builder.FinalizeAssistant()
 
@@ -657,7 +657,7 @@ func (a *Assistant) ShouldContinue() bool {
 		return false
 	}
 
-	if a.loop.iteration >= a.cfg.Features.ToolExecution.MaxSteps {
+	if maxSteps := a.cfg.Features.ToolExecution.MaxSteps; maxSteps > 0 && a.loop.iteration >= maxSteps {
 		debug.Log("[auto] iteration cap reached (%d)", a.cfg.Features.ToolExecution.MaxSteps)
 
 		return false
