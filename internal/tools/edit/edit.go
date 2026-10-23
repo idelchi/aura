@@ -59,6 +59,9 @@ func New() *Tool {
 // Name returns the tool's identifier.
 func (t *Tool) Name() string { return "Edit" }
 
+// Parallel prevents concurrent read-modify-write calls from losing file changes.
+func (t *Tool) Parallel() bool { return false }
+
 // Schema returns the provider-agnostic tool definition.
 func (t *Tool) Schema() tool.Schema { return tool.GenerateSchema[Inputs](t) }
 

@@ -18,12 +18,12 @@ Aura includes built-in tools that the LLM can invoke during conversations. Most 
 | **Bash**         | Shell execution (15s default timeout)       | Yes         | Yes      |
 | **Ask**          | Prompt the user                             | No          | No       |
 | **Read**         | Read file with optional line range          | Yes         | Yes      |
-| **Write**        | Write file (full content)                   | Yes         | Yes      |
-| **Edit**         | String replacement (old→new)                | Yes         | Yes      |
+| **Write**        | Write file (full content)                   | Yes         | No       |
+| **Edit**         | String replacement (old→new)                | Yes         | No       |
 | **Glob**         | Recursive pattern match                     | Yes         | Yes      |
 | **Ls**           | Directory listing                           | Yes         | Yes      |
 | **Mkdir**        | Create directories                          | Yes         | Yes      |
-| **Patch**        | Context-aware diff patching                 | Yes         | Yes      |
+| **Patch**        | Context-aware diff patching                 | Yes         | No       |
 | **Rg**           | Regex search with line numbers              | Yes         | Yes      |
 | **WebFetch**     | Fetch URL as markdown/text/HTML             | No          | Yes      |
 | **WebSearch**    | Web search via DuckDuckGo                   | No          | Yes      |
@@ -167,14 +167,28 @@ Loose Markdown files directly or recursively beneath `.aura/skills/` remain supp
 
 `MemoryWrite` takes `key`, `content`, and optional `scope`. `MemoryRead` supports read by `key`, list all, or search by `query`.
 
+## Full-File Writes
+
+`Write` creates a file or replaces its complete content, creating parent directories
+when needed. `content` must be supplied as a string; `""` creates an empty file or
+clears an existing file. Missing or null content is rejected. Existing files remain
+subject to the read-before-write policy.
+
 ## Targeted Edits
 
 `Edit` looks for `old_string` exactly first. If there is no exact match, it tolerates
 CRLF/LF differences and trailing spaces or tabs. Leading indentation must still match.
 Ambiguous matches report their line numbers; add context or explicitly use `replace_all`.
+Uniqueness includes overlapping occurrences: `aba` occurs twice in `ababa`.
+`replace_all` replaces non-overlapping occurrences, as ordinary string replacement does.
 A missing match can include a short nearby excerpt to help retry, but that approximate
 match is never applied automatically. An empty `new_string` deletes the matched text.
 Replacement text follows the file's newline style; unrelated content is preserved.
+Separate Edit calls are independent: a later failure does not undo an earlier edit.
+Use Patch when several changes must all pass content validation before any are written.
+Write, Edit and Patch run sequentially by default, both in a normal tool response
+and inside Batch. This prevents simultaneous edits from overwriting one another;
+it does not coordinate separate Aura processes or external file changes.
 
 ## Patch Format
 
@@ -317,7 +331,7 @@ Configure in `.aura/config/features/tools.yaml`. See [Features Config]({{ site.b
 
 ## Read-Before Policy
 
-Write and Patch enforce that existing files must be read before overwriting.
+Write, Edit and Patch enforce that existing files must be read before overwriting.
 
 ```yaml
 tools:

@@ -16,6 +16,7 @@ func TestReplace(t *testing.T) {
 		count                                 int
 	}{
 		{name: "exact", content: "value = 1\n", old: "1", replacement: "2", want: "value = 2\n", count: 1},
+		{name: "replace all uses non-overlapping matches", content: "ababa\n", old: "aba", replacement: "X", all: true, want: "Xba\n", count: 1},
 		{name: "exact before relaxed", content: "a  \nb\na\nb\n", old: "a\nb", replacement: "c", want: "a  \nb\nc\n", count: 1},
 		{name: "crlf", content: "a\r\nb\r\nc\r\n", old: "a\nb", replacement: "A\nB", want: "A\r\nB\r\nc\r\n", count: 1},
 		{name: "trailing whitespace", content: "\told  \n\tnext\n", old: "\told\n\tnext", replacement: "\tnew\n\tnext", want: "\tnew\n\tnext\n", count: 1},
@@ -66,6 +67,8 @@ func TestReplaceRejectsAmbiguityAndMissingContent(t *testing.T) {
 	t.Parallel()
 	for _, test := range []struct{ name, content, old, message string }{
 		{"exact ambiguity", "one\none\n", "one", "lines 1, 2"},
+		{"overlapping ambiguity", "ababa\n", "aba", "2 matches"},
+		{"normalized overlapping ambiguity", "x \nx \nx \n", "x\nx", "2 matches"},
 		{"normalized ambiguity", "one \ntwo\none\r\ntwo\n", "one\ntwo", "2 matches"},
 		{"empty", "abc", "", "must not be empty"},
 		{"missing", "func calculate() { return 1 }\n", "func calculate() { return 2 }", "Nearby candidate"},

@@ -18,8 +18,8 @@ import (
 
 // Inputs defines the parameters for the Write tool.
 type Inputs struct {
-	Path    string `json:"path"    jsonschema:"required,description=File path to write (absolute or relative)" validate:"required"`
-	Content string `json:"content" jsonschema:"required,description=Complete file content to write"            validate:"required"`
+	Path    string  `json:"path"    jsonschema:"required,description=File path to write (absolute or relative)" validate:"required"`
+	Content *string `json:"content" jsonschema:"required,description=Complete file content to write; an empty string creates an empty file or clears an existing one" validate:"required"`
 }
 
 // Tool implements full-file writing.
@@ -56,6 +56,9 @@ func New() *Tool {
 func (t *Tool) Name() string {
 	return "Write"
 }
+
+// Parallel keeps file mutations ordered with other editing tools.
+func (t *Tool) Parallel() bool { return false }
 
 // Schema returns the provider-agnostic tool definition.
 func (t *Tool) Schema() tool.Schema {
@@ -96,10 +99,10 @@ func (t *Tool) Preview(ctx context.Context, args map[string]any) (string, error)
 			return "", err
 		}
 
-		return diffpreview.Generate(f.Path(), string(content), params.Content), nil
+		return diffpreview.Generate(f.Path(), string(content), *params.Content), nil
 	}
 
-	return diffpreview.ForNewFile(f.Path(), params.Content), nil
+	return diffpreview.ForNewFile(f.Path(), *params.Content), nil
 }
 
 // Execute writes content to the specified file path.
@@ -125,11 +128,11 @@ func (t *Tool) Execute(ctx context.Context, args map[string]any) (string, error)
 	}
 
 	// Write the file.
-	if err := f.Write([]byte(params.Content)); err != nil {
+	if err := f.Write([]byte(*params.Content)); err != nil {
 		return "", tool.FileError("writing", f.Path(), err)
 	}
 
-	return fmt.Sprintf("W %s (%d bytes)", f, len(params.Content)), nil
+	return fmt.Sprintf("W %s (%d bytes)", f, len(*params.Content)), nil
 }
 
 // Post records that the file content is known (the LLM just provided it).

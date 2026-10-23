@@ -67,6 +67,9 @@ func (t *Tool) Name() string {
 	return "Patch"
 }
 
+// Parallel keeps patch preparation and application ordered with other file edits.
+func (t *Tool) Parallel() bool { return false }
+
 // Schema returns the provider-agnostic tool definition.
 func (t *Tool) Schema() tool.Schema {
 	return tool.GenerateSchema[Inputs](t)

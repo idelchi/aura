@@ -45,7 +45,7 @@ func normalize(text string) normalizedText {
 	return result
 }
 
-func matches(content, old string) []match {
+func matches(content, old string, overlapping bool) []match {
 	var found []match
 	for offset := 0; offset <= len(content); {
 		index := strings.Index(content[offset:], old)
@@ -55,6 +55,9 @@ func matches(content, old string) []match {
 		start := offset + index
 		found = append(found, match{start, start + len(old)})
 		offset = start + len(old)
+		if overlapping {
+			offset = start + 1
+		}
 	}
 	return found
 }
@@ -66,12 +69,14 @@ func replace(content, old, replacement string, all bool) (string, int, error) {
 	if old == replacement {
 		return "", 0, errors.New("old_string and new_string are identical")
 	}
-	found := matches(content, old)
+	// A single edit requires a unique position, including overlapping occurrences.
+	// replace_all retains the usual non-overlapping replacement semantics.
+	found := matches(content, old, !all)
 	if len(found) == 0 {
 		original := normalize(content)
 		pattern := normalize(old).text
 		if pattern != "" {
-			for _, candidate := range matches(original.text, pattern) {
+			for _, candidate := range matches(original.text, pattern, !all) {
 				found = append(found, match{original.starts[candidate.start], original.ends[candidate.end-1]})
 			}
 		}
