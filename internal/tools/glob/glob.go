@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -35,6 +36,8 @@ func New() *Tool {
 					Matches against file PATHS, not file contents. Not a search/grep tool.
 					Use ** for recursive directory matching, * for filename wildcards, ? for single char.
 					Pattern must be a valid glob, not a plain substring.
+					Results inside the working directory are relative to it, even when path selects a subdirectory.
+					Results outside the working directory remain absolute. Pass returned paths directly to Read.
 
 					Examples:
 					  **/*.go          - all .go files recursively
@@ -95,8 +98,25 @@ func (t *Tool) Execute(ctx context.Context, args map[string]any) (string, error)
 		return "", nil
 	}
 
-	// Sort for consistent output
+	// Avoid repeating a potentially long workspace prefix for every local file.
+	// External results stay absolute, so each path remains directly usable by Read.
+	workingDir, err := filepath.Abs(tool.ResolvePath(ctx, "."))
+	if err != nil {
+		return "", err
+	}
+	for i, match := range matches {
+		absolute, err := filepath.Abs(match)
+		if err != nil {
+			return "", err
+		}
+		matches[i] = absolute
+		if relative, err := filepath.Rel(workingDir, absolute); err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			matches[i] = relative
+		}
+	}
+
+	// Sort after formatting for consistent output, including mixed local/external results.
 	slices.Sort(matches)
 
-	return fmt.Sprintf("Found %d match(es):\n%s", len(matches), strings.Join(matches, "\n")), nil
+	return fmt.Sprintf("Found %d match(es) (local paths relative to working directory):\n%s", len(matches), strings.Join(matches, "\n")), nil
 }

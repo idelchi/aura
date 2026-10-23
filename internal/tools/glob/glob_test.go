@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/idelchi/aura/pkg/llm/tool"
 )
 
 // setupTempDir creates a temporary directory with the following layout:
@@ -149,7 +151,7 @@ func TestExecuteSorted(t *testing.T) {
 		t.Fatalf("expected at least a header line and one match, got: %q", out)
 	}
 
-	// lines[0] is the "Found N match(es):" header; the rest are paths.
+	// lines[0] is the summary header; the rest are paths.
 	matchLines := lines[1:]
 
 	sorted := make([]string, len(matchLines))
@@ -160,5 +162,44 @@ func TestExecuteSorted(t *testing.T) {
 		if matchLines[i] != sorted[i] {
 			t.Errorf("output is not sorted: position %d got %q, want %q", i, matchLines[i], sorted[i])
 		}
+	}
+}
+
+func TestExecuteLocalPathsResolveFromWorkingDirectory(t *testing.T) {
+	t.Parallel()
+	dir := setupTempDir(t)
+	ctx := tool.WithWorkDir(context.Background(), dir)
+	for _, input := range []map[string]any{
+		{"pattern": "sub/**/*.go"},
+		{"pattern": "**/*.go", "path": "sub"},
+		{"pattern": "**/*.go", "path": filepath.Join(dir, "sub")},
+	} {
+		out, err := New().Execute(ctx, input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		paths := strings.Split(out, "\n")[1:]
+		if strings.Join(paths, "\n") != strings.Join([]string{filepath.Join("sub", "c.go"), filepath.Join("sub", "deep", "d.go")}, "\n") {
+			t.Fatalf("unexpected local paths: %v", paths)
+		}
+		for _, path := range paths {
+			if _, err := os.ReadFile(tool.ResolvePath(ctx, path)); err != nil {
+				t.Fatalf("returned path is not directly readable: %v", err)
+			}
+		}
+	}
+}
+
+func TestExecuteExternalPathsRemainAbsolute(t *testing.T) {
+	t.Parallel()
+	dir := setupTempDir(t)
+	ctx := tool.WithWorkDir(context.Background(), t.TempDir())
+	out, err := New().Execute(ctx, map[string]any{"pattern": "*.txt", "path": dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	paths := strings.Split(out, "\n")[1:]
+	if len(paths) != 1 || paths[0] != filepath.Join(dir, "b.txt") {
+		t.Fatalf("unexpected external paths: %v", paths)
 	}
 }
