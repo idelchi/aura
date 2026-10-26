@@ -158,7 +158,7 @@ aura --set MODEL=qwen3:14b tasks run challenge
 
 ## Session Continuity
 
-Tasks with a `session:` field resume a named session before executing and auto-save after. Without `session:`, each run starts fresh.
+Tasks with a `session:` field resume a named session before executing and auto-save after; the first run creates it. Without `session:`, each run starts fresh and is auto-saved under a new ID once a prompt is accepted. See [Auto-Save]({{ site.baseurl }}/features/sessions#auto-save).
 
 ## Tool Filtering
 

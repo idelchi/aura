@@ -47,7 +47,9 @@ Sessions are stored at `.aura/sessions/{id}.json`. The ID is either a UUID (auto
 
 ## Auto-Save
 
-Sessions are automatically saved when Aura exits, but only if at least one user message was sent during the session. Starting Aura and immediately quitting does not create an empty session file.
+Sessions are automatically saved when Aura exits, but only if at least one user message was accepted into the conversation or a session was resumed. This applies to the interactive UI, `aura web`, `aura run` and tasks alike, without `/save`. A run that fails after accepting input still saves the history it reached, so it can be continued with `--continue` or `--resume`.
+
+Starting Aura and immediately quitting does not create an empty session file. Neither do blank input, input rejected before it enters the conversation, or slash commands that send nothing to the model.
 
 ## Resume
 

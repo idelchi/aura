@@ -97,7 +97,7 @@ type sessionState struct {
 	manager    *session.Manager
 	stats      *stats.Stats
 	usage      usage.Usage     // cumulative token usage
-	dirty      bool            // true after first user message or session resume; gates AutoSave
+	dirty      bool            // true once user input is admitted or a session is resumed; gates AutoSave
 	approvals  map[string]bool // session-scoped tool approval patterns (in-memory only)
 }
 

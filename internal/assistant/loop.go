@@ -69,8 +69,6 @@ func (a *Assistant) Loop(
 					if forward && msg != "" {
 						a.send(ui.SlashCommandHandled(input))
 
-						a.session.dirty = true
-
 						if a.stream.active {
 							a.stream.pending = append(a.stream.pending, msg)
 
@@ -104,8 +102,6 @@ func (a *Assistant) Loop(
 				continue
 			}
 
-			a.session.dirty = true
-
 			a.send(ui.UserMessagesProcessed{Texts: []string{input.Text}})
 
 			a.processWithTracking(ctx, []string{input.Text})
@@ -117,7 +113,6 @@ func (a *Assistant) Loop(
 				texts := a.stream.pending
 
 				a.stream.pending = nil
-				a.session.dirty = true
 				a.send(ui.UserMessagesProcessed{Texts: texts})
 
 				a.processWithTracking(ctx, texts)
@@ -679,6 +674,8 @@ func (a *Assistant) ShouldContinue() bool {
 // vision, images are embedded directly. Otherwise, original text is preserved.
 // Empty input is a no-op. Rejected input returns an error so automation cannot
 // mistake it for a completed turn; the interactive loop reports it and stays open.
+// Admitted input marks the session for auto-save on every input path, so a run
+// that fails later still persists its history.
 func (a *Assistant) addUserInput(ctx context.Context, input string) (bool, error) {
 	visionCfg := a.cfg.Features.Vision
 
@@ -740,6 +737,8 @@ func (a *Assistant) addUserInput(ctx context.Context, input string) (bool, error
 	if !parsed.HasImages() {
 		a.builder.AddUserMessage(ctx, text, est)
 
+		a.session.dirty = true
+
 		return true, nil
 	}
 
@@ -749,6 +748,8 @@ func (a *Assistant) addUserInput(ctx context.Context, input string) (bool, error
 	}
 
 	a.builder.AddUserMessageWithImages(ctx, text, msgImages, est)
+
+	a.session.dirty = true
 
 	return true, nil
 }
