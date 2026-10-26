@@ -29,6 +29,42 @@ func (ms Messages) WithoutEphemeralMessages() Messages {
 	})
 }
 
+// WithoutEphemeralPairs returns a copy without ephemeral tool results and without the
+// assistant calls they answer, dropping assistant messages left with neither calls nor
+// content. It is the non-mutating form of EjectEphemeralMessages: the receiver, including
+// its assistant call slices, is never modified.
+func (ms Messages) WithoutEphemeralPairs() Messages {
+	ephemeralIDs := map[string]bool{}
+
+	for _, msg := range ms {
+		if msg.IsEphemeral() {
+			ephemeralIDs[msg.ToolCallID] = true
+		}
+	}
+
+	out := make(Messages, 0, len(ms))
+
+	for _, msg := range ms {
+		if msg.IsEphemeral() {
+			continue
+		}
+
+		if msg.IsAssistant() && len(msg.Calls) > 0 && len(ephemeralIDs) > 0 {
+			msg.Calls = slices.DeleteFunc(slices.Clone(msg.Calls), func(c call.Call) bool {
+				return ephemeralIDs[c.ID]
+			})
+
+			if len(msg.Calls) == 0 && msg.Content == "" {
+				continue
+			}
+		}
+
+		out = append(out, msg)
+	}
+
+	return out
+}
+
 // EjectEphemeralMessages removes ephemeral tool result messages and their matching
 // calls from assistant messages. This is paired removal — both the tool result and
 // the call that triggered it are stripped, preventing orphaned tool results that

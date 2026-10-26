@@ -41,7 +41,7 @@ func Save() slash.Command {
 				return "", fmt.Errorf("saving session: %w", err)
 			}
 
-			return "Saved session: " + saved.ShortDisplay(), nil
+			return "Saved session: " + saved.Session.ShortDisplay(), nil
 		},
 	}
 }

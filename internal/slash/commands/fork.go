@@ -38,7 +38,7 @@ func Fork() slash.Command {
 				return "", fmt.Errorf("forking session: %w", err)
 			}
 
-			return "Forked session: " + saved.ShortDisplay(), nil
+			return "Forked session: " + saved.Session.ShortDisplay(), nil
 		},
 	}
 }

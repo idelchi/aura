@@ -2,9 +2,11 @@ package assistant
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/idelchi/aura/internal/session"
+	"github.com/idelchi/aura/internal/stats"
 	"github.com/idelchi/aura/internal/ui"
 	"github.com/idelchi/aura/pkg/llm/message"
 	"github.com/idelchi/aura/pkg/llm/roles"
@@ -12,9 +14,36 @@ import (
 )
 
 // ResumeSession restores the assistant state from a saved session.
-// Returns any non-fatal warnings encountered during restoration.
-func (a *Assistant) ResumeSession(ctx context.Context, sess *session.Session) []string {
-	var warnings []string
+//
+// Session-scoped state (conversation, file reads, loaded tools, todos, approvals, usage,
+// stats and tool budgets) is reset first, so nothing leaks from a previously active
+// session. Every part of the stored state must restore: any failure is returned, and the
+// assistant is then reset to a fresh, detached session so the half-restored state can
+// never be saved over the stored one.
+func (a *Assistant) ResumeSession(ctx context.Context, sess *session.Session) error {
+	if err := a.resetSession(ctx); err != nil {
+		return err
+	}
+
+	if err := a.restoreSession(ctx, sess); err != nil {
+		if a.session.manager != nil {
+			a.session.manager.Fork()
+		}
+
+		return errors.Join(err, a.resetSession(ctx))
+	}
+
+	return nil
+}
+
+// restoreSession applies the stored state of sess on top of a reset assistant.
+func (a *Assistant) restoreSession(ctx context.Context, sess *session.Session) error {
+	var errs []error
+
+	fail := func(format string, args ...any) {
+		errs = append(errs, fmt.Errorf(format, args...))
+	}
+
 	a.session.callLimits.Restore(sess.Meta.ToolCallUsage)
 
 	if a.invocationOverrides.Agent != nil {
@@ -22,7 +51,7 @@ func (a *Assistant) ResumeSession(ctx context.Context, sess *session.Session) []
 		// Preserve invocation model/provider settings during initial restoration.
 		// No session mode/think/model restoration needed.
 		if err := a.switchAgent(*a.invocationOverrides.Agent, "resume", a.invocationOverrides); err != nil {
-			warnings = append(warnings, fmt.Sprintf("could not apply invocation agent selection: %v", err))
+			fail("applying invocation agent selection: %w", err)
 		}
 	} else {
 		// ── No agent override: restore from session, then apply individual overrides ──
@@ -30,21 +59,21 @@ func (a *Assistant) ResumeSession(ctx context.Context, sess *session.Session) []
 		// Restore agent
 		if sess.Meta.Agent != "" {
 			if err := a.SwitchAgent(sess.Meta.Agent, "resume"); err != nil {
-				warnings = append(warnings, fmt.Sprintf("could not restore agent %q", sess.Meta.Agent))
+				fail("restoring agent %q: %w", sess.Meta.Agent, err)
 			}
 		}
 
 		// Restore mode (cheap — field assignment + rebuildState)
 		if sess.Meta.Mode != "" {
 			if err := a.SwitchMode(sess.Meta.Mode); err != nil {
-				warnings = append(warnings, fmt.Sprintf("could not restore mode %q", sess.Meta.Mode))
+				fail("restoring mode %q: %w", sess.Meta.Mode, err)
 			}
 		}
 
 		// Restore thinking (cheap — field assignment + rebuildState)
 		if sess.Meta.Think != "" {
 			if err := a.SetThink(thinking.NewValue(parseThinkValue(sess.Meta.Think))); err != nil {
-				warnings = append(warnings, fmt.Sprintf("could not restore think %q", sess.Meta.Think))
+				fail("restoring think %q: %w", sess.Meta.Think, err)
 			}
 		}
 
@@ -54,10 +83,7 @@ func (a *Assistant) ResumeSession(ctx context.Context, sess *session.Session) []
 			r := a.resolved.config
 			if sess.Meta.Model != r.Model || sess.Meta.Provider != r.Provider {
 				if err := a.SwitchModel(ctx, sess.Meta.Provider, sess.Meta.Model); err != nil {
-					warnings = append(
-						warnings,
-						fmt.Sprintf("could not restore model %s/%s", sess.Meta.Provider, sess.Meta.Model),
-					)
+					fail("restoring model %s/%s: %w", sess.Meta.Provider, sess.Meta.Model, err)
 				}
 			}
 		}
@@ -66,13 +92,13 @@ func (a *Assistant) ResumeSession(ctx context.Context, sess *session.Session) []
 		// Priority: CLI > Session > Agent config.
 		if a.invocationOverrides.Mode != nil {
 			if err := a.SwitchMode(*a.invocationOverrides.Mode); err != nil {
-				warnings = append(warnings, fmt.Sprintf("could not apply --mode override: %v", err))
+				fail("applying --mode override: %w", err)
 			}
 		}
 
 		if a.invocationOverrides.Think != nil {
 			if err := a.SetThink(*a.invocationOverrides.Think); err != nil {
-				warnings = append(warnings, fmt.Sprintf("could not apply --think override: %v", err))
+				fail("applying --think override: %w", err)
 			}
 		}
 
@@ -97,7 +123,7 @@ func (a *Assistant) ResumeSession(ctx context.Context, sess *session.Session) []
 			}
 
 			if err := a.SwitchModel(ctx, provider, modelName); err != nil {
-				warnings = append(warnings, fmt.Sprintf("could not apply model/provider override: %v", err))
+				fail("applying model/provider override: %w", err)
 			}
 		}
 	}
@@ -108,15 +134,21 @@ func (a *Assistant) ResumeSession(ctx context.Context, sess *session.Session) []
 	// Restore read-before policy if user changed it at runtime
 	if sess.Meta.ReadBeforePolicy != nil {
 		if err := a.SetReadBeforePolicy(*sess.Meta.ReadBeforePolicy); err != nil {
-			warnings = append(warnings, fmt.Sprintf("could not restore read-before policy: %v", err))
+			fail("restoring read-before policy: %w", err)
 		}
 	}
 
-	// Restore runtime toggles
+	// Restore runtime toggles. A stored sandbox must be enforced again, not just requested.
 	if sess.Meta.Sandbox {
 		if err := a.SetSandbox(true); err != nil {
-			warnings = append(warnings, fmt.Sprintf("could not restore sandbox: %v", err))
+			fail("restoring sandbox: %w", err)
+		} else if !a.toggles.sandbox {
+			fail("restoring sandbox: Landlock is not available on this kernel")
 		}
+	}
+
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 
 	// Restore session approvals
@@ -159,7 +191,7 @@ func (a *Assistant) ResumeSession(ctx context.Context, sess *session.Session) []
 		a.rt.LoadedTools = a.tools.loaded
 
 		if err := a.rebuildState(); err != nil {
-			warnings = append(warnings, fmt.Sprintf("could not restore loaded tools: %v", err))
+			return fmt.Errorf("restoring loaded tools: %w", err)
 		}
 	}
 
@@ -169,7 +201,36 @@ func (a *Assistant) ResumeSession(ctx context.Context, sess *session.Session) []
 		a.tools.todo.Replace(sess.Todos.Get())
 	}
 
-	return warnings
+	return nil
+}
+
+// resetSession returns session-scoped state to that of a fresh conversation. Configuration,
+// the selected agent and runtime toggles are kept.
+func (a *Assistant) resetSession(ctx context.Context) error {
+	a.builder.Clear()
+	a.builder.UpdateSystemPrompt(ctx, a.SystemPrompt())
+	a.ResetTokens()
+	a.ResetToolCalls()
+	a.tracker.Forget()
+	a.tools.todo.SetSummary("")
+	a.tools.todo.Replace(nil)
+	clear(a.tools.loaded)
+	a.rt.LoadedTools = a.tools.loaded
+	a.session.approvals = make(map[string]bool)
+	a.session.stats = stats.New()
+	a.session.dirty = false
+
+	return a.rebuildState()
+}
+
+// NewSession detaches from the stored session and starts a fresh, unsaved conversation.
+// The next save creates a new session; the previous one stays exactly as last stored.
+func (a *Assistant) NewSession(ctx context.Context) error {
+	if a.session.manager != nil {
+		a.session.manager.Fork()
+	}
+
+	return a.resetSession(ctx)
 }
 
 // restoreMessages rebuilds the message history using the current system prompt

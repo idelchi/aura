@@ -49,9 +49,11 @@ func (s *stubContext) Compact(_ context.Context, _ bool) error          { panic(
 func (s *stubContext) GenerateTitle(_ context.Context) (string, error)  { panic("not implemented") }
 func (s *stubContext) ProcessInput(_ context.Context, _ string) error   { panic("not implemented") }
 func (s *stubContext) Reload(_ context.Context) error                   { panic("not implemented") }
-func (s *stubContext) ResumeSession(_ context.Context, _ *session.Session) []string {
-	panic("not implemented")
+func (s *stubContext) ResumeSession(_ context.Context, _ *session.Session) error {
+	return nil
 }
+
+func (s *stubContext) NewSession(_ context.Context) error { return nil }
 
 func (s *stubContext) Resolved() config.Resolved { panic("not implemented") }
 

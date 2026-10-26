@@ -97,14 +97,16 @@ func TestAdmittedInputAutoSaves(t *testing.T) {
 		t.Fatalf("failed run lost its user/tool history: %+v", saved[0].Messages)
 	}
 
-	// Resume in a fresh process and complete the work.
+	// Resume in a fresh process and complete the work. The first process releases its lease on exit.
+	a.session.manager.Close()
+
 	b := sessionAssistant(t, dir)
 	resumed, err := b.session.manager.Resume(id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if warnings := b.ResumeSession(t.Context(), resumed); len(warnings) > 0 {
-		t.Fatalf("resume warnings: %v", warnings)
+	if err := b.ResumeSession(t.Context(), resumed); err != nil {
+		t.Fatalf("resume: %v", err)
 	}
 	b.agent.Provider = compactionRequestProbe{Provider: b.agent.Provider, chat: func(req request.Request) (message.Message, usage.Usage, error) {
 		if !hasToolResult(req.Messages, "probe", "selection tool ran") {

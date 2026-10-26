@@ -95,7 +95,7 @@ func mcpReconnect(ctx context.Context, c slash.Context, args ...string) (string,
 		return "All enabled servers are already connected", nil
 	}
 
-	results := mcp.ConnectAll(ctx, servers, nil)
+	results := mcp.ConnectAll(ctx, servers, c.Cfg().MCPConfinement(c.Paths().Work), nil)
 
 	var b strings.Builder
 

@@ -169,10 +169,10 @@ func TestInputAdmissionNoCompactor(t *testing.T) {
 	a.cfg.Features.Compaction.Agent = ""
 	a.cfg.Features.Compaction.Prompt = ""
 	a.builder.AddUserMessage(t.Context(), "Oversized evidence", 40000)
-	if added, err := a.addUserInput(t.Context(), "Continue"); added || err == nil {
-		t.Fatalf("added=%t error=%v", added, err)
+	if id, err := a.addUserInput(t.Context(), "Continue"); id != "" || !errors.Is(err, ErrInputRejected) {
+		t.Fatalf("admitted=%q error=%v, want ErrInputRejected", id, err)
 	}
-	if added, err := a.addUserInput(t.Context(), " \n "); added || err != nil {
-		t.Fatalf("blank input should remain a no-op: added=%t error=%v", added, err)
+	if id, err := a.addUserInput(t.Context(), " \n "); id != "" || err != nil {
+		t.Fatalf("blank input should remain a no-op: admitted=%q error=%v", id, err)
 	}
 }

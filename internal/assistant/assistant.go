@@ -104,7 +104,7 @@ type sessionState struct {
 // streamState groups streaming coordination state.
 type streamState struct {
 	active  bool
-	pending []string
+	pending []ui.UserInput
 	done    chan struct{}
 	cancel  context.CancelFunc
 }
@@ -124,6 +124,7 @@ type toolState struct {
 	snapshots     *snapshot.Manager
 	snapshotDir   string // working directory associated with the snapshot manager
 	mcp           []*mcp.Session
+	mcpFailures   []mcp.Result // servers whose last connection attempt failed
 }
 
 // toggleState groups boolean runtime toggles.
@@ -317,7 +318,7 @@ func New(p Params) (*Assistant, error) {
 			approvals: make(map[string]bool),
 		},
 		stream: streamState{
-			pending: []string{},
+			pending: []ui.UserInput{},
 			done:    make(chan struct{}, 1),
 		},
 		tools: toolState{
@@ -467,20 +468,57 @@ func (a *Assistant) SessionMeta() session.Meta {
 	return m
 }
 
-// AutoSave persists the current session state without title generation.
+// AutoSave persists the current session state at shutdown, without title generation.
 // Safe to call during shutdown (no LLM calls).
 func (a *Assistant) AutoSave() error {
-	if a.session.manager == nil || !a.session.dirty {
+	return a.Persist(ui.PersistShutdown)
+}
+
+// Persist saves the active session if it holds admitted input or was resumed (or always
+// for PersistStart, which creates the session eagerly) and reports the result as a
+// SessionPersisted or SessionPersistFailed event correlated with inputIDs.
+// Unchanged content is not rewritten. Errors wrap ErrPersist.
+func (a *Assistant) Persist(reason ui.PersistReason, inputIDs ...string) error {
+	m := a.session.manager
+	if m == nil {
 		return nil
 	}
 
-	title := a.session.manager.ActiveTitle()
+	if !a.session.dirty && reason != ui.PersistStart {
+		info, _ := m.ActiveInfo()
 
-	meta := a.SessionMeta()
+		a.send(ui.SessionPersisted{
+			SessionID: m.ActiveID(),
+			Revision:  info.Revision,
+			Messages:  info.Messages,
+			Reason:    reason,
+			InputIDs:  inputIDs,
+		})
 
-	_, err := a.session.manager.Save(title, meta, a.builder.History(), a.tools.todo)
+		return nil
+	}
 
-	return err
+	saved, err := m.Save(m.ActiveTitle(), a.SessionMeta(), a.builder.History(), a.tools.todo)
+	if err != nil {
+		err = fmt.Errorf("%w: %w", ErrPersist, err)
+
+		a.send(ui.SessionPersistFailed{Err: err, Reason: reason, InputIDs: inputIDs})
+
+		return err
+	}
+
+	a.session.dirty = true
+
+	a.send(ui.SessionPersisted{
+		SessionID: saved.Session.ID,
+		Revision:  saved.Revision,
+		Messages:  saved.Session.ConversationLength(),
+		Reason:    reason,
+		Changed:   saved.Changed,
+		InputIDs:  inputIDs,
+	})
+
+	return nil
 }
 
 // ResetTokens clears cached token counts, forcing Status() to re-estimate.

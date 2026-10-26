@@ -50,6 +50,17 @@ func (e *RateLimitError) Error() string {
 func (e *RateLimitError) Is(target error) bool { return target == ErrRateLimit }
 func (e *RateLimitError) Unwrap() error        { return e.Err }
 
+// StatusError records the HTTP status of a provider response that failed.
+// It wraps beneath the classification sentinel, so errors.AsType recovers the
+// status and provider for callers that report failures structurally.
+type StatusError struct {
+	Provider string // provider name, empty when unknown
+	Status   int    // HTTP status code
+	Message  string // provider message, as included in the error text
+}
+
+func (e *StatusError) Error() string { return e.Message }
+
 // IsNetworkError reports whether err is a network-level failure (connection refused,
 // DNS resolution, timeout) as opposed to an API-level error from the provider SDK.
 // Network errors bypass SDK error types, so this must be checked BEFORE SDK assertions.
@@ -107,6 +118,8 @@ const DefaultRetryAfter = 5 * time.Second
 // content filter, credit/quota patterns) which vary per SDK.
 // When retryAfter is zero and status is 429, DefaultRetryAfter is applied.
 func ClassifyHTTPError(statusCode int, providerName, msg string, retryAfter time.Duration) error {
+	status := &StatusError{Provider: providerName, Status: statusCode, Message: msg}
+
 	switch {
 	case statusCode == 429:
 		ra := retryAfter
@@ -114,14 +127,18 @@ func ClassifyHTTPError(statusCode int, providerName, msg string, retryAfter time
 			ra = DefaultRetryAfter
 		}
 
-		return &RateLimitError{RetryAfter: ra, Err: fmt.Errorf("%s: %s", providerName, msg)}
+		status.Message = providerName + ": " + msg
+
+		return &RateLimitError{RetryAfter: ra, Err: status}
 	case statusCode == 401, statusCode == 403:
-		return fmt.Errorf("%w: %s", ErrAuth, msg)
+		return fmt.Errorf("%w: %w", ErrAuth, status)
 	case statusCode == 404:
-		return fmt.Errorf("%w: %s", ErrModelUnavailable, msg)
+		return fmt.Errorf("%w: %w", ErrModelUnavailable, status)
 	case statusCode >= 500:
-		return fmt.Errorf("%w: %s", ErrServerError, msg)
+		return fmt.Errorf("%w: %w", ErrServerError, status)
 	}
 
-	return fmt.Errorf("%s: %s", providerName, msg)
+	status.Message = providerName + ": " + msg
+
+	return status
 }

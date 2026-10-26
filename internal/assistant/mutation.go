@@ -69,7 +69,10 @@ func (a *Assistant) switchAgent(name, reason string, overrides agent.Overrides) 
 	newInclude, newExclude := a.cfg.MCPFilter(a.rt)
 	if !slices.Equal(oldInclude, newInclude) || !slices.Equal(oldExclude, newExclude) {
 		a.closeMCPSessions()
-		a.reconnectMCP(a.ctx)
+
+		if err := a.reconnectMCP(a.ctx); err != nil {
+			return fmt.Errorf("switching to agent %q: %w", name, err)
+		}
 	}
 
 	return nil

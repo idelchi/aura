@@ -18,7 +18,6 @@ import (
 	"github.com/idelchi/aura/internal/cli/core"
 	"github.com/idelchi/aura/internal/config"
 	"github.com/idelchi/aura/internal/debug"
-	"github.com/idelchi/aura/internal/session"
 	"github.com/idelchi/aura/internal/task"
 	"github.com/idelchi/aura/internal/tmpl"
 	"github.com/idelchi/aura/internal/ui"
@@ -328,30 +327,24 @@ func runTask(
 	cliWorkdir string,
 	start int,
 ) (taskErr error) {
-	// Resume or prepare named session
+	// Resume or prepare the task's named session. Names are exact: a prefix match
+	// would continue a different task's conversation.
 	if t.Session != "" {
-		resolved, err := asst.SessionManager().Find(t.Session)
+		mgr := asst.SessionManager()
 
-		switch {
-		case errors.Is(err, session.ErrNotFound):
+		if !mgr.Store().Exists(t.Session) {
 			// First run — set eager name, auto-save will create it
-			if setErr := asst.SessionManager().SetName(t.Session); setErr != nil {
-				return fmt.Errorf("task %q: setting session name %q: %w", t.Name, t.Session, setErr)
+			if err := mgr.SetName(t.Session); err != nil {
+				return fmt.Errorf("task %q: setting session name %q: %w", t.Name, t.Session, err)
 			}
-		case err != nil:
-			return fmt.Errorf("task %q: resolving session %q: %w", t.Name, t.Session, err)
-		default:
-			sess, err := asst.SessionManager().Resume(resolved)
+		} else {
+			sess, err := mgr.Resume(t.Session)
 			if err != nil {
 				return fmt.Errorf("task %q: resuming session %q: %w", t.Name, t.Session, err)
 			}
 
-			warnings := asst.ResumeSession(ctx, sess)
-
-			if verbose {
-				for _, warning := range warnings {
-					fmt.Fprintf(w, "[task:%s] session warning: %s\n", t.Name, warning)
-				}
+			if err := asst.ResumeSession(ctx, sess); err != nil {
+				return fmt.Errorf("task %q: resuming session %q: %w", t.Name, t.Session, err)
 			}
 		}
 	}

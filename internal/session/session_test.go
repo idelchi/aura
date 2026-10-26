@@ -48,12 +48,12 @@ func sampleTodos() *todo.List {
 func mustSave(t *testing.T, m *session.Manager, title string) *session.Session {
 	t.Helper()
 
-	s, err := m.Save(title, sampleMeta(), sampleMessages(), sampleTodos())
+	saved, err := m.Save(title, sampleMeta(), sampleMessages(), sampleTodos())
 	if err != nil {
 		t.Fatalf("Save(%q) error = %v", title, err)
 	}
 
-	return s
+	return saved.Session
 }
 
 // ── Store tests ───────────────────────────────────────────────────────────────
@@ -78,7 +78,7 @@ func TestStoreSaveAndLoad(t *testing.T) {
 		Todos:     todos,
 	}
 
-	if err := store.Save(orig); err != nil {
+	if _, err := store.Save(orig); err != nil {
 		t.Fatalf("Save() error = %v", err)
 	}
 
@@ -138,11 +138,11 @@ func TestStoreList(t *testing.T) {
 		UpdatedAt: time.Now(),
 	}
 
-	if err := store.Save(older); err != nil {
+	if _, err := store.Save(older); err != nil {
 		t.Fatalf("Save(older) error = %v", err)
 	}
 
-	if err := store.Save(newer); err != nil {
+	if _, err := store.Save(newer); err != nil {
 		t.Fatalf("Save(newer) error = %v", err)
 	}
 
@@ -176,7 +176,7 @@ func TestStoreFind(t *testing.T) {
 		UpdatedAt: time.Now(),
 	}
 
-	if err := store.Save(sess); err != nil {
+	if _, err := store.Save(sess); err != nil {
 		t.Fatalf("Save() error = %v", err)
 	}
 
@@ -212,11 +212,11 @@ func TestStoreFind(t *testing.T) {
 		s1 := &session.Session{ID: "prefix-aaa", UpdatedAt: time.Now()}
 		s2 := &session.Session{ID: "prefix-bbb", UpdatedAt: time.Now()}
 
-		if err := ambStore.Save(s1); err != nil {
+		if _, err := ambStore.Save(s1); err != nil {
 			t.Fatalf("Save(s1) error = %v", err)
 		}
 
-		if err := ambStore.Save(s2); err != nil {
+		if _, err := ambStore.Save(s2); err != nil {
 			t.Fatalf("Save(s2) error = %v", err)
 		}
 
@@ -245,7 +245,7 @@ func TestStoreExists(t *testing.T) {
 		t.Fatal("Exists() = true before Save, want false")
 	}
 
-	if err := store.Save(sess); err != nil {
+	if _, err := store.Save(sess); err != nil {
 		t.Fatalf("Save() error = %v", err)
 	}
 
@@ -269,11 +269,11 @@ func TestStoreRename(t *testing.T) {
 		UpdatedAt: time.Now(),
 	}
 
-	if err := store.Save(sess); err != nil {
+	if _, err := store.Save(sess); err != nil {
 		t.Fatalf("Save() error = %v", err)
 	}
 
-	if err := store.Rename("old-id", "new-id"); err != nil {
+	if _, err := store.Rename("old-id", "new-id"); err != nil {
 		t.Fatalf("Rename() error = %v", err)
 	}
 
@@ -286,8 +286,11 @@ func TestStoreRename(t *testing.T) {
 		t.Fatalf("Load(newID) error = %v", err)
 	}
 
-	// The file was renamed but the JSON content still has the original ID field;
-	// the store does not rewrite the JSON body — verify the title is intact.
+	// The stored ID is rewritten with the file name, so the renamed session loads under its new ID.
+	if loaded.ID != "new-id" {
+		t.Errorf("loaded.ID = %q, want %q", loaded.ID, "new-id")
+	}
+
 	if loaded.Title != sess.Title {
 		t.Errorf("loaded.Title = %q, want %q", loaded.Title, sess.Title)
 	}
@@ -346,7 +349,7 @@ func TestManagerResume(t *testing.T) {
 		Meta:      sampleMeta(),
 	}
 
-	if err := store.Save(sess); err != nil {
+	if _, err := store.Save(sess); err != nil {
 		t.Fatalf("Save() error = %v", err)
 	}
 

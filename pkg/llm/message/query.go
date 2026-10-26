@@ -34,10 +34,11 @@ func (ms Messages) ForPreservation() Messages {
 }
 
 // ForSave returns messages to persist in session files.
-// Excludes Ephemeral (one-turn, paired with tool calls).
+// Excludes Ephemeral tool results together with the calls they answer, so a session
+// saved at any point holds only complete call/result pairs.
 // Includes Normal, Synthetic, DisplayOnly, Bookmark, Metadata.
 func (ms Messages) ForSave() Messages {
-	return ms.WithoutEphemeralMessages()
+	return ms.WithoutEphemeralPairs()
 }
 
 // ForExport returns messages for human-readable export (plaintext, markdown).

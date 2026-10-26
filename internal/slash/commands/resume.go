@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/idelchi/aura/internal/slash"
 	"github.com/idelchi/aura/internal/ui"
@@ -41,15 +40,11 @@ func Resume() slash.Command {
 				return "", fmt.Errorf("resuming session: %w", err)
 			}
 
-			warnings := c.ResumeSession(ctx, sess)
-
-			result := "Resumed session: " + sess.ShortDisplay()
-
-			if len(warnings) > 0 {
-				result += " [" + strings.Join(warnings, "; ") + "]"
+			if err := c.ResumeSession(ctx, sess); err != nil {
+				return "", fmt.Errorf("resuming session %s: %w", sess.ShortDisplay(), err)
 			}
 
-			return result, nil
+			return "Resumed session: " + sess.ShortDisplay(), nil
 		},
 	}
 }

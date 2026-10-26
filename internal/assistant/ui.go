@@ -156,15 +156,13 @@ func (a *Assistant) applyUIAction(ctx context.Context, action ui.Action) {
 			return
 		}
 
-		warnings := a.ResumeSession(ctx, sess)
+		if err := a.ResumeSession(ctx, sess); err != nil {
+			a.send(ui.CommandResult{Error: fmt.Errorf("resuming session %s: %w", sess.ShortDisplay(), err)})
 
-		result := "Resumed session: " + sess.ShortDisplay()
-
-		if len(warnings) > 0 {
-			result += " [" + strings.Join(warnings, "; ") + "]"
+			return
 		}
 
-		a.send(ui.CommandResult{Message: result, Level: ui.LevelSuccess})
+		a.send(ui.CommandResult{Message: "Resumed session: " + sess.ShortDisplay(), Level: ui.LevelSuccess})
 	case ui.TodoEdited:
 		parsed, err := todo.Parse(act.Text)
 		if err != nil {
@@ -261,15 +259,15 @@ func (a *Assistant) applyUIAction(ctx context.Context, action ui.Action) {
 		}
 
 		if forward && msg != "" {
+			forwarded := ui.UserInput{Kind: ui.InputPrompt, Text: msg}
+
 			if a.stream.active {
-				a.stream.pending = append(a.stream.pending, msg)
+				a.stream.pending = append(a.stream.pending, forwarded)
 
 				return
 			}
 
-			a.send(ui.UserMessagesProcessed{Texts: []string{msg}})
-
-			a.processWithTracking(ctx, []string{msg})
+			a.startTurn(ctx, []ui.UserInput{forwarded})
 
 			return
 		}

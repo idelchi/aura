@@ -12,9 +12,8 @@ func TestResumeInvocationSelection(t *testing.T) {
 	a := selectionAssistant(t)
 	name, model, provider := "Test", "requested-model", "ollama"
 	a.invocationOverrides = agent.Overrides{Agent: &name, Model: &model, Provider: &provider}
-	warnings := a.ResumeSession(t.Context(), &session.Session{Meta: session.Meta{Agent: "Disabled", Model: "stored-model", Provider: provider}})
-	if len(warnings) != 0 {
-		t.Fatalf("resume warnings: %v", warnings)
+	if err := a.ResumeSession(t.Context(), &session.Session{Meta: session.Meta{Agent: "Disabled", Model: "stored-model", Provider: provider}}); err != nil {
+		t.Fatalf("resume: %v", err)
 	}
 	if got := a.Resolved(); got.Agent != name || got.Model != model || got.Provider != provider {
 		t.Fatalf("initial selection lost during resume: %+v", got)

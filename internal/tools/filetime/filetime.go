@@ -96,6 +96,20 @@ func (t *Tracker) ClearRead(path string) {
 	delete(t.reads, normalize(path))
 }
 
+// Forget clears all recorded reads and the runtime policy override, as at the start of a new session.
+func (t *Tracker) Forget() {
+	if t == nil {
+		return
+	}
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	clear(t.reads)
+
+	t.runtimeOverride = nil
+}
+
 // Policy returns the effective read-before policy.
 func (t *Tracker) Policy() tool.ReadBeforePolicy {
 	if t == nil {

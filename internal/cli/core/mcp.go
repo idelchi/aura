@@ -16,6 +16,7 @@ import (
 func connectServers(
 	ctx context.Context,
 	mcps config.StringCollection[mcp.Server],
+	confinement mcp.Confinement,
 	only []string,
 	onProgress func(string),
 ) []mcp.Result {
@@ -40,22 +41,33 @@ func connectServers(
 		return nil
 	}
 
-	return mcp.ConnectAll(ctx, servers, onProgress)
+	return mcp.ConnectAll(ctx, servers, confinement, onProgress)
 }
 
 // ConnectMCP connects to MCP servers in parallel and registers tools on the assistant.
-// Blocks until all servers are connected or confirmed unreachable.
-func ConnectMCP(ctx context.Context, asst *assistant.Assistant, events chan<- ui.Event) {
+// Blocks until all servers are connected or confirmed unreachable. A required server
+// that fails to connect is an error; the other connected servers are closed then.
+func ConnectMCP(ctx context.Context, asst *assistant.Assistant, events chan<- ui.Event) error {
 	mcpInclude, mcpExclude := asst.Cfg().MCPFilter(asst.Runtime())
 	mcps := config.FilterMCPs(asst.Cfg().MCPs, mcpInclude, mcpExclude)
 
 	events <- ui.SpinnerMessage{Text: "Connecting to MCP servers..."}
 
-	results := connectServers(ctx, mcps, nil, func(name string) {
+	results := connectServers(ctx, mcps, asst.MCPConfinement(), nil, func(name string) {
 		events <- ui.SpinnerMessage{Text: fmt.Sprintf("Connecting to %s...", name)}
 	})
 
-	var sessions []*mcp.Session
+	if err := mcp.RequiredFailures(results); err != nil {
+		for _, r := range results {
+			if r.Session != nil {
+				r.Session.Close()
+			}
+		}
+
+		events <- ui.SpinnerMessage{}
+
+		return fmt.Errorf("%w: %w", ErrMCPUnavailable, err)
+	}
 
 	for _, r := range results {
 		if r.Error != nil {
@@ -63,17 +75,15 @@ func ConnectMCP(ctx context.Context, asst *assistant.Assistant, events chan<- ui
 				Command: "mcp",
 				Error:   fmt.Errorf("%s", r.StatusDisplay()),
 			}
-
-			continue
 		}
-
-		sessions = append(sessions, r.Session)
 	}
 
-	asst.RegisterMCPTools(sessions)
+	asst.RegisterMCPTools(results)
 
 	// Clear MCP spinner text so it doesn't bleed into LLM wait spinner
 	events <- ui.SpinnerMessage{}
+
+	return nil
 }
 
 // ConnectMCPServers connects to enabled MCP servers and returns sessions + warnings.
@@ -82,6 +92,7 @@ func ConnectMCP(ctx context.Context, asst *assistant.Assistant, events chan<- ui
 func ConnectMCPServers(
 	ctx context.Context,
 	mcps config.StringCollection[mcp.Server],
+	confinement mcp.Confinement,
 	only []string,
 	interactive bool,
 ) ([]*mcp.Session, []string) {
@@ -92,7 +103,7 @@ func ConnectMCPServers(
 		s.Start()
 	}
 
-	results := connectServers(ctx, mcps, only, func(name string) {
+	results := connectServers(ctx, mcps, confinement, only, func(name string) {
 		if s != nil {
 			s.Update(fmt.Sprintf("Connecting to %s...", name))
 		}

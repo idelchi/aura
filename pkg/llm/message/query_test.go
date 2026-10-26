@@ -6,6 +6,7 @@ import (
 
 	"github.com/idelchi/aura/pkg/llm/message"
 	"github.com/idelchi/aura/pkg/llm/roles"
+	"github.com/idelchi/aura/pkg/llm/tool/call"
 )
 
 // ---------------------------------------------------------------------------
@@ -429,6 +430,31 @@ func TestForSave(t *testing.T) {
 
 		if len(ms) != original {
 			t.Errorf("ForSave() mutated original: len = %d, want %d", len(ms), original)
+		}
+	})
+
+	t.Run("drops calls answered only by ephemeral results", func(t *testing.T) {
+		t.Parallel()
+
+		ms := message.New(
+			userMsg("do two things"),
+			message.Message{Role: roles.Assistant, Calls: []call.Call{{ID: "ok", Name: "Read"}, {ID: "tc1", Name: "test"}}},
+			message.Message{Role: roles.Tool, ToolCallID: "ok", ToolName: "Read", Content: "file"},
+			ephemeralMsg("denied"),
+			message.Message{Role: roles.Assistant, Calls: []call.Call{{ID: "tc1", Name: "test"}}},
+		)
+
+		got := ms.ForSave()
+
+		// The only-ephemeral assistant message disappears; the mixed one keeps its answered call.
+		assertLen(t, got, 3)
+
+		if calls := got[1].Calls; len(calls) != 1 || calls[0].ID != "ok" {
+			t.Fatalf("saved calls = %+v, want only the answered call", calls)
+		}
+
+		if len(ms[1].Calls) != 2 || ms[1].Calls[1].ID != "tc1" {
+			t.Errorf("ForSave() mutated the live call slice: %+v", ms[1].Calls)
 		}
 	})
 }

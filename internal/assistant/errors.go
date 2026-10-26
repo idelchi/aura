@@ -6,6 +6,18 @@ import (
 	"github.com/idelchi/aura/pkg/providers"
 )
 
+// Turn failures that callers classify with errors.Is.
+var (
+	// ErrInputRejected means the input could not enter the conversation (e.g. no context room).
+	ErrInputRejected = errors.New("input rejected")
+	// ErrGuardrailBlocked means the user-message guardrail refused the input.
+	ErrGuardrailBlocked = errors.New("input blocked by guardrail")
+	// ErrNotCommand means a command input was not a known slash command.
+	ErrNotCommand = errors.New("not a slash command")
+	// ErrPersist means the session could not be saved.
+	ErrPersist = errors.New("saving session")
+)
+
 // classifyError maps a provider error to a classification string for plugin enrichment.
 // Note: ErrContextExhausted is included for completeness but is unreachable from OnError —
 // it is caught and handled by compaction recovery before INJECTION POINT 4.

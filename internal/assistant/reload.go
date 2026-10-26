@@ -199,14 +199,14 @@ func (a *Assistant) Reload(ctx context.Context) error {
 
 	// Close old MCP sessions and reconnect from new config.
 	a.closeMCPSessions()
-	a.reconnectMCP(ctx)
 
-	return nil
+	return a.reconnectMCP(ctx)
 }
 
 // reconnectMCP closes old MCP sessions and reconnects from the current config.
-// Synchronous — the user asked for reload, they can wait.
-func (a *Assistant) reconnectMCP(ctx context.Context) {
+// Synchronous — the user asked for reload, they can wait. A required server that
+// fails to reconnect is returned as an error.
+func (a *Assistant) reconnectMCP(ctx context.Context) error {
 	servers := make(map[string]mcp.Server)
 
 	mcpInclude, mcpExclude := a.cfg.MCPFilter(a.rt)
@@ -219,16 +219,14 @@ func (a *Assistant) reconnectMCP(ctx context.Context) {
 	}
 
 	if len(servers) == 0 {
-		return
+		return nil
 	}
 
 	a.send(ui.SpinnerMessage{Text: "Reconnecting MCP servers..."})
 
-	results := mcp.ConnectAll(ctx, servers, func(name string) {
+	results := mcp.ConnectAll(ctx, servers, a.MCPConfinement(), func(name string) {
 		a.send(ui.SpinnerMessage{Text: fmt.Sprintf("Connecting to %s...", name)})
 	})
-
-	var sessions []*mcp.Session
 
 	for _, r := range results {
 		if r.Error != nil {
@@ -236,14 +234,10 @@ func (a *Assistant) reconnectMCP(ctx context.Context) {
 				Command: "mcp",
 				Error:   fmt.Errorf("%s", r.StatusDisplay()),
 			})
-
-			continue
 		}
-
-		sessions = append(sessions, r.Session)
 	}
 
-	a.RegisterMCPTools(sessions)
+	a.RegisterMCPTools(results)
 
 	// Rebuild state so new MCP tools appear in prompt and status immediately.
 	// Unlike initial startup (where the work callback controls timing), /reload
@@ -253,4 +247,6 @@ func (a *Assistant) reconnectMCP(ctx context.Context) {
 	}
 
 	a.send(ui.SpinnerMessage{}) // clear
+
+	return mcp.RequiredFailures(results)
 }

@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -67,7 +68,18 @@ func (t *Tool) Execute(ctx context.Context, args map[string]any) (string, error)
 		return "", fmt.Errorf("mcp tool call: %w", err)
 	}
 
-	return formatResult(result.Content), nil
+	output := formatResult(result.Content)
+
+	// A tool-level failure is an error result, not a successful call with error text.
+	if result.IsError {
+		if output == "" {
+			output = "tool reported an error without content"
+		}
+
+		return "", errors.New(output)
+	}
+
+	return output, nil
 }
 
 func formatResult(content []mcplib.Content) string {

@@ -207,6 +207,7 @@ func Command(flags *core.Flags) *cli.Command {
 				sessions, warnings := core.ConnectMCPServers(
 					ctx,
 					config.FilterMCPs(cfg.MCPs, mcpInclude, mcpExclude),
+					cfg.MCPConfinement(core.WorkDir),
 					tf.MCPServers,
 					interactive,
 				)

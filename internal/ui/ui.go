@@ -273,7 +273,8 @@ func (CommandResult) Tag() EventTag { return TagSession }
 // AssistantDone signals the assistant has finished processing.
 type AssistantDone struct {
 	Error     error
-	Cancelled bool // True if cancelled via ESC
+	Cancelled bool     // True if cancelled via ESC
+	InputIDs  []string // IDs of the identified inputs processed by this turn
 }
 
 func (AssistantDone) isEvent()      {}
@@ -287,7 +288,8 @@ func (WaitingForInput) Tag() EventTag { return TagStatus }
 
 // UserMessagesProcessed signals the backend has started processing user messages.
 type UserMessagesProcessed struct {
-	Texts []string
+	Texts    []string
+	InputIDs []string // IDs of the identified inputs among Texts
 }
 
 func (UserMessagesProcessed) isEvent()      {}
@@ -301,13 +303,61 @@ type SessionRestored struct {
 func (SessionRestored) isEvent()      {}
 func (SessionRestored) Tag() EventTag { return TagSession }
 
-// SlashCommandHandled signals a slash command was processed (no streaming follows).
+// SlashCommandHandled signals a slash command was processed.
+// Forwarded commands continue as a turn that ends with AssistantDone; others are complete.
 type SlashCommandHandled struct {
-	Text string
+	Text      string
+	InputID   string
+	Forwarded bool
+	Error     error // the command's own failure, also reported as a CommandResult
 }
 
 func (SlashCommandHandled) isEvent()      {}
 func (SlashCommandHandled) Tag() EventTag { return TagSession }
+
+// InputAdmitted signals that an identified input entered the conversation as a user message.
+type InputAdmitted struct {
+	InputID   string
+	MessageID string
+}
+
+func (InputAdmitted) isEvent()      {}
+func (InputAdmitted) Tag() EventTag { return TagStatus }
+
+// PersistReason names the point at which the session was persisted.
+type PersistReason string
+
+const (
+	PersistStart      PersistReason = "start"      // eager save of a new session
+	PersistCheckpoint PersistReason = "checkpoint" // after an iteration's tool results
+	PersistRun        PersistReason = "run"        // after a turn ended (any outcome)
+	PersistCommand    PersistReason = "command"    // after a slash command that did not start a turn
+	PersistShutdown   PersistReason = "shutdown"   // final save at exit
+)
+
+// SessionPersisted signals that the session file now reflects the conversation.
+// It is only sent after the atomic save returned successfully (or found nothing to change).
+type SessionPersisted struct {
+	SessionID string
+	Revision  string // sha256 of the stored file bytes
+	Messages  int    // stored non-system messages
+	Reason    PersistReason
+	Changed   bool     // false when the stored revision already matched
+	InputIDs  []string // identified inputs of the turn or command being persisted
+}
+
+func (SessionPersisted) isEvent()      {}
+func (SessionPersisted) Tag() EventTag { return TagSession }
+
+// SessionPersistFailed signals that saving the session failed.
+type SessionPersistFailed struct {
+	Err      error
+	Reason   PersistReason
+	InputIDs []string
+}
+
+func (SessionPersistFailed) isEvent()      {}
+func (SessionPersistFailed) Tag() EventTag { return TagSession }
 
 // SpinnerMessage updates the spinner text during streaming.
 type SpinnerMessage struct {
@@ -404,8 +454,24 @@ type MessageFinalized struct {
 func (MessageFinalized) isEvent()      {}
 func (MessageFinalized) Tag() EventTag { return TagMessage }
 
+// InputKind selects how the assistant interprets submitted text.
+type InputKind int
+
+const (
+	// InputText is typed text: slash commands are recognised, everything else is a prompt.
+	InputText InputKind = iota
+	// InputPrompt is always a user message, even when it starts with "/".
+	InputPrompt
+	// InputCommand must be a known slash command.
+	InputCommand
+)
+
 // UserInput contains text submitted by the user.
+// ID correlates the input with InputAdmitted, SlashCommandHandled, AssistantDone and
+// SessionPersisted events; interactive UIs leave it empty.
 type UserInput struct {
+	ID   string
+	Kind InputKind
 	Text string
 }
 

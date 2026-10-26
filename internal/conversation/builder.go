@@ -84,9 +84,9 @@ func (b *Builder) NextID() string {
 	return fmt.Sprintf("msg-%d", id)
 }
 
-// AddUserMessage adds a completed user message and emits MessageAdded.
+// AddUserMessage adds a completed user message, emits MessageAdded and returns its display ID.
 // When estimatedTokens > 0, it is used directly (avoids re-estimation of already-estimated text).
-func (b *Builder) AddUserMessage(ctx context.Context, text string, estimatedTokens int) {
+func (b *Builder) AddUserMessage(ctx context.Context, text string, estimatedTokens int) string {
 	now := time.Now()
 
 	msg := message.Message{
@@ -109,9 +109,11 @@ func (b *Builder) AddUserMessage(ctx context.Context, text string, estimatedToke
 	)
 
 	b.emit(ui.MessageAdded{Message: msg})
+
+	return msg.ID
 }
 
-// AddUserMessageWithImages adds a completed user message with images and emits MessageAdded.
+// AddUserMessageWithImages adds a completed user message with images, emits MessageAdded and returns its display ID.
 // Images flow through to providers via their convert layers
 // (Ollama: raw bytes, OpenRouter/LlamaCPP: base64 data URLs).
 // When estimatedTokens > 0, it is used directly (avoids re-estimation).
@@ -120,7 +122,7 @@ func (b *Builder) AddUserMessageWithImages(
 	text string,
 	images message.Images,
 	estimatedTokens int,
-) {
+) string {
 	now := time.Now()
 
 	msg := message.Message{
@@ -150,6 +152,8 @@ func (b *Builder) AddUserMessageWithImages(
 	)
 
 	b.emit(ui.MessageAdded{Message: msg})
+
+	return msg.ID
 }
 
 // StartAssistant begins a new assistant message and emits MessageStarted.

@@ -76,7 +76,7 @@ func Command() *cli.Command {
 				s := spinner.New("Connecting to MCP servers...")
 				s.Start()
 
-				results = mcppkg.ConnectAll(ctx, enabled, func(name string) {
+				results = mcppkg.ConnectAll(ctx, enabled, cfg.MCPConfinement(core.WorkDir), func(name string) {
 					s.Update(fmt.Sprintf("Connecting to %s...", name))
 				})
 

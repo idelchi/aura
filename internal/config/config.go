@@ -179,6 +179,15 @@ func (c Config) EffectiveRestrictions() Restrictions {
 	return c.Features.Sandbox.EffectiveRestrictions()
 }
 
+// MCPConfinement is the confinement for stdio MCP servers configured with `sandbox: true`:
+// the effective sandbox restrictions (whether or not tool sandboxing is enabled), with
+// relative paths resolved against workDir.
+func (c Config) MCPConfinement(workDir string) mcp.Confinement {
+	r := c.EffectiveRestrictions()
+
+	return mcp.Confinement{WorkDir: workDir, ReadOnly: r.ReadOnly, ReadWrite: r.ReadWrite}
+}
+
 // EffectiveToolPolicy returns the merged tool policy for a given agent and mode.
 // Combines agent-level and mode-level tool policies additively (union for auto, confirm, and deny),
 // then merges persisted approval rules from config/rules/**/*.yaml.

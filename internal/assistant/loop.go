@@ -55,94 +55,156 @@ func (a *Assistant) Loop(
 
 			a.session.stats.RecordInteraction()
 
-			if a.slashRegistry != nil {
-				msg, handled, forward, err := a.slashRegistry.Handle(ctx, a, input.Text)
-				if handled {
-					if err != nil {
-						a.send(ui.CommandResult{Error: err})
-
-						a.send(ui.SlashCommandHandled(input))
-
-						continue
-					}
-
-					if forward && msg != "" {
-						a.send(ui.SlashCommandHandled(input))
-
-						if a.stream.active {
-							a.stream.pending = append(a.stream.pending, msg)
-
-							continue
-						}
-
-						a.send(ui.UserMessagesProcessed{Texts: []string{msg}})
-
-						a.processWithTracking(ctx, []string{msg})
-
-						continue
-					}
-
-					if msg != "" {
-						a.send(ui.CommandResult{Message: msg})
-					}
-
-					a.send(ui.SlashCommandHandled(input))
-
-					if a.toggles.exitRequested {
-						return nil
-					}
-
-					continue
+			if a.handleCommand(ctx, input) {
+				if a.toggles.exitRequested {
+					return nil
 				}
-			}
-
-			if a.stream.active {
-				a.stream.pending = append(a.stream.pending, input.Text)
 
 				continue
 			}
 
-			a.send(ui.UserMessagesProcessed{Texts: []string{input.Text}})
+			if a.stream.active {
+				a.stream.pending = append(a.stream.pending, input)
 
-			a.processWithTracking(ctx, []string{input.Text})
+				continue
+			}
+
+			a.startTurn(ctx, []ui.UserInput{input})
 
 		case <-a.stream.done:
 			a.stream.active = false
 
 			if len(a.stream.pending) > 0 {
-				texts := a.stream.pending
+				pending := a.stream.pending
 
 				a.stream.pending = nil
-				a.send(ui.UserMessagesProcessed{Texts: texts})
-
-				a.processWithTracking(ctx, texts)
+				a.startTurn(ctx, pending)
 			}
 		}
 	}
 }
 
-func (a *Assistant) processWithTracking(ctx context.Context, inputs []string) {
+// handleCommand runs input as a slash command when it is one, reporting whether it was consumed.
+// Forwarded command output continues as a turn under the command's input ID.
+func (a *Assistant) handleCommand(ctx context.Context, input ui.UserInput) bool {
+	if input.Kind == ui.InputPrompt {
+		return false
+	}
+
+	var (
+		msg              string
+		handled, forward bool
+		err              error
+	)
+
+	if a.slashRegistry != nil {
+		msg, handled, forward, err = a.slashRegistry.Handle(ctx, a, input.Text)
+	}
+
+	if !handled {
+		if input.Kind != ui.InputCommand {
+			return false
+		}
+
+		err = fmt.Errorf("%w: %q", ErrNotCommand, input.Text)
+	}
+
+	if err != nil {
+		a.send(ui.CommandResult{Error: err})
+		a.send(ui.SlashCommandHandled{Text: input.Text, InputID: input.ID, Error: err})
+		a.Persist(ui.PersistCommand, inputIDs([]ui.UserInput{input})...)
+
+		return true
+	}
+
+	if forward && msg != "" {
+		a.send(ui.SlashCommandHandled{Text: input.Text, InputID: input.ID, Forwarded: true})
+
+		forwarded := ui.UserInput{ID: input.ID, Kind: ui.InputPrompt, Text: msg}
+
+		if a.stream.active {
+			a.stream.pending = append(a.stream.pending, forwarded)
+
+			return true
+		}
+
+		a.startTurn(ctx, []ui.UserInput{forwarded})
+
+		return true
+	}
+
+	if msg != "" {
+		a.send(ui.CommandResult{Message: msg})
+	}
+
+	a.send(ui.SlashCommandHandled{Text: input.Text, InputID: input.ID})
+	a.Persist(ui.PersistCommand, inputIDs([]ui.UserInput{input})...)
+
+	return true
+}
+
+// startTurn announces inputs and processes them as one turn in the background.
+func (a *Assistant) startTurn(ctx context.Context, inputs []ui.UserInput) {
+	a.send(ui.UserMessagesProcessed{Texts: inputTexts(inputs), InputIDs: inputIDs(inputs)})
+
+	a.processWithTracking(ctx, inputs)
+}
+
+// inputTexts returns the text of each input.
+func inputTexts(inputs []ui.UserInput) []string {
+	texts := make([]string, len(inputs))
+	for i, in := range inputs {
+		texts[i] = in.Text
+	}
+
+	return texts
+}
+
+// inputIDs returns the non-empty IDs of identified inputs.
+func inputIDs(inputs []ui.UserInput) []string {
+	var ids []string
+
+	for _, in := range inputs {
+		if in.ID != "" {
+			ids = append(ids, in.ID)
+		}
+	}
+
+	return ids
+}
+
+func (a *Assistant) processWithTracking(ctx context.Context, inputs []ui.UserInput) {
 	reqCtx, cancelFn := context.WithCancel(ctx)
 
 	a.stream.cancel = cancelFn
 	a.stream.active = true
 
+	ids := inputIDs(inputs)
+
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				a.send(ui.AssistantDone{Error: fmt.Errorf("internal panic: %v", r)})
+				err := fmt.Errorf("internal panic: %v", r)
+
+				a.send(ui.AssistantDone{Error: err, InputIDs: ids})
+				// State after a panic is not trusted for persistence.
+				a.send(ui.SessionPersistFailed{
+					Err:      fmt.Errorf("%w: not saved after %w", ErrPersist, err),
+					Reason:   ui.PersistRun,
+					InputIDs: ids,
+				})
 			}
+
+			cancelFn()
 
 			a.stream.cancel = nil
 			a.stream.done <- struct{}{}
 		}()
 
-		if err := a.processInputs(reqCtx, inputs); err != nil {
-			cancelled := errors.Is(err, context.Canceled)
-			a.send(ui.AssistantDone{Error: err, Cancelled: cancelled})
-		} else {
-			a.send(ui.AssistantDone{})
-		}
+		err := a.processInputs(reqCtx, inputs)
+
+		a.send(ui.AssistantDone{Error: err, Cancelled: errors.Is(err, context.Canceled), InputIDs: ids})
+		a.Persist(ui.PersistRun, ids...)
 	}()
 }
 
@@ -156,7 +218,7 @@ const (
 	chatFatal                            // unrecoverable — return the error
 )
 
-func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
+func (a *Assistant) processInputs(ctx context.Context, inputs []ui.UserInput) error {
 	a.send(ui.SpinnerMessage{Text: "Preparing..."})
 
 	// Re-read all config from disk so changes made by the LLM (or the user)
@@ -174,7 +236,7 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 	debug.Log("[loop] processing %d inputs", len(inputs))
 
 	for i, input := range inputs {
-		debug.Log("[loop] input[%d]: %s", i, input)
+		debug.Log("[loop] input[%d] id=%q: %s", i, input.ID, input.Text)
 	}
 
 	a.session.stats.RecordTurn()
@@ -194,14 +256,17 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 	a.send(ui.SpinnerMessage{Text: "Processing input..."})
 
 	for _, input := range inputs {
-		added, err := a.addUserInput(ctx, input)
+		messageID, err := a.addUserInput(ctx, input.Text)
 		if err != nil {
 			a.EmitStatus()
 
 			return err
 		}
-		if added {
+
+		if messageID != "" {
 			anyAdded = true
+
+			a.send(ui.InputAdmitted{InputID: input.ID, MessageID: messageID})
 		}
 	}
 
@@ -212,7 +277,7 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 	}
 
 	// Capture working tree BEFORE this turn's tool calls.
-	a.createSnapshot(inputs[0], preLen)
+	a.createSnapshot(inputs[0].Text, preLen)
 
 	a.builder.StartAssistant()
 
@@ -456,6 +521,14 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []string) error {
 		// Re-estimate tokens after tool results entered conversation history.
 		a.tokens.lastInput = a.EstimateTokens(ctx)
 
+		// Every call of this iteration now has its result: checkpoint the session so a
+		// crash or kill loses at most the next iteration.
+		if err := a.Persist(ui.PersistCheckpoint, inputIDs(inputs)...); err != nil {
+			a.builder.FinalizeAssistant()
+
+			return err
+		}
+
 		// Done tool was called — clean exit
 		if a.toggles.doneSignaled {
 			debug.Log("[done] LLM called Done — exiting loop")
@@ -605,7 +678,7 @@ func convertResponseCalls(calls []call.Call) []injector.ToolCall {
 }
 
 // ProcessInput processes a single input synchronously.
-// Blocks until the assistant completes (no more tool calls).
+// Blocks until the assistant completes (no more tool calls) and the session is persisted.
 func (a *Assistant) ProcessInput(ctx context.Context, input string) error {
 	a.ctx = ctx
 	a.session.stats.RecordInteraction()
@@ -623,21 +696,32 @@ func (a *Assistant) ProcessInput(ctx context.Context, input string) error {
 			if forward && msg != "" {
 				a.send(ui.UserMessagesProcessed{Texts: []string{msg}})
 
-				return a.processInputs(ctx, []string{msg})
+				return a.runTurn(ctx, []ui.UserInput{{Kind: ui.InputPrompt, Text: msg}})
 			}
 
 			if msg != "" {
 				a.send(ui.CommandResult{Message: msg})
 			}
 
-			return err
+			return a.Persist(ui.PersistCommand)
 		}
 	}
 
 	// Process as user message - blocks until assistant completes all tool calls
 	a.send(ui.UserMessagesProcessed{Texts: []string{input}})
 
-	return a.processInputs(ctx, []string{input})
+	return a.runTurn(ctx, []ui.UserInput{{Kind: ui.InputPrompt, Text: input}})
+}
+
+// runTurn processes inputs as one turn and persists the session whatever the outcome.
+func (a *Assistant) runTurn(ctx context.Context, inputs []ui.UserInput) error {
+	err := a.processInputs(ctx, inputs)
+
+	if persistErr := a.Persist(ui.PersistRun, inputIDs(inputs)...); persistErr != nil {
+		return errors.Join(err, persistErr)
+	}
+
+	return err
 }
 
 // ShouldContinue returns true when auto mode should force another iteration.
@@ -670,13 +754,16 @@ func (a *Assistant) ShouldContinue() bool {
 }
 
 // addUserInput parses directives from raw input text and adds the message
-// to the conversation builder. If images are found and the model supports
-// vision, images are embedded directly. Otherwise, original text is preserved.
-// Empty input is a no-op. Rejected input returns an error so automation cannot
-// mistake it for a completed turn; the interactive loop reports it and stays open.
+// to the conversation builder, returning the admitted message's display ID.
+// If images are found and the model supports vision, images are embedded directly.
+// Otherwise, original text is preserved.
+// Empty input is a no-op (empty ID). Rejected input returns an error wrapping
+// ErrInputRejected or ErrGuardrailBlocked so automation cannot mistake it for a
+// completed turn; the interactive loop reports it and stays open. Rejection happens
+// before the message enters history, so it never reaches a saved session.
 // Admitted input marks the session for auto-save on every input path, so a run
 // that fails later still persists its history.
-func (a *Assistant) addUserInput(ctx context.Context, input string) (bool, error) {
+func (a *Assistant) addUserInput(ctx context.Context, input string) (string, error) {
 	visionCfg := a.cfg.Features.Vision
 
 	parsed := directive.Parse(ctx, input, a.effectiveWorkDir(), directive.Config{
@@ -698,7 +785,7 @@ func (a *Assistant) addUserInput(ctx context.Context, input string) (bool, error
 	}
 
 	if strings.TrimSpace(text) == "" && !parsed.HasImages() {
-		return false, nil
+		return "", nil
 	}
 
 	est, msg := a.CheckInput(ctx, text)
@@ -712,34 +799,34 @@ func (a *Assistant) addUserInput(ctx context.Context, input string) (bool, error
 
 		if compactErr != nil {
 			debug.Log("[input] pre-input compaction failed: %v", compactErr)
-			return false, fmt.Errorf("input rejected: %s (compaction: %w)", msg, compactErr)
+			return "", fmt.Errorf("%w: %s (compaction: %w)", ErrInputRejected, msg, compactErr)
 		}
 
 		// A successful summary or a skipped compaction does not prove admission
 		// is possible. Require enough space before treating this turn as accepted.
 		est, msg = a.CheckInput(ctx, text)
 		if msg != "" {
-			return false, fmt.Errorf("input rejected after compaction: %s", msg)
+			return "", fmt.Errorf("%w after compaction: %s", ErrInputRejected, msg)
 		}
 	}
 
 	// Guardrail check: validate user message before it enters conversation.
 	if blocked, raw, grErr := a.CheckGuardrail(ctx, "user_messages", "", text); blocked || grErr != nil {
 		if grErr != nil {
-			return false, fmt.Errorf("user input guardrail: %w", grErr)
+			return "", fmt.Errorf("user input guardrail: %w", grErr)
 		}
-		return false, errors.New(formatGuardrailBlock("user_messages", raw, grErr))
+		return "", fmt.Errorf("%w: %s", ErrGuardrailBlocked, formatGuardrailBlock("user_messages", raw, grErr))
 	}
 
 	// Always send images when present — not all providers/models accurately report
 	// vision capability, so filtering here would silently drop images for models
 	// that actually support them. Let the provider handle unsupported images.
 	if !parsed.HasImages() {
-		a.builder.AddUserMessage(ctx, text, est)
+		id := a.builder.AddUserMessage(ctx, text, est)
 
 		a.session.dirty = true
 
-		return true, nil
+		return id, nil
 	}
 
 	msgImages := make(message.Images, len(parsed.Images))
@@ -747,11 +834,11 @@ func (a *Assistant) addUserInput(ctx context.Context, input string) (bool, error
 		msgImages[i] = message.Image{Data: []byte(img)}
 	}
 
-	a.builder.AddUserMessageWithImages(ctx, text, msgImages, est)
+	id := a.builder.AddUserMessageWithImages(ctx, text, msgImages, est)
 
 	a.session.dirty = true
 
-	return true, nil
+	return id, nil
 }
 
 // cleanParseError extracts the meaningful part from verbose tool parse errors.

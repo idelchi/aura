@@ -35,13 +35,33 @@ func (a *Assistant) addMCPTools(sessions []*mcp.Session) {
 	}
 }
 
-// RegisterMCPTools integrates MCP sessions into the running assistant.
-// It adds discovered tools to AllTools and re-applies CLI tool filters.
-// It does NOT call rebuildState — the caller (RunSession) is responsible
-// for triggering a rebuild after all MCP servers are connected.
-func (a *Assistant) RegisterMCPTools(sessions []*mcp.Session) {
+// RegisterMCPTools integrates the connected sessions of results into the running
+// assistant and records the failed connections. It adds discovered tools to AllTools
+// and re-applies CLI tool filters. It does NOT call rebuildState — the caller
+// (RunSession) is responsible for triggering a rebuild after all MCP servers are connected.
+func (a *Assistant) RegisterMCPTools(results []mcp.Result) {
+	var sessions []*mcp.Session
+
+	a.tools.mcpFailures = nil
+
+	for _, r := range results {
+		if r.Session != nil {
+			sessions = append(sessions, r.Session)
+		} else {
+			a.tools.mcpFailures = append(a.tools.mcpFailures, r)
+		}
+	}
+
 	a.tools.mcp = sessions
 	a.addMCPTools(sessions)
+}
+
+// MCPFailures returns the MCP servers whose last connection attempt failed.
+func (a *Assistant) MCPFailures() []mcp.Result { return a.tools.mcpFailures }
+
+// MCPConfinement returns the confinement for sandboxed stdio MCP servers of this session.
+func (a *Assistant) MCPConfinement() mcp.Confinement {
+	return a.cfg.MCPConfinement(a.effectiveWorkDir())
 }
 
 // RegisterMCPSession appends a single MCP session mid-conversation.

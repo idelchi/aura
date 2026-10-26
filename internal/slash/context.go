@@ -37,7 +37,8 @@ type Context interface {
 	GenerateTitle(ctx context.Context) (string, error)
 	ProcessInput(ctx context.Context, input string) error
 	Reload(ctx context.Context) error
-	ResumeSession(ctx context.Context, sess *session.Session) []string
+	ResumeSession(ctx context.Context, sess *session.Session) error
+	NewSession(ctx context.Context) error
 
 	// Read-only state
 	Resolved() config.Resolved

@@ -169,7 +169,10 @@ func RunSession(parent context.Context, flags Flags, selection Selection, makeUI
 
 	doneMCP := debug.Span("connecting MCP")
 
-	ConnectMCP(ctx, asst, u.Events())
+	if err := ConnectMCP(ctx, asst, u.Events()); err != nil {
+		return err
+	}
+
 	doneMCP()
 
 	// Rebuild state so MCP tools enter the active set before the loop starts.
@@ -598,9 +601,8 @@ func resumeSession(ctx context.Context, flags Flags, asst *assistant.Assistant, 
 			return fmt.Errorf("resuming session: %w", err)
 		}
 
-		warnings := asst.ResumeSession(ctx, sess)
-		for _, w := range warnings {
-			events <- ui.CommandResult{Command: "resume", Message: w, Level: ui.LevelWarn}
+		if err := asst.ResumeSession(ctx, sess); err != nil {
+			return fmt.Errorf("resuming session %s: %w", sess.ShortDisplay(), err)
 		}
 	}
 

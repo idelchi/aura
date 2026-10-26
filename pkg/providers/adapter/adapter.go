@@ -299,23 +299,25 @@ func MapError(err error) error {
 		return providers.ErrContextExhausted
 	}
 
+	status := &providers.StatusError{Status: pe.StatusCode, Message: pe.Message}
+
 	switch {
 	case pe.StatusCode == http.StatusTooManyRequests:
 		return &providers.RateLimitError{
 			RetryAfter: parseRetryAfter(pe),
-			Err:        fmt.Errorf("%s", pe.Message),
+			Err:        status,
 		}
 	case pe.StatusCode == http.StatusUnauthorized || pe.StatusCode == http.StatusForbidden:
-		return fmt.Errorf("%w: %s", providers.ErrAuth, pe.Message)
+		return fmt.Errorf("%w: %w", providers.ErrAuth, status)
 	case pe.StatusCode == http.StatusNotFound:
-		return fmt.Errorf("%w: %s", providers.ErrModelUnavailable, pe.Message)
+		return fmt.Errorf("%w: %w", providers.ErrModelUnavailable, status)
 	case pe.StatusCode >= 500:
-		return fmt.Errorf("%w: %s", providers.ErrServerError, pe.Message)
+		return fmt.Errorf("%w: %w", providers.ErrServerError, status)
 	case pe.StatusCode == http.StatusPaymentRequired:
-		return fmt.Errorf("%w: %s", providers.ErrCreditExhausted, pe.Message)
+		return fmt.Errorf("%w: %w", providers.ErrCreditExhausted, status)
 	default:
 		if strings.Contains(pe.Message, "content") && strings.Contains(pe.Message, "filter") {
-			return fmt.Errorf("%w: %s", providers.ErrContentFilter, pe.Message)
+			return fmt.Errorf("%w: %w", providers.ErrContentFilter, status)
 		}
 
 		return fmt.Errorf("provider: %w", err)

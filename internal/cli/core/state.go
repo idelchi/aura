@@ -2,6 +2,7 @@ package core
 
 import (
 	"embed"
+	"errors"
 
 	"github.com/idelchi/godyl/pkg/path/folder"
 )
@@ -26,3 +27,10 @@ func ProjectConfigDir() string {
 
 	return ""
 }
+
+// ErrReported marks an error that a command already reported in its own format
+// (e.g. a JSON envelope on stderr). The entry point exits non-zero without printing it.
+var ErrReported = errors.New("reported")
+
+// ErrMCPUnavailable means a required MCP server could not be connected.
+var ErrMCPUnavailable = errors.New("required MCP server unavailable")

@@ -93,6 +93,10 @@ func (c Config) Validate(loaded map[Part]struct{}) error {
 				return fmt.Errorf("mcp server %q: %w", name, err)
 			}
 
+			if err := server.Validate(); err != nil {
+				return fmt.Errorf("mcp server %q: %w", name, err)
+			}
+
 			if server.Condition != "" {
 				if err := condition.Validate(server.Condition); err != nil {
 					return fmt.Errorf("mcp server %q condition: %w", name, err)

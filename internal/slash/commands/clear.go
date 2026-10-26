@@ -13,13 +13,12 @@ func Clear() slash.Command {
 	return slash.Command{
 		Name:        "/clear",
 		Aliases:     []string{"/new"},
-		Description: "Clear conversation history",
+		Description: "Start a new conversation (the current session stays saved)",
 		Category:    "session",
 		Execute: func(ctx context.Context, c slash.Context, _ ...string) (string, error) {
-			c.Builder().Clear()
-			c.Builder().UpdateSystemPrompt(ctx, c.SystemPrompt())
-			c.ResetTokens()
-			c.ResetToolCalls()
+			if err := c.NewSession(ctx); err != nil {
+				return "", err
+			}
 
 			if err := c.ClearSnapshots(); err != nil {
 				debug.Log("[snapshot] prune: %v", err)
