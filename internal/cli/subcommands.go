@@ -12,6 +12,7 @@ import (
 	"github.com/idelchi/aura/internal/cli/plugins"
 	"github.com/idelchi/aura/internal/cli/query"
 	"github.com/idelchi/aura/internal/cli/run"
+	servecmd "github.com/idelchi/aura/internal/cli/serve"
 	sessioncmd "github.com/idelchi/aura/internal/cli/session"
 	"github.com/idelchi/aura/internal/cli/show"
 	"github.com/idelchi/aura/internal/cli/skills"
@@ -44,5 +45,6 @@ func buildSubcommands(flags *core.Flags) []*cli.Command {
 		cachecmd.Command(flags),
 		show.Command(flags),
 		sessioncmd.Command(flags),
+		servecmd.Command(flags),
 	}
 }

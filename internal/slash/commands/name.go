@@ -12,6 +12,7 @@ import (
 func Name() slash.Command {
 	return slash.Command{
 		Name:        "/name",
+		Rebinds:     true,
 		Description: "Set or show the session name",
 		Hints:       "[name]",
 		Category:    "session",

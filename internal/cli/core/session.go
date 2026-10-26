@@ -101,7 +101,7 @@ func RunSession(parent context.Context, flags Flags, selection Selection, makeUI
 
 	asst, slashRegistry, err := NewAssistant(flags, selection, u.Events(), sp.Update)
 	if err != nil {
-		return fmt.Errorf("creating assistant: %w", err)
+		return fmt.Errorf("%w: creating assistant: %w", ErrConfig, err)
 	}
 	defer asst.Close()
 
@@ -602,7 +602,7 @@ func resumeSession(ctx context.Context, flags Flags, asst *assistant.Assistant, 
 		}
 
 		if err := asst.ResumeSession(ctx, sess); err != nil {
-			return fmt.Errorf("resuming session %s: %w", sess.ShortDisplay(), err)
+			return fmt.Errorf("%w %s: %w", ErrResume, sess.ShortDisplay(), err)
 		}
 	}
 

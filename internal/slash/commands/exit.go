@@ -10,6 +10,7 @@ import (
 func Exit() slash.Command {
 	return slash.Command{
 		Name:        "/exit",
+		Rebinds:     true,
 		Aliases:     []string{"/quit"},
 		Description: "Exit the application",
 		Category:    "system",

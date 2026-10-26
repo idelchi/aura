@@ -13,6 +13,7 @@ import (
 func Fork() slash.Command {
 	return slash.Command{
 		Name:        "/fork",
+		Rebinds:     true,
 		Description: "Fork current session into a new one",
 		Hints:       "[title]",
 		Category:    "session",

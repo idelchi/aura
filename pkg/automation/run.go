@@ -108,22 +108,24 @@ type Result struct {
 
 // Run is the record of one request.
 type Run struct {
-	ID              string     `json:"id"`
-	RequestID       string     `json:"request_id"`
-	Kind            Kind       `json:"kind"`
-	SessionID       string     `json:"session_id"`
-	State           State      `json:"state"`
-	Terminal        bool       `json:"terminal"`
-	Outcome         Outcome    `json:"outcome"`
-	Error           *Error     `json:"error"`
-	PersistError    *Error     `json:"persist_error"`
-	CancelRequested bool       `json:"cancel_requested"`
-	Result          *Result    `json:"result"`
-	Persisted       *Persisted `json:"persisted"`
-	Stats           Stats      `json:"stats"`
-	AcceptedSeq     int64      `json:"accepted_seq"`
-	AcceptedAt      time.Time  `json:"accepted_at"`
-	StartedAt       *time.Time `json:"started_at"`
-	FinishedAt      *time.Time `json:"finished_at"`
-	SettledAt       *time.Time `json:"settled_at"`
+	ID              string      `json:"id"`
+	RequestID       string      `json:"request_id"`
+	Kind            Kind        `json:"kind"`
+	RequestDigest   string      `json:"request_digest"` // sha256 of the canonical request body
+	OnInput         InputPolicy `json:"on_input"`
+	SessionID       string      `json:"session_id"`
+	State           State       `json:"state"`
+	Terminal        bool        `json:"terminal"`
+	Outcome         Outcome     `json:"outcome"`
+	Error           *Error      `json:"error"`
+	PersistError    *Error      `json:"persist_error"`
+	CancelRequested bool        `json:"cancel_requested"`
+	Result          *Result     `json:"result"`
+	Persisted       *Persisted  `json:"persisted"`
+	Stats           Stats       `json:"stats"`
+	AcceptedSeq     int64       `json:"accepted_seq"`
+	AcceptedAt      time.Time   `json:"accepted_at"`
+	StartedAt       *time.Time  `json:"started_at"`
+	FinishedAt      *time.Time  `json:"finished_at"`
+	SettledAt       *time.Time  `json:"settled_at"`
 }

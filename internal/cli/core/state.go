@@ -34,3 +34,9 @@ var ErrReported = errors.New("reported")
 
 // ErrMCPUnavailable means a required MCP server could not be connected.
 var ErrMCPUnavailable = errors.New("required MCP server unavailable")
+
+// ErrConfig means the configuration could not produce an assistant.
+var ErrConfig = errors.New("invalid configuration")
+
+// ErrResume means a stored session could not be restored.
+var ErrResume = errors.New("restoring session")

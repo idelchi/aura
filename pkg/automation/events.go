@@ -13,6 +13,7 @@ const (
 	EventServerStarted        EventType = "server.started"
 	EventServerStopping       EventType = "server.stopping"
 	EventRunAccepted          EventType = "run.accepted"
+	EventRunCancelRequested   EventType = "run.cancel_requested"
 	EventRunStarted           EventType = "run.started"
 	EventMessageUser          EventType = "message.user"
 	EventMessageAssistant     EventType = "message.assistant"
@@ -31,6 +32,9 @@ const (
 	EventRunLost              EventType = "run.lost"
 )
 
+// EventHeartbeat is sent on an idle SSE stream (data {}); it is neither journaled nor transient data.
+const EventHeartbeat EventType = "heartbeat"
+
 // Transient event types: streamed only with ?transient=true, unsequenced and droppable.
 const (
 	EventDeltaContent  EventType = "delta.content"
@@ -42,7 +46,7 @@ const (
 // IsLifecycle reports whether the event marks a lifecycle transition, which is fsynced when journaled.
 func (t EventType) IsLifecycle() bool {
 	switch t {
-	case EventServerStarted, EventServerStopping, EventRunAccepted, EventRunStarted, EventRunFinished,
+	case EventServerStarted, EventServerStopping, EventRunAccepted, EventRunCancelRequested, EventRunStarted, EventRunFinished,
 		EventSessionPersisted, EventSessionPersistFailed, EventRunPersisted, EventRunPersistFailed,
 		EventRunLost, EventInputRequired, EventInputResolved:
 		return true
@@ -107,7 +111,8 @@ type ServerStopping struct {
 	Reason string `json:"reason"`
 }
 
-// RunData is the data of run.accepted, run.finished, run.persisted, run.persist_failed and run.lost.
+// RunData is the data of run.accepted, run.cancel_requested, run.finished, run.persisted,
+// run.persist_failed and run.lost: the run record after the transition.
 type RunData struct {
 	Run Run `json:"run"`
 }

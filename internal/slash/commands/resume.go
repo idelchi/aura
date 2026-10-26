@@ -13,6 +13,7 @@ import (
 func Resume() slash.Command {
 	return slash.Command{
 		Name:        "/resume",
+		Rebinds:     true,
 		Aliases:     []string{"/load"},
 		Description: "Resume a saved session or list sessions",
 		Hints:       "[id]",

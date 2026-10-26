@@ -93,6 +93,9 @@ func (a *Assistant) ResetToolCalls() {
 	a.loop.toolsFilters = nil
 }
 
+// Commands returns the slash command registry (nil when commands are not wired).
+func (a *Assistant) Commands() *slash.Registry { return a.slashRegistry }
+
 // InjectorRegistry returns the synthetic message injection registry.
 func (a *Assistant) InjectorRegistry() *injector.Registry { return a.tools.injectors }
 

@@ -33,6 +33,7 @@ type Command struct {
 	Category    string // Grouping label for /help display (e.g. "agent", "session", "tools").
 	Forward     bool   // Forward causes the result to be sent to the LLM as a user message instead of displayed as a CommandResult.
 	Silent      bool   // Silent suppresses the pre-execution command echo in chat history.
+	Rebinds     bool   // Rebinds switches, renames, replaces or ends the active session.
 	Execute     func(ctx context.Context, c Context, args ...string) (string, error)
 }
 
@@ -198,6 +199,23 @@ func (r *Registry) Handle(ctx context.Context, sctx Context, input string) (stri
 	}
 
 	return msg, true, cmd.Forward, err
+}
+
+// Resolve returns the command an input line invokes, resolving aliases.
+func (r *Registry) Resolve(input string) (Command, bool) {
+	fields := strings.Fields(input)
+	if len(fields) == 0 || !strings.HasPrefix(fields[0], "/") {
+		return Command{}, false
+	}
+
+	name := strings.ToLower(fields[0])
+	if canonical, ok := r.aliases[name]; ok {
+		name = canonical
+	}
+
+	cmd, ok := r.commands[name]
+
+	return cmd, ok
 }
 
 // Lookup checks if a command name is already registered (case-insensitive).

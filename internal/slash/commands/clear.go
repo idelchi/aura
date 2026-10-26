@@ -12,6 +12,7 @@ import (
 func Clear() slash.Command {
 	return slash.Command{
 		Name:        "/clear",
+		Rebinds:     true,
 		Aliases:     []string{"/new"},
 		Description: "Start a new conversation (the current session stays saved)",
 		Category:    "session",

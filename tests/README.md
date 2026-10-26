@@ -102,6 +102,7 @@ The feedback loop is too slow and output gets lost or truncated.
 | 53-bash-condition          | bash: condition evaluation, shlex argument splitting, negation                                                                                                         | No   |
 | 54-until-command           | /until looping command: exit conditions, --max cap, negation, debug logging                                                                                            | No   |
 | 55-template-composition    | Template composition: DAG validation, include directives, agent/mode/file composition                                                                                  | No   |
+| 56-automation              | `aura session` store operations (freeze/fork/import idempotency) and the `aura serve` /v1 lifecycle with the script provider; requires curl and jq | No   |
 
 ## Test Infrastructure
 
