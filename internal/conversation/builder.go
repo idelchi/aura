@@ -269,7 +269,7 @@ func (b *Builder) AddToolCall(id, name string, args map[string]any) {
 
 	b.emit(ui.MessagePartAdded{
 		MessageID: b.current.ID,
-		Part:      p,
+		Part:      p.Snapshot(),
 	})
 }
 
@@ -290,7 +290,7 @@ func (b *Builder) StartToolCall(id string) {
 			b.emit(ui.MessagePartUpdated{
 				MessageID: b.current.ID,
 				PartIndex: i,
-				Part:      *p,
+				Part:      p.Snapshot(),
 			})
 
 			return
@@ -320,7 +320,7 @@ func (b *Builder) CompleteToolCall(ctx context.Context, id, result string, err e
 			b.emit(ui.MessagePartUpdated{
 				MessageID: b.current.ID,
 				PartIndex: i,
-				Part:      *p,
+				Part:      p.Snapshot(),
 			})
 
 			return

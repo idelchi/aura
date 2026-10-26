@@ -71,9 +71,14 @@ func serveTestServer() {
 
 		return text("%d", child.Process.Pid), nil
 	})
-	s.AddTool(mcplib.NewTool("sleep"), func(ctx context.Context, _ mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
+	s.AddTool(mcplib.NewTool("sleep", mcplib.WithString("marker")), func(ctx context.Context, req mcplib.CallToolRequest) (*mcplib.CallToolResult, error) {
 		select {
 		case <-ctx.Done():
+			// Only a notifications/cancelled from the client cancels this handler.
+			if marker := req.GetString("marker", ""); marker != "" {
+				os.WriteFile(marker, []byte("cancelled"), 0o600)
+			}
+
 			return mcplib.NewToolResultError("cancelled"), nil
 		case <-time.After(5 * time.Minute):
 			return text("slept"), nil
@@ -148,21 +153,38 @@ func TestStderrFloodDoesNotBlock(t *testing.T) {
 	}
 }
 
-func TestCancelledCallReturns(t *testing.T) {
+func TestCancelledCallNotifiesTheServer(t *testing.T) {
 	sess := connect(t, testServer(t), Confinement{})
+	marker := filepath.Join(t.TempDir(), "cancelled")
 
 	ctx, cancel := context.WithTimeout(t.Context(), 300*time.Millisecond)
 	defer cancel()
 
 	start := time.Now()
 
-	if _, err := call(t, ctx, sess, "sleep", nil); err == nil {
+	if _, err := call(t, ctx, sess, "sleep", map[string]any{"marker": marker}); err == nil {
 		t.Fatal("cancelled call succeeded")
 	}
 
 	if elapsed := time.Since(start); elapsed > 10*time.Second {
 		t.Fatalf("cancelled call returned after %v", elapsed)
 	}
+
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(marker); err == nil {
+			// The session stays usable after a cancelled request.
+			if out, err := call(t, t.Context(), sess, "write", map[string]any{"path": filepath.Join(t.TempDir(), "after")}); err != nil || out != "ok" {
+				t.Fatalf("call after cancellation = %q, %v", out, err)
+			}
+
+			return
+		}
+
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	t.Fatal("the server never received notifications/cancelled")
 }
 
 func TestUnsetVariablesFailExpansion(t *testing.T) {

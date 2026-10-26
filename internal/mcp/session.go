@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -17,13 +18,14 @@ import (
 
 // Session represents a connected MCP server session.
 type Session struct {
-	Name      string           // Server name for tool prefixing
-	Client    client.MCPClient // Active MCP client
-	MCPTools  []mcplib.Tool    // Discovered MCP tools
-	Required  bool             // configured as required
-	Sandboxed bool             // launched under Landlock confinement
+	Name      string         // Server name for tool prefixing
+	Client    *client.Client // Active MCP client
+	MCPTools  []mcplib.Tool  // Discovered MCP tools
+	Required  bool           // configured as required
+	Sandboxed bool           // launched under Landlock confinement
 
-	process *exec.Cmd // confined launcher process, whose group is reaped on Close
+	process *exec.Cmd    // confined launcher process, whose group is reaped on Close
+	calls   atomic.Int64 // sequence of tool call request IDs
 }
 
 // NewSession connects to a server and discovers its tools.
@@ -78,7 +80,7 @@ func withStderr(err error, stderr *Stderr) error {
 func (s *Session) Tools() []*Tool {
 	tools := make([]*Tool, len(s.MCPTools))
 	for i, t := range s.MCPTools {
-		tools[i] = NewTool(s.Name, t, s.Client)
+		tools[i] = NewTool(s.Name, t, s.Client, &s.calls)
 	}
 
 	return tools

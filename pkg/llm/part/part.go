@@ -22,6 +22,17 @@ type Part struct {
 	Call *call.Call
 }
 
+// Snapshot returns a copy that shares no mutable state with p: the tool call is copied,
+// so an event carrying the snapshot keeps describing the moment it was taken.
+func (p Part) Snapshot() Part {
+	if p.Call != nil {
+		c := *p.Call
+		p.Call = &c
+	}
+
+	return p
+}
+
 // IsContent returns true if this is a content part.
 func (p Part) IsContent() bool {
 	return p.Type == Content

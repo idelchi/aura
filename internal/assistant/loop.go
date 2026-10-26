@@ -35,6 +35,9 @@ func (a *Assistant) Loop(
 	cancel <-chan struct{},
 ) error {
 	defer close(a.done)
+	// Done means a safe point: a turn still running (cancelled with ctx, or finishing
+	// its persistence after the inputs closed) completes before the loop reports it.
+	defer a.awaitTurn()
 
 	a.ctx = ctx
 
@@ -81,6 +84,15 @@ func (a *Assistant) Loop(
 				a.startTurn(ctx, pending)
 			}
 		}
+	}
+}
+
+// awaitTurn waits for the background turn, if any, to finish.
+func (a *Assistant) awaitTurn() {
+	if a.stream.active {
+		<-a.stream.done
+
+		a.stream.active = false
 	}
 }
 
@@ -301,6 +313,14 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []ui.UserInput) er
 	var skipIterationIncrement bool
 
 	for {
+		// A cancelled turn stops at the iteration boundary: every call of the previous
+		// iteration already has its result, so the history stays complete.
+		if err := ctx.Err(); err != nil {
+			a.builder.FinalizeAssistant()
+
+			return err
+		}
+
 		if !skipIterationIncrement {
 			a.loop.iteration++
 			a.session.stats.RecordIteration()

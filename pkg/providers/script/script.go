@@ -71,6 +71,8 @@ type Step struct {
 type Script struct {
 	Models []Model `json:"models"`
 	Steps  []Step  `json:"steps"`
+	// MetadataError, when set, fails every model metadata request (Models, Model) with it.
+	MetadataError *Failure `json:"metadata_error"`
 }
 
 // Provider replays a script.
@@ -103,6 +105,12 @@ func New(path string) (*Provider, error) {
 	for i, step := range script.Steps {
 		if err := step.validate(); err != nil {
 			return nil, fmt.Errorf("script %s step %d: %w", path, i+1, err)
+		}
+	}
+
+	if script.MetadataError != nil {
+		if err := (Step{Error: script.MetadataError}).validate(); err != nil {
+			return nil, fmt.Errorf("script %s metadata_error: %w", path, err)
 		}
 	}
 
@@ -192,6 +200,10 @@ func wait(ctx context.Context, d string) error {
 
 // Chat replays the next step.
 func (p *Provider) Chat(ctx context.Context, _ request.Request, streamFunc stream.Func) (message.Message, usage.Usage, error) {
+	if err := ctx.Err(); err != nil {
+		return message.Message{}, usage.Usage{}, err
+	}
+
 	step, index, err := p.next()
 	if err != nil {
 		return message.Message{}, usage.Usage{}, err
@@ -288,6 +300,10 @@ func (f Failure) err() error {
 
 // Models returns the scripted models.
 func (p *Provider) Models(_ context.Context) (model.Models, error) {
+	if p.script.MetadataError != nil {
+		return nil, p.script.MetadataError.err()
+	}
+
 	models := make(model.Models, 0, len(p.script.Models))
 
 	for _, m := range p.script.Models {
@@ -299,6 +315,10 @@ func (p *Provider) Models(_ context.Context) (model.Models, error) {
 
 // Model returns the scripted model with the given name.
 func (p *Provider) Model(_ context.Context, name string) (model.Model, error) {
+	if p.script.MetadataError != nil {
+		return model.Model{}, p.script.MetadataError.err()
+	}
+
 	for _, m := range p.script.Models {
 		if m.Name == name {
 			return model.Model{Name: m.Name, ContextLength: model.ContextLength(m.Context)}, nil

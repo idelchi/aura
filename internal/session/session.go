@@ -16,10 +16,10 @@ import (
 	"github.com/idelchi/aura/internal/calllimit"
 	"github.com/idelchi/aura/internal/stats"
 	"github.com/idelchi/aura/internal/todo"
+	"github.com/idelchi/aura/pkg/automation"
 	"github.com/idelchi/aura/pkg/llm/message"
 	"github.com/idelchi/aura/pkg/llm/roles"
 	"github.com/idelchi/aura/pkg/llm/tool"
-	"github.com/idelchi/aura/pkg/automation"
 	"github.com/idelchi/aura/pkg/llm/usage"
 )
 

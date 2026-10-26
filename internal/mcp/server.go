@@ -51,7 +51,7 @@ func (s Server) IsEnabled() bool {
 
 // Connect creates and initializes an MCP client session. A sandboxed stdio server is
 // launched under confinement; its process is returned so the session can reap its group.
-func (s Server) Connect(ctx context.Context, confinement Confinement, stderr *Stderr) (client.MCPClient, *exec.Cmd, error) {
+func (s Server) Connect(ctx context.Context, confinement Confinement, stderr *Stderr) (*client.Client, *exec.Cmd, error) {
 	var (
 		c       *client.Client
 		process *exec.Cmd
