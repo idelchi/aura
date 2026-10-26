@@ -16,9 +16,8 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/google/renameio/v2"
-
 	"github.com/idelchi/aura/internal/assistant"
+	"github.com/idelchi/aura/internal/atomicfile"
 	"github.com/idelchi/aura/internal/debug"
 	"github.com/idelchi/aura/internal/session"
 	"github.com/idelchi/aura/internal/ui"
@@ -225,7 +224,7 @@ func WriteReady(path string, ready automation.Ready) error {
 		return err
 	}
 
-	if err := renameio.WriteFile(path, append(data, '\n'), 0o600, renameio.WithTempDir(filepath.Dir(path))); err != nil {
+	if err := atomicfile.WriteFile(path, append(data, '\n')); err != nil {
 		return fmt.Errorf("writing ready file: %w", err)
 	}
 

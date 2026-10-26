@@ -11,8 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/renameio/v2"
-
+	"github.com/idelchi/aura/internal/atomicfile"
 	"github.com/idelchi/aura/pkg/automation"
 	"github.com/idelchi/aura/pkg/llm/roles"
 	"github.com/idelchi/godyl/pkg/path/file"
@@ -37,8 +36,8 @@ type (
 // Store handles JSON file-based session persistence.
 //
 // Every write is atomic: a temporary file in the store directory is written, fsynced and
-// renamed over the session file, then the directory is fsynced. A session is written only
-// by the holder of its Lease; the Store's own mutating operations take the lease themselves.
+// replaced over the session file using the platform's publication operation. Unix also syncs the directory.
+// A session is written only by the holder of its Lease; the Store's own mutating operations take the lease themselves.
 type Store struct {
 	dir folder.Folder
 }
@@ -73,29 +72,11 @@ func (s *Store) write(id string, data []byte) (string, error) {
 		return "", fmt.Errorf("creating session directory: %w", err)
 	}
 
-	if err := writeAtomic(s.Path(id).Path(), data); err != nil {
+	if err := atomicfile.WriteFile(s.Path(id).Path(), data); err != nil {
 		return "", fmt.Errorf("writing session %q: %w", id, err)
 	}
 
 	return Digest(data), nil
-}
-
-// writeAtomic replaces path with data via a same-directory temporary file and fsyncs the directory.
-func writeAtomic(path string, data []byte) error {
-	dir := filepath.Dir(path)
-
-	if err := renameio.WriteFile(path, data, 0o600, renameio.WithTempDir(dir)); err != nil {
-		return err
-	}
-
-	d, err := os.Open(dir)
-	if err != nil {
-		return err
-	}
-
-	defer d.Close()
-
-	return d.Sync()
 }
 
 // Load reads a session from disk by exact ID.
@@ -553,7 +534,7 @@ func (s *Store) Export(id, path string) (ExportResult, error) {
 		return ExportResult{}, fmt.Errorf("reading export target: %w", err)
 	}
 
-	if err := writeAtomic(abs, data); err != nil {
+	if err := atomicfile.WriteFile(abs, data); err != nil {
 		return ExportResult{}, fmt.Errorf("writing export: %w", err)
 	}
 

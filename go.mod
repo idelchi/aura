@@ -41,6 +41,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/landlock-lsm/go-landlock v0.8.0
 	github.com/mark3labs/mcp-go v0.48.0
+	github.com/natefinch/atomic v1.0.1
 	github.com/ollama/ollama v0.20.7
 	github.com/openai/openai-go/v3 v3.50.0
 	github.com/pb33f/ordered-map/v2 v2.3.1

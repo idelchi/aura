@@ -58,6 +58,9 @@ Multiple background agents may be working on the codebase simultaneously. **Neve
 - No time estimates anywhere — not in docs, plans, tasks, or commit messages.
 - No `golangci-lint` or `go vet` - rely on `go build` for correctness.
 - **Only run `go build` after code changes.** Do not rebuild after modifying documentation, config, or other non-Go files.
+- **Linux and Windows are required build targets after Go changes.** Aura's CGO dependencies need a real C/C++
+  toolchain for each target. Use `task build-platforms` on Linux with MinGW available; do not disable CGO to make a
+  cross-build pass. Native Windows CI also exercises persistence. A cross-build alone is not a Windows runtime test.
 - **Three tiers of testing — all required for every task:**
   1. **Go tests:** `go build ./...` AND `go test ./...`. If any existing test fails: (a) determine if the test is now outdated due to the new functionality — if so, update the test to match the new correct behavior; (b) if the test is still valid and the failure indicates a bug in the new code — fix the code, not the test.
   2. **Automated integration suites:** `tests/run.sh` (or relevant suites) and `tests/smoke.sh`. These exercise the full pipeline — config loading, tool execution, plugins, sessions, etc.

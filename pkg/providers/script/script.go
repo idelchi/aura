@@ -19,8 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/renameio/v2"
-
+	"github.com/idelchi/aura/internal/atomicfile"
 	"github.com/idelchi/aura/pkg/llm/message"
 	"github.com/idelchi/aura/pkg/llm/model"
 	"github.com/idelchi/aura/pkg/llm/request"
@@ -172,7 +171,7 @@ func (p *Provider) next() (Step, int, error) {
 		return Step{}, cursor, fmt.Errorf("%w after %d steps", ErrExhausted, len(p.script.Steps))
 	}
 
-	if err := renameio.WriteFile(cursorPath, []byte(strconv.Itoa(cursor+1)), 0o600); err != nil {
+	if err := atomicfile.WriteFile(cursorPath, []byte(strconv.Itoa(cursor+1))); err != nil {
 		return Step{}, cursor, fmt.Errorf("writing script cursor: %w", err)
 	}
 

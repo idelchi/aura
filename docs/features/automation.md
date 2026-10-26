@@ -36,7 +36,7 @@ aura --home "" --config .aura --config /run/aura-home ...   # store: /run/aura-h
 
 | Guarantee | Meaning |
 | --- | --- |
-| Atomic writes | A session file is replaced via a same-directory temporary file, fsync, rename and directory fsync. A crash leaves the previous or the new version, never a torn file. |
+| Atomic writes | Session writes sync a same-directory temporary file before replacement. Unix uses rename and directory fsync; Windows uses `MoveFileEx` with replace-existing and write-through. Replacement failures are reported, preserving the old file. |
 | Revision | `revision` is the sha256 of the stored file bytes. |
 | Lease | A session is held by at most one process (flock on `sessions/.locks/<id>.lock`, released on exit). A second holder fails with `session_locked`. |
 | Frozen | `frozen: true` is irreversible. A frozen session can be shown, exported and forked; resuming or saving it fails with `session_frozen` on every path. |
@@ -94,7 +94,8 @@ AURA_SERVE_TOKEN=<at least 32 characters> \
 - The bearer token is read from `AURA_SERVE_TOKEN` and **removed from the environment before any tool, LSP or MCP
   child starts**; it is never written to disk.
 - Without `--resume`, a fresh session with a UUID is created and saved before readiness.
-- The ready file (written atomically, mode 0600) appears only after the configuration is loaded, the session is
+- The ready file (written atomically, mode 0600 on Unix and inheriting directory ACLs on Windows) appears only after
+  the configuration is loaded, the session is
   resumed or created and saved, every `required` MCP server is connected, the journal is opened and recovered, and
   the listener is up:
 

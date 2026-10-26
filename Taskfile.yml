@@ -27,6 +27,27 @@ silent: true
 output: prefixed
 
 tasks:
+  build-platforms:
+    desc: Check Linux and Windows amd64 builds with CGO (Linux host with MinGW)
+    vars:
+      WINDOWS_CC: '{{.WINDOWS_CC | default "x86_64-w64-mingw32-gcc"}}'
+      WINDOWS_CXX: '{{.WINDOWS_CXX | default "x86_64-w64-mingw32-g++"}}'
+    cmds:
+      - cmd: /usr/local/go/bin/go build ./...
+        env:
+          GOOS: linux
+          GOARCH: amd64
+          CGO_ENABLED: "1"
+          CC: gcc
+          CXX: g++
+      - cmd: /usr/local/go/bin/go build ./...
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: "1"
+          CC: '{{.WINDOWS_CC}}'
+          CXX: '{{.WINDOWS_CXX}}'
+
   docker:
     desc: Run commands inside the Docker container
     summary: |

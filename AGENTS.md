@@ -11,6 +11,9 @@ Use `CLAUDE.md` as the broader project reference. This file captures the rules a
 - Use `/usr/local/go/bin/go` for Go commands.
 - Do not use `golangci-lint` or `go vet` unless the user explicitly asks.
 - Use `go build ./...` and `go test ./...` for Go validation after code changes. Run focused tests first when the affected package is clear.
+- Validate Go changes on both Linux and Windows. Aura needs CGO: a Windows cross-build requires the MinGW C/C++
+  toolchain, not `CGO_ENABLED=0`. Run `task build-platforms` on Linux, plus the relevant tests; CI builds both native
+  platforms and runs the persistence tests on Windows. Cross-compilation proves a build, not Windows runtime behavior.
 - Do not treat checked-in `.aura/config/` samples as the semantic spec. Users can write any valid config.
 
 ## Aura Architecture Notes
