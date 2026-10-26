@@ -512,8 +512,12 @@ func (s *Server) Submit(req automation.RunRequest) (automation.Run, bool, *autom
 	s.mu.Unlock()
 
 	// The engine loop is idle while no run is active, so it receives promptly. The
-	// lock is released first: the engine may be emitting events that need it.
-	s.ui.input <- r.input
+	// lock is released first: the engine may be emitting events that need it. If the
+	// loop already stopped, the run stays accepted and the next server reports it lost.
+	select {
+	case s.ui.input <- r.input:
+	case <-s.asst.Done():
+	}
 
 	return accepted, false, nil
 }

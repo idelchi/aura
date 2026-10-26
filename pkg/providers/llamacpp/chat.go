@@ -2,6 +2,7 @@ package llamacpp
 
 import (
 	"context"
+	"errors"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -94,6 +95,16 @@ func (c *Client) Chat(
 		}
 
 		return message.Message{}, usage.Usage{}, adapter.MapError(err)
+	}
+
+	// A stream that ends without a finish reason was cut off (cancellation or a dropped
+	// connection): its content may be partial and an unfinished tool call is lost.
+	if len(acc.Choices) == 0 || acc.Choices[0].FinishReason == "" {
+		if err := ctx.Err(); err != nil {
+			return message.Message{}, usage.Usage{}, err
+		}
+
+		return message.Message{}, usage.Usage{}, providers.WrapNetworkError(errors.New("llama.cpp response stream ended before completion"))
 	}
 
 	if streamFunc != nil {

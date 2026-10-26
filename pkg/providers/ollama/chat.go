@@ -2,6 +2,7 @@ package ollama
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/idelchi/aura/pkg/llm/stream"
 	"github.com/idelchi/aura/pkg/llm/tool"
 	"github.com/idelchi/aura/pkg/llm/usage"
+	"github.com/idelchi/aura/pkg/providers"
 )
 
 // Chat sends a chat completion request with streaming support.
@@ -73,6 +75,17 @@ func (c *Client) Chat(
 		}
 
 		return message.Message{}, usage.Usage{}, handleError(err)
+	}
+
+	// The Ollama client ends its stream loop without checking the read error, so a
+	// cancelled or dropped stream returns nil with a truncated response. Only a final
+	// done chunk proves the response is complete.
+	if !response.Done {
+		if err := ctx.Err(); err != nil {
+			return message.Message{}, usage.Usage{}, err
+		}
+
+		return message.Message{}, usage.Usage{}, providers.WrapNetworkError(errors.New("ollama response stream ended before completion"))
 	}
 
 	// Send final done signal after streaming completes.

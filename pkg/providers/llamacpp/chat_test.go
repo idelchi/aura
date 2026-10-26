@@ -2,6 +2,7 @@ package llamacpp
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,7 @@ import (
 	"github.com/idelchi/aura/pkg/llm/roles"
 	"github.com/idelchi/aura/pkg/llm/thinking"
 	"github.com/idelchi/aura/pkg/llm/tool/call"
+	"github.com/idelchi/aura/pkg/providers"
 )
 
 func TestChatResponseFormats(t *testing.T) {
@@ -273,5 +275,39 @@ func TestToolResultKeepsIDSeparateFromContent(t *testing.T) {
 	}
 	if len(body.Messages) != 1 || body.Messages[0].Role != "tool" || body.Messages[0].Content != "the real result" || body.Messages[0].ToolCallID != "call-123" {
 		t.Fatalf("tool result corrupted: %s", data)
+	}
+}
+
+// TestChatRequiresAFinishReason distinguishes a complete stream from one that ends early:
+// a cut-off stream must not pass as a completed response (or silently drop a tool call).
+func TestChatRequiresAFinishReason(t *testing.T) {
+	stream := func(chunks ...string) *Client {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "text/event-stream")
+			for _, chunk := range chunks {
+				_, _ = fmt.Fprint(w, "data: "+chunk+"\n\n")
+			}
+		}))
+		t.Cleanup(server.Close)
+
+		return New(server.URL, "", time.Minute)
+	}
+
+	req := request.Request{Model: model.Model{Name: "m"}, Messages: message.Messages{{Role: roles.User, Content: "hi"}}}
+
+	complete := stream(
+		`{"id":"c","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"content":"ans"}}]}`,
+		`{"id":"c","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"content":"wer"},"finish_reason":"stop"}]}`,
+		`[DONE]`,
+	)
+	if msg, _, err := complete.Chat(t.Context(), req, nil); err != nil || msg.Content != "answer" {
+		t.Fatalf("complete stream = %q, %v", msg.Content, err)
+	}
+
+	truncated := stream(
+		`{"id":"c","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"t1","type":"function","function":{"name":"Edit","arguments":"{\"path\":"}}]}}]}`,
+	)
+	if msg, _, err := truncated.Chat(t.Context(), req, nil); !errors.Is(err, providers.ErrNetwork) {
+		t.Fatalf("truncated stream = %+v, %v; want a network error", msg, err)
 	}
 }

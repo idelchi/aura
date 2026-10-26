@@ -406,6 +406,12 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []ui.UserInput) er
 		a.loop.streamStarted = false // reset per chat attempt
 
 		response, err := a.chat(ctx)
+		if err == nil && ctx.Err() != nil {
+			// A provider that returns normally after cancellation may hold a truncated
+			// response; the turn was cancelled either way.
+			err = ctx.Err()
+		}
+
 		if err != nil {
 			outcome, fatalErr := a.handleChatError(ctx, err, state, &parseRetries, &errorRetries)
 			switch outcome {
