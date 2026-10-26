@@ -182,13 +182,13 @@ func (h *Headless) processEvent(event ui.Event) {
 	case ui.AssistantDone:
 		h.handleAssistantDone(e)
 	case ui.ToolConfirmRequired:
-		e.Response <- ui.ConfirmAllow
+		// Nobody can approve in a headless run: deny, visibly. Use --auto or an
+		// auto policy pattern to let such calls run without approval.
+		ui.ErrorStyle.Printf("Denied %s (confirmation required; non-interactive run)\n", e.ToolName)
+		e.Response <- ui.ConfirmDeny
 	case ui.AskRequired:
-		if len(e.Options) > 0 {
-			e.Response <- e.Options[0].Label
-		} else {
-			e.Response <- "proceed"
-		}
+		ui.ErrorStyle.Printf("Dismissed question (non-interactive run): %s\n", e.Question)
+		e.Response <- ""
 	case ui.Flush:
 		close(e.Done)
 	}

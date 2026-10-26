@@ -90,6 +90,8 @@ Patterns support three forms:
 
 Persistent approval rules (saved when a user approves a `confirm` prompt) merge into the `auto` tier. The effective policy is injected into the system prompt so the LLM knows which tools require confirmation.
 
+A `confirm` prompt is only ever approved by a user. Where nobody can answer — `aura run` and tasks — the call is denied with a visible notice (use `--auto` or an `auto` pattern to run such calls). Shutting down or cancelling while a prompt is pending denies it too, in every UI. `aura serve` reports the prompt to its client (`on_input`).
+
 ## Switching Modes
 
 - **Keybinding**: `Tab` cycles through modes

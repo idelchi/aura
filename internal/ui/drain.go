@@ -3,7 +3,8 @@ package ui
 // DrainEvents processes remaining events after context cancellation.
 // It unblocks any pending response channels (Flush.Done, ToolConfirmRequired.Response,
 // AskRequired.Response) to prevent goroutine deadlocks, then returns when the
-// channel is empty.
+// channel is empty. Nobody is left to answer, so a confirmation is denied and a
+// question is dismissed — cancellation never manufactures permission or an answer.
 func DrainEvents(events <-chan Event) {
 	for {
 		select {
@@ -12,13 +13,9 @@ func DrainEvents(events <-chan Event) {
 			case Flush:
 				close(e.Done)
 			case ToolConfirmRequired:
-				e.Response <- ConfirmAllow
+				e.Response <- ConfirmDeny
 			case AskRequired:
-				if len(e.Options) > 0 {
-					e.Response <- e.Options[0].Label
-				} else {
-					e.Response <- "proceed"
-				}
+				e.Response <- ""
 			}
 		default:
 			return
