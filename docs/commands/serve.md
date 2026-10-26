@@ -17,6 +17,7 @@ AURA_SERVE_TOKEN=<at least 32 characters> aura [root flags] [--resume <id>] serv
 | -------------- | ------------- | ----------------------------------------------------- |
 | `--bind`       | `127.0.0.1:0` | Address to listen on (port 0 picks a free port)       |
 | `--ready-file` | (required)    | File receiving the server address or startup error    |
+| `--launcher-fd`| none          | Inherited read end of a lease pipe: EOF before one release byte stops the server |
 
 Without `--resume`, a fresh session is created and saved before the server announces it. Root flags (`--config`,
 `--agent`, `--model`, …) apply as for any session; they must precede `serve`.

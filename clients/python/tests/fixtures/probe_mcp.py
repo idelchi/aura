@@ -40,5 +40,19 @@ def hang() -> str:
     return "woke"
 
 
+@server.tool()
+def fds() -> list[str]:
+    """Describe this server's open file descriptors."""
+    import os
+
+    targets = []
+    for name in os.listdir("/proc/self/fd"):
+        try:
+            targets.append(os.readlink(f"/proc/self/fd/{name}"))
+        except OSError:
+            pass
+    return targets
+
+
 if __name__ == "__main__":
     server.run()

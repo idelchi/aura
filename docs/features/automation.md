@@ -104,14 +104,21 @@ AURA_SERVE_TOKEN=<at least 32 characters> \
 
   On failure the process exits 1 after writing `{"api":1,"error":{"code","message","retryable","details"}}`.
   Startup codes: `unauthorized` (token), `session_frozen`, `session_locked`, `not_found`, `invalid_id`,
-  `resume_failed`, `mcp_unavailable`, `config_invalid`, `startup_failed`, and the provider codes below (with
+  `resume_failed`, `mcp_unavailable`, `config_invalid`, `launcher_lost`, `startup_failed`, and the provider codes below (with
   `details`) when a startup step that contacts the provider fails — for example restoring a model when `--model`
   changes the stored selection. A transient outage therefore stays `retryable` and distinct from configuration or
   credential faults. Serve does not otherwise contact the provider before the first run.
+- `--launcher-fd N` ties startup to the launcher: N is an inherited read end of a pipe whose write end the launcher
+  keeps (it is made close-on-exec at once, so no tool or MCP child inherits it). One byte written to the pipe releases
+  the server, which then outlives the launcher. End-of-file before that — the launcher died — stops the server:
+  during startup the ready file reports `launcher_lost`; after readiness the server shuts down gracefully
+  (`server.stopping{reason: "launcher_lost"}`). A controller holds the lease until it has durably recorded the
+  server (pid, ready file), then releases it, so a server can never become an unrecorded orphan.
 - Shutdown on SIGINT, SIGTERM or `POST /v1/shutdown`: new runs are refused (`shutting_down`), the active run is
   cancelled with reason `shutdown` and up to 60 s are given for it to settle, then the server exits 0 (1 if the final
   save failed). A run that does not settle is reported `lost` by the next server on that session. Pending approvals
-  are denied and questions dismissed — automation never approves on its own.
+  are denied and questions dismissed — automation never approves on its own. Signal the `aura` process itself, not
+  its process group: unconfined stdio MCP servers share the group and would stop before the run settles.
 
 ## HTTP API
 
@@ -284,7 +291,9 @@ handle.stop()
 
 `Client.wait` long-polls the journal, calls `on_event` for every durable event in order, honours `stop` within its
 poll interval (raising `StopRequested` without cancelling) and returns the terminal run. `Server.attach` reconnects to
-a running server after a controller restart. The client's end-to-end tests drive the real binary with the
+a running server after a controller restart. `Server.launch` always passes a launcher lease; with `hold=True` the
+caller records the server and then calls `handle.release()`, otherwise the lease is released before `launch`
+returns. The client's end-to-end tests drive the real binary with the
 [script provider]({{ site.baseurl }}/configuration/providers#script).
 
 ## `aura web` JSON endpoints

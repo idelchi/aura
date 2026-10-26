@@ -30,6 +30,7 @@ const (
 	CodeMCPUnavailable Code = "mcp_unavailable"
 	CodeConfigInvalid  Code = "config_invalid"
 	CodeStartupFailed  Code = "startup_failed"
+	CodeLauncherLost   Code = "launcher_lost"
 )
 
 // Run failures.

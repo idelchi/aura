@@ -20,6 +20,9 @@ import (
 // tokenEnv carries the API token. It is removed from the environment before any child starts.
 const tokenEnv = "AURA_SERVE_TOKEN"
 
+// ErrLauncherLost means the launcher holding the server's lease exited before releasing it.
+var ErrLauncherLost = errors.New("the launcher exited before releasing the server")
+
 // Command creates the 'aura serve' command.
 func Command(_ *core.Flags) *cli.Command {
 	return &cli.Command{
@@ -42,6 +45,11 @@ func Command(_ *core.Flags) *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "bind", Usage: "Address to listen on", Value: "127.0.0.1:0"},
 			&cli.StringFlag{Name: "ready-file", Usage: "File receiving the server address or startup error", Required: true},
+			&cli.IntFlag{
+				Name:  "launcher-fd",
+				Usage: "Inherited read end of a lease pipe: EOF before one release byte stops the server",
+				Value: -1,
+			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			flags := core.GetFlags()
@@ -62,11 +70,27 @@ func Command(_ *core.Flags) *cli.Command {
 				return report(readyFile, automation.NewError(automation.CodeBadRequest, "%v", err), err)
 			}
 
+			// Without a lease the server is released from the start.
+			ctx, lose := context.WithCancelCause(ctx)
+			defer lose(nil)
+
+			if fd := cmd.Int("launcher-fd"); fd >= 0 {
+				if err := watchLease(int(fd), lose); err != nil {
+					return report(readyFile, automation.NewError(automation.CodeBadRequest, "%v", err), err)
+				}
+			}
+
+			launcherLost := func() bool { return errors.Is(context.Cause(ctx), ErrLauncherLost) }
+
 			api := serve.NewUI()
 
 			var server *serve.Server
 
 			work := func(ctx context.Context, cancel context.CancelCauseFunc, asst *assistant.Assistant, u ui.UI) error {
+				if launcherLost() {
+					return ErrLauncherLost
+				}
+
 				var err error
 
 				server, err = serve.Start(serve.Options{
@@ -90,7 +114,12 @@ func Command(_ *core.Flags) *cli.Command {
 				go func() {
 					select {
 					case <-ctx.Done():
-						server.Shutdown("signal")
+						reason := "signal"
+						if launcherLost() {
+							reason = string(automation.CodeLauncherLost)
+						}
+
+						server.Shutdown(reason)
 					case reason := <-server.ShutdownRequested():
 						server.Shutdown(reason)
 					}
@@ -105,6 +134,10 @@ func Command(_ *core.Flags) *cli.Command {
 
 			err := core.RunSession(ctx, flags, core.Selection{}, func(core.Flags) (ui.UI, error) { return api, nil }, work)
 			if err != nil && server == nil {
+				if launcherLost() {
+					return report(readyFile, automation.NewError(automation.CodeLauncherLost, "%v", ErrLauncherLost), err)
+				}
+
 				return report(readyFile, startupError(err), err)
 			}
 

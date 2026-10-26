@@ -209,8 +209,8 @@ def test_launch_reaps_a_server_with_an_invalid_ready_file(workspace: Workspace, 
     fake = tmp_path / "fake-aura"
     fake.write_text(
         "#!/bin/sh\n"
-        'for a in "$@"; do last="$prev"; prev="$a"; done\n'
-        'printf \'{"api":1,"url":"http://127.0.0.1:1","pid":1,"session_id":"x","bogus":true}\' > "$prev"\n'
+        'while [ $# -gt 0 ]; do [ "$1" = --ready-file ] && ready="$2"; shift; done\n'
+        'printf \'{"api":1,"url":"http://127.0.0.1:1","pid":1,"session_id":"x","bogus":true}\' > "$ready"\n'
         "echo $$ > " + str(tmp_path / "fake.pid") + "\n"
         "exec sleep 300\n"
     )

@@ -31,11 +31,11 @@ def landlock_available() -> bool:
 pytestmark = pytest.mark.skipif(not landlock_available(), reason="Landlock is not available")
 
 
-def sandbox_for(root: Path, *extra_rw: str) -> dict:
+def sandbox_for(root: Path, *extra_rw: str, extra_ro: tuple[str, ...] = ()) -> dict:
     """Read the system, the test tree (config, store, fixtures) and the binary; write only the workspace."""
     binary = os.environ.get("AURA_BIN", "/tmp/aura-build/aura")
     ro = ["/usr", "/bin", "/lib", "/lib64", "/etc", str(root), str(Path(binary).parent), str(FIXTURES),
-          str(Path.home() / ".local/share/uv")]
+          str(Path.home() / ".local/share/uv"), *extra_ro]
     return {"enabled": True, "restrictions": {"ro": ro, "rw": [".", "/dev/null", *extra_rw]}}
 
 
@@ -68,9 +68,11 @@ def test_sandboxed_bash_with_external_write_home(tmp_path: Path) -> None:
         handle.stop()
 
 
-def mcp_workspace(tmp_path: Path, *, required: bool = True, sandbox: bool = True, command: str | None = None) -> Workspace:
+def mcp_workspace(
+    tmp_path: Path, *, required: bool = True, sandbox: bool = True, command: str | None = None, extra_ro: tuple[str, ...] = ()
+) -> Workspace:
     agent = AGENT.replace("enabled: [Bash, Read, Write, Ask]", "enabled: [Bash, Read, Write, 'mcp__probe__*']")
-    ws = make_workspace(tmp_path, agent=agent, sandbox=sandbox_for(tmp_path, str(UV_CACHE)))
+    ws = make_workspace(tmp_path, agent=agent, sandbox=sandbox_for(tmp_path, str(UV_CACHE), extra_ro=extra_ro))
     # Trusted server code lives outside the writable workspace.
     trusted = tmp_path / "trusted"
     trusted.mkdir()
@@ -98,13 +100,13 @@ def uv_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AURA_TEST_UV_CACHE", str(UV_CACHE))
 
 
-def launch_with_cache(ws: Workspace):
+def launch_with_cache(ws: Workspace, *, hold: bool = False):
     ws_env = ws.aura.env
     aura = ws.aura
     object.__setattr__(aura, "env", {**ws_env, "AURA_TEST_UV_CACHE": str(UV_CACHE)})
     from aura_automation import Server
 
-    handle = Server.launch(aura, ready_file=ws.root / "ready.json", token="t" * 64, log=ws.root / "serve.log")
+    handle = Server.launch(aura, ready_file=ws.root / "ready.json", token="t" * 64, log=ws.root / "serve.log", hold=hold)
     ws.servers.append(handle)
     return handle
 
@@ -127,7 +129,7 @@ def test_sandboxed_mcp_server_is_confined_and_reports_errors(tmp_path: Path, uv_
     with handle.client() as client:
         info = client.server()
         probe = next(m for m in info.mcp if m.name == "probe")
-        assert probe.status == "connected" and probe.required and probe.sandboxed and probe.tools == 4
+        assert probe.status == "connected" and probe.required and probe.sandboxed and probe.tools == 5
 
         run = client.submit("mcp", prompt="use the probe")
         seen = []
@@ -194,3 +196,42 @@ def test_http_mcp_cannot_be_sandboxed(tmp_path: Path) -> None:
     with pytest.raises(AuraError) as failure:
         ws.launch()
     assert failure.value.code == "config_invalid" and "cannot be confined" in failure.value.message
+
+
+@pytest.mark.skipif(UV is None, reason="uv is required for the MCP probe")
+def test_children_never_inherit_the_launcher_lease(tmp_path: Path, uv_cache: None) -> None:
+    ws = mcp_workspace(tmp_path, extra_ro=("/proc",))
+    ws.write_script(
+        {"calls": [
+            {"id": "mcp", "name": "mcp__probe__fds", "args": {}},
+            {"id": "bash", "name": "Bash", "args": {"command": "for f in /proc/self/fd/*; do readlink $f; done"}},
+        ]},
+        {"content": "listed"},
+    )
+    handle = launch_with_cache(ws, hold=True)
+    lease = f"pipe:[{os.fstat(handle._lease).st_ino}]"
+
+    def server_fds() -> list[str]:
+        out = []
+        for entry in Path(f"/proc/{handle.pid}/fd").iterdir():
+            try:
+                out.append(os.readlink(entry))
+            except OSError:
+                pass
+        return out
+
+    assert lease in server_fds(), "the server should hold the lease until released"
+    with handle.client() as client:
+        seen = []
+        client.wait(client.submit("fds", prompt="list descriptors").id, on_event=seen.append)
+    finished = {e.data["call_id"]: e.data for e in seen if e.type == "tool.finished"}
+    results = {call: data["result"] for call, data in finished.items()}
+    assert results["mcp"] and lease not in results["mcp"], f"the MCP server inherited the lease: {finished['mcp']}"
+    assert results["bash"] and lease not in results["bash"], "a tool inherited the lease"
+
+    handle.release()
+    deadline = time.monotonic() + 5
+    while lease in server_fds() and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert lease not in server_fds(), "the server kept the lease after release"
+    assert handle.stop() == 0

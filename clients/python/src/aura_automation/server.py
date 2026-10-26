@@ -16,9 +16,16 @@ from .models import API_VERSION, Ready
 
 
 class ServerHandle:
-    """A running server: its address, process and session."""
+    """A running server: its address, process and session.
 
-    def __init__(self, ready: Ready, token: str, process: subprocess.Popen[bytes] | None) -> None:
+    A handle from ``Server.launch(hold=True)`` holds the server's launcher lease until
+    ``release()``: if this process dies first, the kernel closes the lease and the server
+    stops on its own, so it can never become an unrecorded orphan.
+    """
+
+    def __init__(
+        self, ready: Ready, token: str, process: subprocess.Popen[bytes] | None, lease: int | None = None
+    ) -> None:
         assert ready.url and ready.pid and ready.session_id
         self.ready = ready
         self.url = ready.url
@@ -26,6 +33,27 @@ class ServerHandle:
         self.session_id = ready.session_id
         self.process = process
         self._token = token
+        self._lease = lease
+
+    @property
+    def held(self) -> bool:
+        """Whether the server still stops when this process dies (lease not released)."""
+        return self._lease is not None
+
+    def release(self) -> None:
+        """Release the launcher lease: from now on the server outlives this process. Idempotent."""
+        if self._lease is not None:
+            try:
+                os.write(self._lease, b"\x01")
+            finally:
+                os.close(self._lease)
+                self._lease = None
+
+    def _drop_lease(self) -> None:
+        """Close a held lease without releasing it (the server sees end-of-file and stops)."""
+        if self._lease is not None:
+            os.close(self._lease)
+            self._lease = None
 
     def client(self, *, timeout: float = 30.0) -> Client:
         return Client(self.url, self._token, timeout=timeout)
@@ -51,11 +79,13 @@ class ServerHandle:
                 if not self._wait_exit(10):
                     _signal_group(self.pid, signal.SIGKILL)
                     self._wait_exit(10)
+        self._drop_lease()
         return self.process.wait() if self.process is not None else None
 
     def kill(self) -> None:
         """Kill the server's process group immediately (tests and emergency recovery)."""
         _signal_group(self.pid, signal.SIGKILL)
+        self._drop_lease()
         self._wait_exit(10)
 
     def _wait_exit(self, timeout: float) -> bool:
@@ -80,41 +110,61 @@ class Server:
         bind: str = "127.0.0.1:0",
         log: Path | None = None,
         stop: Callable[[], bool] | None = None,
+        hold: bool = False,
     ) -> ServerHandle:
         """Start a server in its own process group and wait for its ready file.
 
+        The server is tied to this process by a launcher lease (an inherited pipe): until
+        it is released, the server stops by itself if this process dies. With
+        ``hold=False`` the lease is released before returning; with ``hold=True`` the
+        caller records the server durably and then calls ``handle.release()``.
+
         There is no startup timeout (MCP servers may take long to prepare); ``stop`` aborts
-        the wait, killing the process. A startup failure raises AuraError with the ready
-        file's code, or ``startup_failed`` with the log tail.
+        the wait. Any failure kills and reaps the process. A startup failure raises
+        AuraError with the ready file's code, or ``startup_failed`` with the log tail.
         """
         if len(token) < 32:
             raise ValueError("token must hold at least 32 characters")
         ready_file.unlink(missing_ok=True)
+        read_end, write_end = os.pipe()
         args = ["--resume", resume] if resume else []
-        argv = aura.command(*args, "serve", "--bind", bind, "--ready-file", str(ready_file))
+        argv = aura.command(
+            *args, "serve", "--bind", bind, "--ready-file", str(ready_file), "--launcher-fd", str(read_end)
+        )
         env = {**aura.env, "AURA_SERVE_TOKEN": token}
-        output = log.open("ab") if log else subprocess.DEVNULL
         try:
-            process = subprocess.Popen(
-                argv,
-                cwd=aura.cwd,
-                env=env,
-                stdin=subprocess.DEVNULL,
-                stdout=output,
-                stderr=subprocess.STDOUT,
-                start_new_session=True,
-            )
+            output = log.open("ab") if log else subprocess.DEVNULL
+            try:
+                process = subprocess.Popen(
+                    argv,
+                    cwd=aura.cwd,
+                    env=env,
+                    stdin=subprocess.DEVNULL,
+                    stdout=output,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True,
+                    pass_fds=(read_end,),
+                )
+            finally:
+                if log:
+                    output.close()
+        except BaseException:
+            os.close(write_end)
+            raise
         finally:
-            if log:
-                output.close()
+            os.close(read_end)
         try:
-            return _await_ready(process, ready_file, token, log, stop)
+            handle = _await_ready(process, ready_file, token, log, stop, write_end)
         except BaseException:
             # Never leave a half-started server behind, whatever went wrong.
+            os.close(write_end)
             if process.poll() is None:
                 _signal_group(process.pid, signal.SIGKILL)
             process.wait()
             raise
+        if not hold:
+            handle.release()
+        return handle
 
     @staticmethod
     def attach(ready_file: Path, token: str) -> ServerHandle:
@@ -133,6 +183,7 @@ def _await_ready(
     token: str,
     log: Path | None,
     stop: Callable[[], bool] | None,
+    lease: int,
 ) -> ServerHandle:
     """Wait for the ready file of a launched server and verify it."""
     while True:
@@ -143,6 +194,7 @@ def _await_ready(
                 raise AuraError.from_info(ready.error)
             handle = ServerHandle(ready, token, process)
             _verify(handle)
+            handle._lease = lease
             return handle
         if process.poll() is not None:
             raise AuraError("startup_failed", _tail(log) or f"aura serve exited with status {process.returncode}")
