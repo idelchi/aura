@@ -28,6 +28,8 @@ Aura's CLI is built with [urfave/cli v3](https://github.com/urfave/cli). The roo
 | `aura login`      | Authenticate with an OAuth provider (device code flow)                                                        |
 | `aura cache`      | Manage the cache (clean)                                                                                      |
 | `aura web`        | Start browser-based UI                                                                                        |
+| `aura serve`      | Serve the automation API (`/v1`) for one session                                                              |
+| `aura session`    | List, show, import, export, fork and freeze stored sessions                                                   |
 | `aura init`       | Scaffold default configuration                                                                                |
 
 ## Global Flags

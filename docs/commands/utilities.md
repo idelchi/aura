@@ -53,6 +53,8 @@ aura web --bind 127.0.0.1:8080
 
 Binds to `127.0.0.1` by default — place behind a reverse proxy for remote access. Session state survives reloads; `--continue` and `--resume` global flags work here too.
 
+Besides the browser UI, `aura web` offers `/send`, `/command`, `/cancel`, `/ask`, `/confirm` and an `/events/json` SSE stream. These are a UI event interface for interactive use and quick testing: events are not sequenced or replayable, a slow reader loses events, and input sent during a turn is merged into the next one. For automation use [`aura serve`]({{ site.baseurl }}/commands/serve).
+
 ---
 
 ## aura login

@@ -29,11 +29,16 @@ Agent, mode, task, and CLI overrides use the same [feature setting]({{ site.base
 
 ## Storage
 
-Sessions are stored at `.aura/sessions/{id}.json`. The ID is either a UUID (auto-generated) or a user-chosen name set via `/name`. Each session contains:
+Sessions are stored at `<write home>/sessions/{id}.json`, where the write home is the last `--config` directory (by default the project's `.aura`). The ID is either a UUID (auto-generated) or a user-chosen name set via `/name` (letters, digits, `.`, `_`, `-`). Each session contains:
 
-- Conversation history (all messages except ephemeral error feedback)
+- Conversation history (all messages except ephemeral error feedback, which is dropped together with the tool calls it answered, so a saved history only holds complete call/result pairs)
 - Metadata: title, agent, mode, model, provider, thinking level, thinking display state, loaded tools (deferred tools activated via LoadTools), sandbox state, read-before policy, session approvals, stats, cumulative token usage
 - Todo list
+- `frozen` (immutable sessions) and `parent` (`{id, revision}` of the stored parent a fork was copied from)
+
+Writes are atomic: the file is replaced via a temporary file, fsync and rename, so a crash leaves either the previous or the new version. A session's `revision` is the sha256 of its stored bytes.
+
+A session is held by one process at a time (a lock under `sessions/.locks/`, released when the process exits). Opening a session another process holds fails with "session is in use by another process".
 
 ## Commands
 
@@ -41,19 +46,31 @@ Sessions are stored at `.aura/sessions/{id}.json`. The ID is either a UUID (auto
 | --------------- | ------------------------------------------------------------------- |
 | `/save [title]` | Save current session. Preserves existing title on re-save.          |
 | `/name [name]`  | Set or show the session name (custom ID). No args shows current ID. |
-| `/resume [id]`  | List sessions or resume by ID prefix match.                         |
+| `/resume [id]`  | List sessions or resume by ID (an exact ID wins over prefix matches). |
 | `/load`         | Alias for `/resume`.                                                |
 | `/fork [title]` | Fork into new session. Auto-titles as "Fork of {original}".         |
+| `/clear`, `/new` | Start a new conversation. The current session stays as last saved; the next save creates a new session. |
 
 ## Auto-Save
 
-Sessions are automatically saved when Aura exits, but only if at least one user message was accepted into the conversation or a session was resumed. This applies to the interactive UI, `aura web`, `aura run` and tasks alike, without `/save`. A run that fails after accepting input still saves the history it reached, so it can be continued with `--continue` or `--resume`.
+Once at least one user message was accepted into the conversation (or a session was resumed), the session is saved automatically:
 
-Starting Aura and immediately quitting does not create an empty session file. Neither do blank input, input rejected before it enters the conversation, or slash commands that send nothing to the model.
+- after every model iteration's tool results (a checkpoint: a crash or kill loses at most the iteration in progress),
+- after every turn, whatever its outcome (completed, failed, cancelled),
+- after slash commands, and
+- when Aura exits.
+
+Content that already matches the stored revision is not rewritten. This applies to the interactive UI, `aura web`, `aura run`, tasks and `aura serve` alike, without `/save`. A run that fails after accepting input still has the history it reached, so it can be continued with `--continue` or `--resume`.
+
+Starting Aura and immediately quitting does not create an empty session file. Neither do blank input, input rejected before it enters the conversation, or slash commands that send nothing to the model. (`aura serve` saves a fresh session immediately, so its ID is durable before it is announced.)
 
 ## Resume
 
-Resuming restores agent, mode, model/provider, thinking level, messages, todos, loaded tools, sandbox state, read-before policy, session approvals, and stats. The TUI replays the conversation filtered for display (user messages, assistant responses, tool calls, DisplayOnly notices, Bookmark dividers); system messages and raw tool results are excluded.
+Resuming restores agent, mode, model/provider, thinking level, messages, todos, loaded tools, sandbox state, read-before policy, session approvals, and stats. Every part must restore: if the stored agent, mode, model, read-before policy or sandbox cannot be applied (for example a removed agent, or a sandboxed session on a kernel without Landlock), resuming fails instead of continuing with different settings. A failed `/resume` leaves a fresh, unsaved conversation, so the stored session is never overwritten by a half-restored one.
+
+Resuming another session inside a running Aura first resets everything session-scoped — conversation, file reads (read-before), loaded deferred tools, todos, approvals, statistics and tool budgets — so nothing carries over from the previous session.
+
+Frozen sessions cannot be resumed; fork them first (see below). The TUI replays the conversation filtered for display (user messages, assistant responses, tool calls, DisplayOnly notices, Bookmark dividers); system messages and raw tool results are excluded.
 
 Use `/resume` without arguments to open the interactive session picker (TUI) or list sessions (Simple/Headless).
 
@@ -109,4 +126,26 @@ Title uses the same `ResolveAgent()` framework as Compaction and Thinking. If ne
 
 ## Forking
 
-`/fork` copies the current session into a new one (fresh UUID, title "Fork of {original}"). Both sessions are independent after forking. Use `/name` afterward to rename the fork.
+`/fork` copies the current session into a new one (fresh UUID, title "Fork of {original}") and continues in the copy. Both sessions are independent after forking. Use `/name` afterward to rename the fork.
+
+## Store Operations
+
+`aura session` operates on stored sessions without starting a model:
+
+```sh
+aura session list
+aura session show <id>
+aura session import <file> [--id <id>] [--freeze]   # bring a native session file into the store
+aura session export <id> --output <file>
+aura session fork <parent> --id <child> [--title <t>] [--expect-revision <sha256>]
+aura session freeze <id> [--expect-revision <sha256>]
+```
+
+- **Freeze** makes a session permanently immutable. It can still be shown, exported and forked — the way to keep a
+  reviewed conversation (a teaching baseline) unchanged while reusing it.
+- **Fork** stores an independent copy and records the parent's exact revision. The parent file is only read, never
+  written, so frozen and live parents alike stay byte-for-byte unchanged.
+- Import, export, fork and freeze are idempotent; repeating one with the same inputs reports that nothing changed.
+
+Add `--json` for machine-readable output; the [automation contract]({{ site.baseurl }}/features/automation#session-store)
+specifies every field and error code.

@@ -33,12 +33,45 @@ disabled-server:
 
 ## Transport Types
 
-| Type    | Fields                              | Description                 |
-| ------- | ----------------------------------- | --------------------------- |
-| `http`  | `url`, `headers`, `timeout`         | HTTP-based MCP server       |
-| `stdio` | `command`, `args`, `env`, `timeout` | Subprocess via stdin/stdout |
+| Type    | Fields                                         | Description                 |
+| ------- | ---------------------------------------------- | --------------------------- |
+| `http`  | `url`, `headers`, `timeout`                    | HTTP-based MCP server       |
+| `stdio` | `command`, `args`, `env`, `timeout`, `sandbox` | Subprocess via stdin/stdout |
 
-Header values support `${VAR_NAME}` env var expansion.
+`timeout` bounds connecting (start, initialize, tool listing; default 10s). Tool calls have no deadline: they end
+when they finish or the run is cancelled.
+
+`command`, `args`, `env`, `url` and `headers` expand `$VAR` and `${VAR}` from the environment. A reference to an
+unset variable is an error (a variable that is set but empty is allowed), so a missing token or path never silently
+becomes an empty string.
+
+## Required Servers
+
+```yaml
+crossroads:
+  command: uv
+  args: [run, --script, /opt/trusted/authoring_mcp.py, --workspace, .]
+  required: true
+```
+
+A `required` server that fails to start, initialize or list its tools fails startup on every path (interactive, `aura
+run`, tasks, `aura serve`) instead of continuing without its tools. Other servers that fail are reported and
+skipped. A required server that fails to reconnect on `/reload` or an agent switch is an error.
+
+## Sandboxed Stdio Servers
+
+`sandbox: true` launches a stdio server under the session's Landlock restrictions — see
+[Sandboxing]({{ site.baseurl }}/features/sandboxing#mcp-servers). It is rejected for `http` servers, which cannot be
+confined locally.
+
+## Results, Errors and Cancellation
+
+- Text content of a result is returned to the model. A result with `isError: true` is a tool error: the call is
+  recorded as failed, with the content as the error message.
+- When a run is cancelled while a tool call is in flight, Aura sends `notifications/cancelled` for that request so
+  the server can stop its work; the call is recorded as failed and the session stays usable.
+- Each server's stderr is drained continuously (and logged with `--debug`), so a server that logs heavily never
+  blocks on a full pipe. The last lines are included in connection errors.
 
 ## Deferred Tool Loading
 

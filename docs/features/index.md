@@ -13,6 +13,7 @@ has_children: true
 | [Slash Commands]({{ site.baseurl }}/features/slash-commands)                     | Built-in commands + user-defined custom commands                                |
 | [Skills]({{ site.baseurl }}/features/tools#skills)                               | Model- and user-invocable capabilities with progressive disclosure               |
 | [Sessions]({{ site.baseurl }}/features/sessions)                                 | Save, resume, and fork conversations                                            |
+| [Automation]({{ site.baseurl }}/features/automation)                             | `aura serve` /v1 API, durable event journal and offline session store commands  |
 | [Git Snapshots]({{ site.baseurl }}/features/sessions#git-snapshots-and-rewind)    | Optional working-tree snapshots for code and message rewind                     |
 | [Embeddings]({{ site.baseurl }}/features/embeddings)                             | Embedding-based codebase search with AST-aware chunking                         |
 | [Compaction]({{ site.baseurl }}/features/compaction)                             | Automatic context compression via dedicated agent                               |

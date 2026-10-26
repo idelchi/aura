@@ -108,6 +108,14 @@ suite_footer "XX-name"
 
 ## Interactive Verification
 
+For the automation contract (`aura serve`, `aura session`), the Python client in `clients/python` has an end-to-end
+suite that drives the real binary with the deterministic [script provider]({{ site.baseurl }}/configuration/providers#script):
+
+```sh
+go build -o /tmp/aura-build/aura .
+cd clients/python && AURA_BIN=/tmp/aura-build/aura uv run pytest
+```
+
 For conversational features, mode switching, and multi-turn behavior, use the web API:
 
 ```bash

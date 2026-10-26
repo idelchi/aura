@@ -110,6 +110,34 @@ Both states are available in prompt templates as {% raw %}`{{ .Sandbox.Requested
 | `Ctrl+S`                  | Toggle sandbox on/off                                 |
 | Status bar                | Shows lock emoji (enabled) or unlock emoji (disabled) |
 
+## MCP Servers
+
+MCP tools run inside their server process, so the tool sandbox does not apply to them. A stdio server configured with
+`sandbox: true` is confined itself:
+
+```yaml
+crossroads:
+  command: uv
+  args: [run, --script, /opt/trusted/authoring_mcp.py, --workspace, .]
+  sandbox: true
+  required: true
+```
+
+Aura starts the server through a private entrypoint of its own binary, which applies the same Landlock
+implementation with the session's effective restrictions (`ro` and `rw` above, resolved against the working
+directory) and then executes the server. The confinement applies whether or not tool sandboxing is currently
+enabled, and is inherited by everything the server starts. Writes outside the `rw` paths — including through
+symlinks — fail with permission denied.
+
+- The server never starts unconfined: if Landlock is unavailable or cannot be applied, the connection fails (and a
+  `required` server fails startup).
+- Keep the server's code outside its writable paths (for example in a separate trusted checkout), so the model cannot
+  change code that runs with the server's privileges.
+- Temporary and cache paths the server needs (e.g. `TMPDIR`, `UV_CACHE_DIR`) must lie in `rw` paths.
+- The server runs in its own process group. Closing the session kills the group, and the server is killed if Aura
+  dies.
+- `http` servers cannot be confined locally; `sandbox: true` on them is a configuration error.
+
 ## CLI Sandboxing
 
 The `aura tools` command supports sandboxed tool execution:

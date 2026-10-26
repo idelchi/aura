@@ -22,6 +22,7 @@ Providers are YAML files in `.aura/config/providers/`. Each file configures a co
 | `google`     | Native Gemini API              | Chat, thinking, vision, tools, embedding                       |
 | `copilot`    | GitHub Copilot (dual-protocol) | Chat (GPT via Responses API, Claude via Messages API)          |
 | `codex`      | OpenAI Plus (Responses API)    | Chat (ChatGPT Plus/Pro subscription)                           |
+| `script`     | Local replay file              | Deterministic chat for tests (no model)                        |
 
 All providers implement a 4-method core interface (Chat, Models, Model, Estimate). Optional capabilities use opt-in interfaces discovered via `providers.As[T](provider)`.
 
@@ -154,6 +155,36 @@ Both share the chat implementation. llama-swap routes native properties, templat
 Model listings retain the context and capabilities the server advertises. Resolving a selected llama.cpp model also reads `/props` and checks whether applying its template with thinking enabled versus disabled changes the prompt. This uses no generated tokens. An unchanged template or an unavailable template endpoint leaves boolean thinking support unknown; it does not establish that reasoning is unsupported. Prior-reasoning preservation is a separate capability.
 
 Bifrost uses `type: openai` with its `/v1` URL and qualified model IDs. It does not expose llama-swap's native control endpoints. Reasoning efforts follow the OpenAI contract; model-specific template switches are not inferred or injected into gateway requests. If the upstream has no token-count endpoint, native estimation reports that limitation and uses the configured local estimator. Use `rough+tiktoken` explicitly when native counting is unavailable.
+
+## Script
+
+The `script` provider replays a JSON file of scripted responses, tool calls, delays and typed failures through the
+real engine. It exists to test automation clients and lifecycle behaviour deterministically.
+
+```yaml
+scripted:
+  type: script
+  script: /abs/path/script.json
+```
+
+```json
+{
+  "models": [{ "name": "script", "context": 65536 }],
+  "steps": [
+    { "content": "Looking.", "calls": [{ "name": "Bash", "args": { "command": "ls" } }] },
+    { "content": "partial", "stall": "30s" },
+    { "error": { "class": "server", "status": 503, "message": "the engine is not running" } }
+  ]
+}
+```
+
+Each chat request consumes the next step: `delay` (wait before responding), `thinking`, `content`, `stall` (wait
+after streaming, before returning), `calls` (`id` optional) or `error` (`class` is one of `network`, `server`,
+`rate_limit`, `auth`, `credit`, `model_unavailable`, `content_filter`, `context`; optional `status`, `retry_after`).
+Waits honour cancellation. `metadata_error` (same shape as `error`) fails every model metadata request. The replay
+position is persisted in `<script>.cursor` (a step is consumed when it starts), so a run killed and resumed in a new
+process continues with the next step; delete the cursor to restart. An exhausted script fails the request explicitly.
+Unknown fields, classes or durations fail at load.
 
 ## Catwalk Registry
 
