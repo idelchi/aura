@@ -80,6 +80,8 @@ aura run '/until --max 5 bash:"curl -sf http://localhost:8080/health" "Service i
 
 ## Bash Rewrite
 
+{% raw %}
+
 `tools.bash.rewrite` wraps every Bash command. Template receives `{{ .Command }}` and all sprig functions.
 
 ### Token-optimized output with rtk
@@ -115,6 +117,8 @@ tools:
     rewrite: |
       docker exec -w /app mycontainer sh -c '{{ .Command }}'
 ```
+
+{% endraw %}
 
 ## Go Plugins
 
