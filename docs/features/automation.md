@@ -189,7 +189,14 @@ Outcomes and codes:
 
 `retryable` is true only for `provider_network`, `provider_server` and `provider_rate_limit`. The provider's HTTP
 status is in `details.status` when known, its message in `message` (for example a llama-swap 503 "the engine is not
-running"), and the retry hint in `details.retry_after_ms`.
+running"), and the retry hint in `details.retry_after_ms`. `details.provider` names the provider type (e.g.
+`llamaswap`). For llama.cpp and llama-swap, model metadata (`/props`), tokenization and the other native endpoints
+classify exactly like inference: by HTTP status alone (401/403 `provider_auth`, 404 `provider_model_unavailable`, 429
+`provider_rate_limit`, 5xx `provider_server`), with the server's JSON error message or a bounded excerpt of a non-JSON
+body (such as an authenticating proxy's HTML page) in `message`; an unreachable server is `provider_network`. A
+non-error response with an unexpected body (for example a login page served with 200) is reported verbatim but not
+classified as a credential failure. llama.cpp's structured `exceed_context_size_error` maps to `context_exhausted`,
+which first triggers Aura's compaction recovery.
 
 ### Idempotency
 

@@ -19,6 +19,7 @@ type Client struct {
 	*openaiProvider.Client
 
 	baseURL   string
+	name      string // provider name reported in classified errors
 	modelPath func(name, endpoint string) string
 }
 
@@ -31,6 +32,7 @@ func New(serverURL, token string, timeout time.Duration, options ...Option) *Cli
 	client := &Client{
 		Client:  openaiProvider.New(apiURL, token, timeout, nil),
 		baseURL: serverURL,
+		name:    "llamacpp",
 	}
 	for _, option := range options {
 		option(client)
@@ -87,26 +89,16 @@ func (c *Client) modelAction(ctx context.Context, action, name string) error {
 
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.Send(req)
 	if err != nil {
-		return fmt.Errorf("%sing model: %w", action, err)
+		return fmt.Errorf("%sing model %q: %w", action, name, err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		var apiErr Error
-
-		if err := apiErr.FromResponse(resp); err != nil {
-			return fmt.Errorf("%s model failed with status %d", action, resp.StatusCode)
-		}
-
-		return &apiErr
-	}
-
 	var result modelResponse
 
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return fmt.Errorf("decoding response: %w", err)
+	if err := decodeJSON(req, resp, &result); err != nil {
+		return err
 	}
 
 	if !result.Success {
@@ -118,6 +110,11 @@ func (c *Client) modelAction(ctx context.Context, action, name string) error {
 
 // Option configures a llama.cpp client.
 type Option func(*Client)
+
+// WithName sets the provider name reported in classified errors.
+func WithName(name string) Option {
+	return func(c *Client) { c.name = name }
+}
 
 // WithModelPath supplies the path for per-model native endpoints behind a router.
 func WithModelPath(resolve func(name, endpoint string) string) Option {

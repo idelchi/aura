@@ -40,18 +40,15 @@ func (c *Client) applyThinkingTemplate(ctx context.Context, name string, enabled
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.Send(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("apply-template: %s", resp.Status)
-	}
 	var result struct {
 		Prompt *string `json:"prompt"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := decodeJSON(req, resp, &result); err != nil {
 		return "", err
 	}
 	if result.Prompt == nil {

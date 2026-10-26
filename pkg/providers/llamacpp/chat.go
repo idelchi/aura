@@ -2,8 +2,8 @@ package llamacpp
 
 import (
 	"context"
-	"errors"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -21,7 +21,6 @@ import (
 	"github.com/idelchi/aura/pkg/llm/tool/call"
 	"github.com/idelchi/aura/pkg/llm/usage"
 	"github.com/idelchi/aura/pkg/providers"
-	"github.com/idelchi/aura/pkg/providers/adapter"
 )
 
 // deltaWithReasoning extends the streaming delta with reasoning_content (Qwen3, DeepSeek).
@@ -94,7 +93,7 @@ func (c *Client) Chat(
 			return message.Message{}, usage.Usage{}, fmt.Errorf("%w: %w", tool.ErrToolCallParse, err)
 		}
 
-		return message.Message{}, usage.Usage{}, adapter.MapError(err)
+		return message.Message{}, usage.Usage{}, c.inferenceError(err)
 	}
 
 	// A stream that ends without a finish reason was cut off (cancellation or a dropped

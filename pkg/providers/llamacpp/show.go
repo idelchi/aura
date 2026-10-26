@@ -2,7 +2,6 @@ package llamacpp
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 )
@@ -31,34 +30,6 @@ type TemplateCaps struct {
 	SupportsToolCalls       *bool `json:"supports_tool_calls"`
 }
 
-// Error represents an API error response.
-type Error struct {
-	// Message describes the error.
-	Message string `json:"message"`
-	// Type categorizes the error.
-	Type string `json:"type"`
-}
-
-// Error returns the formatted error message.
-func (e Error) Error() string {
-	return fmt.Sprintf("%s: %s", e.Type, e.Message)
-}
-
-// FromResponse parses an error from an HTTP response.
-func (e *Error) FromResponse(resp *http.Response) error {
-	var wrapper struct {
-		Error Error `json:"error"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
-		return fmt.Errorf("decoding response: %w", err)
-	}
-
-	*e = wrapper.Error
-
-	return nil
-}
-
 // Show fetches model properties from the /props endpoint.
 func (c *Client) Show(ctx context.Context, name string) (ShowResponse, error) {
 	u, err := c.modelEndpoint(name, "/props")
@@ -77,26 +48,16 @@ func (c *Client) Show(ctx context.Context, name string) (ShowResponse, error) {
 		return ShowResponse{}, fmt.Errorf("creating request: %w", err)
 	}
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.Send(req)
 	if err != nil {
-		return ShowResponse{}, fmt.Errorf("fetching model properties: %w", err)
+		return ShowResponse{}, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		var apiErr Error
-
-		if err := apiErr.FromResponse(resp); err != nil {
-			return ShowResponse{}, err
-		}
-
-		return ShowResponse{}, &apiErr
-	}
-
 	var show ShowResponse
 
-	if err := json.NewDecoder(resp.Body).Decode(&show); err != nil {
-		return ShowResponse{}, fmt.Errorf("decoding props: %w", err)
+	if err := decodeJSON(req, resp, &show); err != nil {
+		return ShowResponse{}, err
 	}
 
 	return show, nil

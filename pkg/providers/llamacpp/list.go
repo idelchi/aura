@@ -2,7 +2,6 @@ package llamacpp
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -37,21 +36,11 @@ func (c *Client) List(ctx context.Context) (model.Models, error) {
 		return nil, err
 	}
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.Send(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("listing models: %w", err)
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		var apiErr Error
-
-		if err := apiErr.FromResponse(resp); err != nil {
-			return nil, fmt.Errorf("listing models: %s", resp.Status)
-		}
-
-		return nil, &apiErr
-	}
 
 	response := struct {
 		Data []struct {
@@ -62,7 +51,7 @@ func (c *Client) List(ctx context.Context) (model.Models, error) {
 		} `json:"data"`
 	}{}
 
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	if err := decodeJSON(req, resp, &response); err != nil {
 		return nil, err
 	}
 

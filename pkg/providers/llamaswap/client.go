@@ -3,11 +3,11 @@ package llamaswap
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"time"
 
-	"github.com/idelchi/aura/pkg/providers"
 	"github.com/idelchi/aura/pkg/providers/llamacpp"
 )
 
@@ -17,6 +17,7 @@ type Client struct{ *llamacpp.Client }
 // New creates a client for a llama-swap server backed by llama.cpp workers.
 func New(serverURL, token string, timeout time.Duration) *Client {
 	return &Client{Client: llamacpp.New(serverURL, token, timeout,
+		llamacpp.WithName("llamaswap"),
 		llamacpp.WithModelPath(func(name, endpoint string) string {
 			return "/upstream/" + url.PathEscape(name) + endpoint
 		}),
@@ -39,13 +40,9 @@ func (c *Client) UnloadModel(ctx context.Context, name string) error {
 	if err != nil {
 		return err
 	}
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.Send(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("unloading model %q: %w", name, err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return providers.ClassifyHTTPError(resp.StatusCode, "llamaswap", resp.Status, 0)
-	}
-	return nil
+	return resp.Body.Close()
 }

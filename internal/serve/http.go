@@ -356,4 +356,3 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.WriteHeader(status)
 	w.Write(append(data, '\n'))
 }
-

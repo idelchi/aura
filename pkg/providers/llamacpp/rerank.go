@@ -56,26 +56,16 @@ func (c *Client) Rerank(ctx context.Context, req rerank.Request) (rerank.Respons
 
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.HTTPClient.Do(httpReq)
+	resp, err := c.Send(httpReq)
 	if err != nil {
-		return rerank.Response{}, fmt.Errorf("sending request: %w", err)
+		return rerank.Response{}, fmt.Errorf("reranking: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		var apiErr Error
-
-		if err := apiErr.FromResponse(resp); err != nil {
-			return rerank.Response{}, fmt.Errorf("rerank failed with status %d", resp.StatusCode)
-		}
-
-		return rerank.Response{}, &apiErr
-	}
-
 	var apiResp rerankResponse
 
-	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
-		return rerank.Response{}, fmt.Errorf("decoding response: %w", err)
+	if err := decodeJSON(httpReq, resp, &apiResp); err != nil {
+		return rerank.Response{}, err
 	}
 
 	results := make(rerank.Results, len(apiResp.Results))

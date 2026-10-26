@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/idelchi/aura/pkg/llm/request"
-	"github.com/idelchi/aura/pkg/providers"
 )
 
 // Estimate tokenizes the content and returns the exact token count.
@@ -48,21 +47,17 @@ func (c *Client) Estimate(
 
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.HTTPClient.Do(httpReq)
+	resp, err := c.Send(httpReq)
 	if err != nil {
 		return 0, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return 0, providers.ClassifyHTTPError(resp.StatusCode, "llamacpp", resp.Status, 0)
-	}
-
 	var out struct {
 		Tokens []int `json:"tokens"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+	if err := decodeJSON(httpReq, resp, &out); err != nil {
 		return 0, err
 	}
 

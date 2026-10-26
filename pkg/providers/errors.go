@@ -57,9 +57,36 @@ type StatusError struct {
 	Provider string // provider name, empty when unknown
 	Status   int    // HTTP status code
 	Message  string // provider message, as included in the error text
+	Err      error  // underlying SDK error, if any
 }
 
 func (e *StatusError) Error() string { return e.Message }
+func (e *StatusError) Unwrap() error { return e.Err }
+
+// Classified wraps the status error in the provider-agnostic sentinel of its status class.
+// When retryAfter is zero and the status is 429, DefaultRetryAfter is applied.
+func (e *StatusError) Classified(retryAfter time.Duration) error {
+	switch {
+	case e.Status == 429:
+		if retryAfter == 0 {
+			retryAfter = DefaultRetryAfter
+		}
+
+		e.Message = e.Provider + ": " + e.Message
+
+		return &RateLimitError{RetryAfter: retryAfter, Err: e}
+	case e.Status == 401, e.Status == 403:
+		return fmt.Errorf("%w: %w", ErrAuth, e)
+	case e.Status == 404:
+		return fmt.Errorf("%w: %w", ErrModelUnavailable, e)
+	case e.Status >= 500:
+		return fmt.Errorf("%w: %w", ErrServerError, e)
+	}
+
+	e.Message = e.Provider + ": " + e.Message
+
+	return e
+}
 
 // IsNetworkError reports whether err is a network-level failure (connection refused,
 // DNS resolution, timeout) as opposed to an API-level error from the provider SDK.
@@ -118,27 +145,5 @@ const DefaultRetryAfter = 5 * time.Second
 // content filter, credit/quota patterns) which vary per SDK.
 // When retryAfter is zero and status is 429, DefaultRetryAfter is applied.
 func ClassifyHTTPError(statusCode int, providerName, msg string, retryAfter time.Duration) error {
-	status := &StatusError{Provider: providerName, Status: statusCode, Message: msg}
-
-	switch {
-	case statusCode == 429:
-		ra := retryAfter
-		if ra == 0 {
-			ra = DefaultRetryAfter
-		}
-
-		status.Message = providerName + ": " + msg
-
-		return &RateLimitError{RetryAfter: ra, Err: status}
-	case statusCode == 401, statusCode == 403:
-		return fmt.Errorf("%w: %w", ErrAuth, status)
-	case statusCode == 404:
-		return fmt.Errorf("%w: %w", ErrModelUnavailable, status)
-	case statusCode >= 500:
-		return fmt.Errorf("%w: %w", ErrServerError, status)
-	}
-
-	status.Message = providerName + ": " + msg
-
-	return status
+	return (&StatusError{Provider: providerName, Status: statusCode, Message: msg}).Classified(retryAfter)
 }

@@ -3,6 +3,7 @@ package providers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -66,6 +67,12 @@ func (r *RetryProvider) Chat(
 			return backoff.Permanent(err)
 		}
 
+		// A cancelled request is never retried, even when its failure looks transient,
+		// and it reports the cancellation as well as the failure that preceded it.
+		if ctx.Err() != nil {
+			return backoff.Permanent(cancelled(ctx, err))
+		}
+
 		if !isRetryable(err) {
 			return backoff.Permanent(err)
 		}
@@ -73,7 +80,14 @@ func (r *RetryProvider) Chat(
 		// Honor server-supplied Retry-After as minimum delay.
 		// Total wait = RetryAfter + backoff delay (conservative — more polite to the API).
 		if rle, ok := errors.AsType[*RateLimitError](err); ok && rle.RetryAfter > 0 {
-			time.Sleep(rle.RetryAfter)
+			timer := time.NewTimer(rle.RetryAfter)
+			defer timer.Stop()
+
+			select {
+			case <-ctx.Done():
+				return backoff.Permanent(cancelled(ctx, err))
+			case <-timer.C:
+			}
 		}
 
 		return err
@@ -91,6 +105,15 @@ func (r *RetryProvider) Chat(
 // Unwrap returns the inner provider, enabling providers.As[T]() to find
 // opt-in interfaces through the retry wrapper.
 func (r *RetryProvider) Unwrap() Provider { return r.Provider }
+
+// cancelled reports err as the failure of a request whose context ended.
+func cancelled(ctx context.Context, err error) error {
+	if errors.Is(err, ctx.Err()) {
+		return err
+	}
+
+	return fmt.Errorf("%w: %w", ctx.Err(), err)
+}
 
 // isRetryable reports whether the error is a transient failure worth retrying.
 func isRetryable(err error) bool {
