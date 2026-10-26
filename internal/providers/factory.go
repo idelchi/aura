@@ -21,6 +21,7 @@ import (
 	"github.com/idelchi/aura/pkg/providers/ollama"
 	"github.com/idelchi/aura/pkg/providers/openai"
 	"github.com/idelchi/aura/pkg/providers/openrouter"
+	"github.com/idelchi/aura/pkg/providers/script"
 )
 
 // Provider is an alias for the public Provider interface.
@@ -120,6 +121,11 @@ func New(provider config.Provider) (Provider, error) {
 		}
 
 		p = codex.New(provider.URL, token, authFile, timeout)
+	case "script":
+		p, err = script.New(provider.Script)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("unknown provider: %q", provider.Type)
 	}

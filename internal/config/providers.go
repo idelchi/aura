@@ -50,9 +50,11 @@ type Provider struct {
 	// URL is the API endpoint for the provider. Optional for providers with default endpoints (e.g., Anthropic).
 	URL string
 	// Type is the provider type (e.g., ollama, llamacpp, openrouter, openai, anthropic).
-	Type string `validate:"required,oneof=ollama llamacpp llamaswap openrouter openai anthropic google copilot codex"`
+	Type string `validate:"required,oneof=ollama llamacpp llamaswap openrouter openai anthropic google copilot codex script"`
 	// Token is the authentication token for API access.
 	Token string
+	// Script is the replay file of the deterministic script provider (type script).
+	Script string `yaml:"script"`
 	// Headers adds HTTP headers for OpenAI-compatible providers. Values support environment expansion.
 	Headers map[string]string `yaml:"headers"`
 	// Models controls which models appear in visual listings.
