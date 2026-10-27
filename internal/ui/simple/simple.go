@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/chzyer/readline"
@@ -28,6 +29,9 @@ type readlineResult struct {
 }
 
 // Simple implements a readline-based TUI.
+//
+// Run's goroutine is the sole owner of the UI state and the only receiver of the
+// events channel; the readline goroutine only reports lines to it.
 type Simple struct {
 	status      ui.Status
 	hints       ui.DisplayHints
@@ -41,21 +45,18 @@ type Simple struct {
 	spintext    *spintext.SpinText
 	state       State
 
+	// stdin replaces readline.Stdin as the source of input when set (tests only).
+	stdin io.Reader
+
 	// Streaming state
 	tracker        ui.PartTracker
 	lastErrorShown bool // Prevents double-display between MessageFinalized and AssistantDone
 
-	// Ask tool state — accessed only on main goroutine
+	// Ask tool state — accessed only on Run's goroutine
 	pendingAsk *ui.AskRequired
 
-	// Tool confirmation state — accessed only on main goroutine
+	// Tool confirmation state — accessed only on Run's goroutine
 	pendingConfirm *ui.ToolConfirmRequired
-
-	// Channel-serialized render commands from event goroutine
-	renderCh chan func()
-
-	// Readline results from readline goroutine
-	lineCh chan readlineResult
 }
 
 // New creates a new Simple UI with the given status and optional history file path.
@@ -71,8 +72,6 @@ func New(status ui.Status, historyPath string) *Simple {
 		cancel:      make(chan struct{}),
 		spintext:    st,
 		spinner:     spinner.New(st.Random()),
-		renderCh:    make(chan func(), 100),
-		lineCh:      make(chan readlineResult, 1),
 	}
 }
 
@@ -96,68 +95,124 @@ func (s *Simple) Cancel() <-chan struct{} {
 	return s.cancel
 }
 
-// Run starts the Simple UI, blocking until exit.
+// Run starts the Simple UI, blocking until exit. Its goroutine renders events in
+// the order they arrive and answers input. However Run ends — cancellation, end of
+// input or an error — it first answers everything still waiting (see shutdown).
 func (s *Simple) Run(ctx context.Context) error {
-	var err error
+	source := s.stdin
+	if source == nil {
+		source = readline.Stdin
+	}
 
-	s.rl, err = readline.NewEx(&readline.Config{
+	// readline's own default input, kept so Run can close it: Instance.Close waits
+	// for a read already in progress but does not close the input it wraps, so
+	// without this it would wait for the next keystroke.
+	input := readline.NewCancelableStdin(source)
+
+	config := &readline.Config{
 		Prompt:          s.prompt(),
 		HistoryFile:     s.historyPath,
 		InterruptPrompt: "^C",
 		UniqueEditLine:  true,
-	})
+		Stdin:           input,
+	}
+
+	if s.stdin != nil {
+		config.FuncIsTerminal = func() bool { return false }
+	}
+
+	rl, err := readline.NewEx(config)
 	if err != nil {
 		return err
 	}
 
-	defer s.rl.Close()
+	s.rl = rl
 
-	// Start event consumer
-	go s.consumeEvents(ctx)
+	lines := make(chan readlineResult, 1)
 
-	// Start readline goroutine
-	go s.readlineLoop()
+	defer func() {
+		s.shutdown()
+		// End the read in progress, then wait for the readline goroutine to return,
+		// discarding what it still reports, before closing readline: Close is not
+		// safe against a running Readline.
+		input.Close()
 
-	// Print welcome message
+		for range lines {
+		}
+
+		s.rl.Close()
+	}()
+
+	go s.readlineLoop(lines)
+
 	s.printWelcome()
 
-	// Main select loop — sole owner of all mutable state
+	events := (<-chan ui.Event)(s.events)
+
 	for {
 		select {
 		case <-ctx.Done():
-			s.spinner.Stop()
-			ui.DrainEvents(s.events)
-
 			return ctx.Err()
 
-		case cmd := <-s.renderCh:
-			cmd()
+		case event, ok := <-events:
+			if !ok {
+				events = nil // No more events; input still works.
 
-		case res := <-s.lineCh:
-			if exit, err := s.handleReadlineResult(res); exit {
+				continue
+			}
+
+			s.handleEvent(event)
+
+		case res, ok := <-lines:
+			if !ok {
+				return io.EOF
+			}
+
+			if exit, err := s.handleReadlineResult(ctx, res); exit {
 				return err
 			}
 		}
 	}
 }
 
-// readlineLoop runs Readline() in a dedicated goroutine, sending results to lineCh.
-func (s *Simple) readlineLoop() {
-	defer close(s.lineCh)
+// shutdown runs on Run's goroutine whenever Run returns. Nobody is left to answer,
+// so a rendered confirmation is denied and a rendered question dismissed, queued
+// events are drained the same way (ui.DrainEvents) and flush waiters released.
+// Cancellation never manufactures an answer or a permission.
+func (s *Simple) shutdown() {
+	s.spinner.Stop()
+
+	if s.pendingConfirm != nil {
+		s.pendingConfirm.Response <- ui.ConfirmDeny
+		s.pendingConfirm = nil
+	}
+
+	if s.pendingAsk != nil {
+		s.pendingAsk.Response <- ""
+		s.pendingAsk = nil
+	}
+
+	ui.DrainEvents(s.events)
+}
+
+// readlineLoop runs Readline() in a dedicated goroutine, reporting each result to
+// Run, which receives until lines is closed, so a send never blocks for good.
+func (s *Simple) readlineLoop(lines chan<- readlineResult) {
+	defer close(lines)
 
 	for {
 		line, err := s.rl.Readline()
-		s.lineCh <- readlineResult{line, err}
+		lines <- readlineResult{line, err}
 
 		if err != nil && !errors.Is(err, readline.ErrInterrupt) {
-			return // EOF or fatal — stop reading
+			return // EOF or fatal (including Run closing input) — stop reading
 		}
 	}
 }
 
-// handleReadlineResult processes a readline result on the main goroutine.
+// handleReadlineResult processes a readline result on Run's goroutine.
 // Returns (exit bool, err error) — when exit is true, Run() should return err.
-func (s *Simple) handleReadlineResult(res readlineResult) (bool, error) {
+func (s *Simple) handleReadlineResult(ctx context.Context, res readlineResult) (bool, error) {
 	if res.err != nil {
 		if errors.Is(res.err, readline.ErrInterrupt) {
 			return s.handleInterrupt(res.line)
@@ -210,8 +265,11 @@ func (s *Simple) handleReadlineResult(res readlineResult) (bool, error) {
 		return false, nil
 	}
 
-	// Send input to assistant
-	s.input <- ui.UserInput{Text: text}
+	// Send input to assistant; after cancellation nobody receives it.
+	select {
+	case s.input <- ui.UserInput{Text: text}:
+	case <-ctx.Done():
+	}
 
 	return false, nil
 }
@@ -263,21 +321,6 @@ func (s *Simple) handleInterrupt(line string) (bool, error) {
 
 	// Clear input and continue
 	return false, nil
-}
-
-func (s *Simple) consumeEvents(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case event, ok := <-s.events:
-			if !ok {
-				return
-			}
-
-			s.processEvent(event)
-		}
-	}
 }
 
 func (s *Simple) prompt() string {

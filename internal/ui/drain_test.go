@@ -2,6 +2,7 @@ package ui_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/idelchi/aura/internal/ui"
 )
@@ -43,6 +44,31 @@ func TestDrainEventsNeverApproves(t *testing.T) {
 	ask, confirm, flushed := pendingPrompts(events)
 
 	ui.DrainEvents(events)
+
+	assertDeniedAndDismissed(t, ask, confirm, flushed)
+}
+
+// TestDrainEventsClosedChannel drains what a closed channel still holds, then
+// returns: a closed channel is always ready, so receiving without the ok check
+// would yield nil events for ever.
+func TestDrainEventsClosedChannel(t *testing.T) {
+	events := make(chan ui.Event, 10)
+	ask, confirm, flushed := pendingPrompts(events)
+
+	close(events)
+
+	drained := make(chan struct{})
+
+	go func() {
+		ui.DrainEvents(events)
+		close(drained)
+	}()
+
+	select {
+	case <-drained:
+	case <-time.After(10 * time.Second):
+		t.Fatal("DrainEvents did not return for a closed channel")
+	}
 
 	assertDeniedAndDismissed(t, ask, confirm, flushed)
 }

@@ -16,49 +16,47 @@ import (
 	"github.com/idelchi/godyl/pkg/path/file"
 )
 
-func (s *Simple) processEvent(event ui.Event) {
+// handleEvent renders one event on Run's goroutine, in arrival order. A flush is
+// therefore released only after every earlier event has been rendered.
+func (s *Simple) handleEvent(event ui.Event) {
 	switch e := event.(type) {
 	case ui.MessageAdded:
-		s.renderCh <- func() { s.handleMessageAdded(e) }
+		s.handleMessageAdded(e)
 	case ui.MessageStarted:
-		s.renderCh <- func() { s.handleMessageStarted() }
+		s.handleMessageStarted()
 	case ui.MessagePartAdded:
-		s.renderCh <- func() { s.handleMessagePartAdded(e) }
+		s.handleMessagePartAdded(e)
 	case ui.MessagePartUpdated:
-		s.renderCh <- func() { s.handleMessagePartUpdated(e) }
+		s.handleMessagePartUpdated(e)
 	case ui.MessageFinalized:
-		s.renderCh <- func() { s.handleMessageFinalized(e) }
+		s.handleMessageFinalized(e)
 	case ui.StatusChanged:
-		s.renderCh <- func() { s.status = e.Status }
+		s.status = e.Status
 	case ui.DisplayHintsChanged:
-		s.renderCh <- func() { s.hints = e.Hints }
+		s.hints = e.Hints
 	case ui.WaitingForInput:
-		s.renderCh <- func() { s.handleWaitingForInput() }
+		s.handleWaitingForInput()
 	case ui.CommandResult:
-		s.renderCh <- func() { s.handleCommandResult(e) }
+		s.handleCommandResult(e)
 	case ui.AssistantDone:
-		s.renderCh <- func() { s.handleAssistantDone(e) }
+		s.handleAssistantDone(e)
 	case ui.SyntheticInjected:
-		s.renderCh <- func() {
-			s.spinner.Stop()
-			ui.SyntheticStyle.Printf("\n%s\n%s\n", e.Header, e.Content)
-		}
+		s.spinner.Stop()
+		ui.SyntheticStyle.Printf("\n%s\n%s\n", e.Header, e.Content)
 	case ui.ToolConfirmRequired:
-		s.renderCh <- func() { s.handleToolConfirm(e) }
+		s.handleToolConfirm(e)
 	case ui.AskRequired:
-		s.renderCh <- func() { s.handleAskRequired(e) }
+		s.handleAskRequired(e)
 	case ui.PickerOpen:
-		s.renderCh <- func() {
-			s.rl.Clean()
-			fmt.Print(e.Display())
-			s.rl.Refresh()
-		}
+		s.rl.Clean()
+		fmt.Print(e.Display())
+		s.rl.Refresh()
 	case ui.TodoEditRequested:
-		s.renderCh <- func() { s.handleTodoEditRequested(e) }
+		s.handleTodoEditRequested(e)
 	case ui.SpinnerMessage:
-		s.renderCh <- func() { s.handleSpinnerMessage(e) }
+		s.handleSpinnerMessage(e)
 	case ui.ToolOutputDelta:
-		s.renderCh <- func() { s.handleToolOutputDelta(e) }
+		s.handleToolOutputDelta(e)
 	case ui.UserMessagesProcessed:
 		// No-op for simple UI
 	case ui.SessionRestored:
@@ -66,7 +64,7 @@ func (s *Simple) processEvent(event ui.Event) {
 	case ui.SlashCommandHandled:
 		// No-op for simple UI
 	case ui.Flush:
-		close(e.Done) // No state access — stays direct
+		close(e.Done)
 	}
 }
 
