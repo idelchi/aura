@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode/utf8"
 )
 
 // Truncate truncates the string s to a maximum length of n bytes,
@@ -20,24 +21,26 @@ func Truncate(s string, n int) string {
 		return suffix[:n]
 	}
 
-	return strings.TrimSpace(truncateUTF8(s, n-len(suffix))) + suffix
+	return strings.TrimSpace(Prefix(s, n-len(suffix))) + suffix
 }
 
-// truncateUTF8 returns a prefix of s having length no greater than n bytes,
-// without splitting a multi-byte UTF-8 encoding.
-// Reproduces tailscale.com/util/truncate.String exactly.
-func truncateUTF8(s string, n int) string {
+// Prefix returns the longest prefix of s that has at most n bytes and does not
+// split a valid UTF-8 encoding. A character that ends exactly at n is kept.
+// Invalid input is cut after at most utf8.UTFMax-1 bytes of backtracking, so a
+// run of stray continuation bytes cannot empty the prefix. A non-positive n
+// yields "".
+func Prefix(s string, n int) string {
 	if n >= len(s) {
 		return s
 	}
 
-	// Back up past any continuation bytes (10xxxxxx).
-	for n > 0 && s[n-1]&0xc0 == 0x80 {
-		n--
+	if n <= 0 {
+		return ""
 	}
 
-	// If we're at the start of a multi-byte sequence (11xxxxxx), skip it entirely.
-	if n > 0 && s[n-1]&0xc0 == 0xc0 {
+	// s[n] is the first excluded byte; while it continues a character, that
+	// character straddles the cut and must be excluded too.
+	for back := 0; back < utf8.UTFMax-1 && n > 0 && !utf8.RuneStart(s[n]); back++ {
 		n--
 	}
 

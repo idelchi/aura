@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/idelchi/aura/internal/injector"
 	"github.com/idelchi/aura/pkg/llm/message"
@@ -64,13 +65,27 @@ func TestCompactionFailureBudgets(t *testing.T) {
 	}
 }
 
-// TestCompactionReceipts keeps real acknowledgements outside model-authored prose.
+// TestCompactionReceipts keeps real acknowledgements outside model-authored prose,
+// as fixed excerpts that say how much of each response is not shown.
 func TestCompactionReceipts(t *testing.T) {
-	got := compactionReceipts([]injector.ToolCall{{Name: "Gotify", Result: "Notification suppressed [INFO]: task (minimum level: ERROR)"}, {Name: "logs", Result: strings.Repeat("x", 500)}}, 0)
-	if !strings.Contains(got, "Notification suppressed") || strings.Contains(got, "Notification sent") || !strings.Contains(got, "response excerpt") {
+	got := compactionReceipts([]injector.ToolCall{
+		{Name: "Gotify", Result: "Notification suppressed [INFO]: task (minimum level: ERROR)"},
+		{Name: "logs", Result: strings.Repeat("x", 500)},
+		{Name: "Bash", Error: "exit status 1: " + strings.Repeat("é", 300)},
+	})
+	if !strings.Contains(got, "Notification suppressed") || strings.Contains(got, "Notification sent") {
 		t.Fatal(got)
 	}
-	if !strings.Contains(compactionReceipts(nil, 200), "No tools were invoked") {
+	if !strings.Contains(got, `"`+strings.Repeat("x", receiptExcerptBytes)+`" [receipt excerpt: first 200 of 500 bytes; the rest is not shown]`) {
+		t.Fatalf("long receipt not excerpted with its size: %s", got)
+	}
+	if !strings.Contains(got, "Execution failed: exit status 1") || !strings.Contains(got, "of 633 bytes") || !utf8.ValidString(got) {
+		t.Fatalf("failed call not excerpted on a character boundary: %s", got)
+	}
+	if strings.Contains(got, "Notification suppressed [INFO]: task (minimum level: ERROR)\" [receipt") {
+		t.Fatal("a complete receipt was marked as an excerpt")
+	}
+	if !strings.Contains(compactionReceipts(nil), "No tools were invoked") {
 		t.Fatal("missing no-delivery evidence")
 	}
 }

@@ -62,3 +62,19 @@ func TestChatRequiresTheFinalChunk(t *testing.T) {
 		t.Fatalf("truncated stream = %q, %v; want a network error", msg.Content, err)
 	}
 }
+
+// TestChatReportsDoneReason normalizes done_reason, so a caller can tell a response cut
+// off at a token limit from a complete one; a missing reason stays unreported.
+func TestChatReportsDoneReason(t *testing.T) {
+	for line, want := range map[string]message.Finish{
+		`{"model":"m","message":{"role":"assistant","content":"x"},"done":true,"done_reason":"stop"}`:   message.FinishStop,
+		`{"model":"m","message":{"role":"assistant","content":"x"},"done":true,"done_reason":"length"}`: message.FinishLength,
+		`{"model":"m","message":{"role":"assistant","content":"x"},"done":true,"done_reason":"load"}`:   message.FinishOther,
+		`{"model":"m","message":{"role":"assistant","content":"x"},"done":true}`:                        message.FinishUnreported,
+	} {
+		msg, _, err := streamServer(t, line).Chat(t.Context(), chatRequest(), nil)
+		if err != nil || msg.Content != "x" || msg.Finish != want {
+			t.Fatalf("%s: content=%q finish=%q err=%v, want %q", line, msg.Content, msg.Finish, err, want)
+		}
+	}
+}

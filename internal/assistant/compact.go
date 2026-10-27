@@ -15,11 +15,21 @@ import (
 	"github.com/idelchi/aura/pkg/llm/message"
 	"github.com/idelchi/aura/pkg/llm/request"
 	"github.com/idelchi/aura/pkg/llm/stream"
+	"github.com/idelchi/aura/pkg/llm/usage"
 	providererrors "github.com/idelchi/aura/pkg/providers"
 )
 
 // ErrCompactionConfig indicates a configuration error that will never succeed on retry.
 var ErrCompactionConfig = errors.New("compaction misconfigured")
+
+// ErrCompactionInputBudget indicates that even the smallest configured tool-result
+// setting leaves a summarization request above its estimated input budget. Retrying
+// with fewer preserved messages would only enlarge the request, so recovery stops.
+var ErrCompactionInputBudget = errors.New("compaction request exceeds its input budget")
+
+// ErrCompactionSummaryCutOff indicates that the summarizer reported stopping at a length
+// limit, so its summary may be incomplete and must not replace the history.
+var ErrCompactionSummaryCutOff = errors.New("compaction summary was cut off at a length limit")
 
 // errNoSummarizationAgent indicates no agent/prompt is configured for summarization.
 // This is not a misconfiguration — it means "skip LLM summarization, keep mechanical pruning".
@@ -421,40 +431,29 @@ func (a *Assistant) CompactWith(ctx context.Context, force bool, keepLast int) e
 		)
 	}
 
-	debug.Log("[compact] sending compaction request: model=%s contextLen=%d mainContext=%d",
-		resolved.mdl.Name, resolved.contextLen, a.agent.Model.Context)
+	budgetTokens, basis, err := cfg.InputBudget(resolved.ContextLength(), resolved.generation.OutputLimit())
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrCompactionConfig, err)
+	}
 
-	// Progressive truncation: try decreasing tool result lengths
-	truncLengths := append([]int{cfg.ToolResultMaxLen}, cfg.TruncationRetries...)
+	budget := compactionBudget{Tokens: budgetTokens, Basis: basis}
+
+	debug.Log("[compact] sending compaction request: model=%s contextLen=%d mainContext=%d budget=%s",
+		resolved.mdl.Name, resolved.ContextLength(), a.agent.Model.Context, budget)
+
+	// Each request uses the largest tool-result setting that fits; see summarize.
+	lengths := append([]int{cfg.ToolResultMaxLen}, cfg.TruncationRetries...)
 
 	var summary string
 
-	var lastErr error
-
-	for _, maxLen := range truncLengths {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		var err error
-
-		if cfg.Chunks > 1 {
-			summary, err = a.CompactChunks(ctx, resolved, toCompact, cfg.Chunks, maxLen)
-		} else {
-			summary, err = a.CompactOnce(ctx, resolved, toCompact, maxLen, true)
-		}
-
-		if err == nil {
-			break
-		}
-
-		lastErr = err
-		if !errors.Is(err, providererrors.ErrContextExhausted) {
-			break
-		}
+	if cfg.Chunks > 1 {
+		summary, err = a.CompactChunks(ctx, resolved, toCompact, cfg.Chunks, lengths, budget)
+	} else {
+		summary, err = a.CompactOnce(ctx, resolved, toCompact, lengths, budget, true)
 	}
 
-	if summary == "" {
-		// Fire AfterCompaction on failure path.
+	if err != nil {
+		// Fire AfterCompaction on failure path. History is unchanged.
 		compactionState := a.InjectorState()
 
 		compactionState.Compaction.Success = false
@@ -464,12 +463,12 @@ func (a *Assistant) CompactWith(ctx context.Context, force bool, keepLast int) e
 
 		a.injectMessages(compactionInjections)
 
-		return fmt.Errorf("compaction: truncation attempts exhausted: %w", lastErr)
+		return fmt.Errorf("compaction: %w", err)
 	}
 
 	// Wrap summary in compaction markers
 	wrappedSummary := wrapCompactionSummary(summary, a.tools.todo.String(), len(a.tools.todo.FindPending()))
-	wrappedSummary += compactionReceipts(a.loop.toolHistory, cfg.ToolResultMaxLen)
+	wrappedSummary += compactionReceipts(a.loop.toolHistory)
 
 	// Rebuild conversation: replace history, then refresh system prompt.
 	// rebuildState() regenerates the system prompt with current agent/mode/tools/sandbox,
@@ -533,13 +532,15 @@ func (a *Assistant) todoState() string {
 	return ""
 }
 
-// CompactOnce tries to compact messages with the given tool result truncation length.
+// CompactOnce summarizes messages in one request, using the largest tool-result
+// length in lengths that fits budget (see summarize).
 // When includeTodos is true, the todo list is appended to the compaction prompt.
 func (a *Assistant) CompactOnce(
 	ctx context.Context,
 	resolved FeatureResolution,
 	toCompact message.Messages,
-	maxLen int,
+	lengths []int,
+	budget compactionBudget,
 	includeTodos bool,
 ) (string, error) {
 	todoState := ""
@@ -548,44 +549,21 @@ func (a *Assistant) CompactOnce(
 		todoState = a.todoState()
 	}
 
-	reqMessages := buildCompactionMessages(resolved.prompt, toCompact, maxLen, todoState)
-
-	req := request.Request{
-		Model:         resolved.mdl,
-		Think:         resolved.think,
-		Generation:    resolved.generation,
-		Messages:      reqMessages,
-		ContextLength: resolved.contextLen,
-		Truncate:      true,
-		Shift:         true,
-		// No tools — compaction must not make tool calls
-	}
-
-	response, _, err := resolved.provider.Chat(ctx, req, noopStream)
-	if err != nil {
-		return "", fmt.Errorf("compaction chat: %w", err)
-	}
-
-	if len(response.Calls) > 0 {
-		return "", errors.New("compaction model issued tool calls")
-	}
-
-	content := strings.TrimSpace(response.Content)
-	if content == "" {
-		return "", errors.New("compaction model returned empty response")
-	}
-
-	return content, nil
+	return a.summarize(ctx, resolved, toCompact, lengths, budget, func(maxLen int) message.Messages {
+		return buildCompactionMessages(resolved.prompt, toCompact, maxLen, todoState)
+	})
 }
 
 // CompactChunks splits the compactable history into n chunks and summarizes
 // them sequentially, passing each chunk's summary as context to the next.
+// Each chunk request independently uses the largest fitting tool-result length.
 func (a *Assistant) CompactChunks(
 	ctx context.Context,
 	resolved FeatureResolution,
 	toCompact message.Messages,
 	n int,
-	maxLen int,
+	lengths []int,
+	budget compactionBudget,
 ) (string, error) {
 	chunks := splitIntoChunks(toCompact, n)
 
@@ -599,10 +577,19 @@ func (a *Assistant) CompactChunks(
 		debug.Log("[compact] compacting chunk %d/%d: %d messages, lastChunk=%v",
 			i+1, len(chunks), len(chunk), lastChunk)
 
-		summary, err := a.attemptChunkCompaction(ctx, resolved,
-			chunk, maxLen, prevSummary, i+1, len(chunks), lastChunk)
+		// Include todo state only in the last chunk.
+		todoState := ""
+		if lastChunk {
+			todoState = a.todoState()
+		}
+
+		chunkNum, total := i+1, len(chunks)
+
+		summary, err := a.summarize(ctx, resolved, chunk, lengths, budget, func(maxLen int) message.Messages {
+			return buildChunkMessages(resolved.prompt, chunk, maxLen, todoState, prevSummary, chunkNum, total)
+		})
 		if err != nil {
-			return "", fmt.Errorf("chunk %d/%d: %w", i+1, len(chunks), err)
+			return "", fmt.Errorf("chunk %d/%d: %w", chunkNum, total, err)
 		}
 
 		prevSummary = summary
@@ -611,51 +598,133 @@ func (a *Assistant) CompactChunks(
 	return prevSummary, nil
 }
 
-// attemptChunkCompaction compacts a single chunk, optionally including
-// a previous summary and todo state (only for the last chunk).
-func (a *Assistant) attemptChunkCompaction(
+// summarize sends one summarization request. It walks lengths in order, building
+// the request with each tool-result length: a request whose estimated input exceeds
+// budget is skipped without a call. A provider context overflow, or a summary the
+// provider reports as cut off at a length limit, moves on to the next length, because
+// less input leaves more room; a cut-off that used up a configured max_output_tokens
+// fails at once, because less input would not help. Any other failure is returned at
+// once. A summary is accepted only when the provider does not report it cut off; an
+// unreported finish reason is accepted but not verified. User and assistant text is
+// never shortened, so when even the last length does not fit, summarize fails with
+// ErrCompactionInputBudget. After the last length, the last overflow or cut-off is
+// returned. Failures never change the conversation.
+func (a *Assistant) summarize(
 	ctx context.Context,
 	resolved FeatureResolution,
-	chunk message.Messages,
-	maxLen int,
-	prevSummary string,
-	chunkNum, totalChunks int,
-	lastChunk bool,
+	source message.Messages,
+	lengths []int,
+	budget compactionBudget,
+	build func(maxLen int) message.Messages,
 ) (string, error) {
-	// Include todo state only in the last chunk
-	todoState := ""
+	var retry error
 
-	if lastChunk {
-		todoState = a.todoState()
+	smallest := 0
+
+	for _, maxLen := range lengths {
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
+
+		reqMessages := build(maxLen)
+		estimate := a.estimateRequest(ctx, reqMessages)
+		cut := source.WithoutEphemeralMessages().ResultsBeyond(maxLen)
+
+		if !budget.Admits(estimate) {
+			debug.Log("[compact] request skipped: tool_result_max_length=%d estimate=%d budget=%s excerpted_or_omitted=%d",
+				maxLen, estimate, budget, cut)
+
+			smallest = estimate
+
+			continue
+		}
+
+		debug.Log("[compact] request: tool_result_max_length=%d estimate=%d budget=%s excerpted_or_omitted=%d",
+			maxLen, estimate, budget, cut)
+
+		response, used, err := a.requestSummary(ctx, resolved, reqMessages)
+
+		switch {
+		case errors.Is(err, providererrors.ErrContextExhausted):
+			debug.Log("[compact] provider overflow at tool_result_max_length=%d: %v", maxLen, err)
+
+			retry = err
+
+			continue
+		case err != nil:
+			return "", err
+		case len(response.Calls) > 0:
+			return "", errors.New("compaction model issued tool calls")
+		case response.Finish == message.FinishError || response.Finish == message.FinishContentFilter ||
+			response.Finish == message.FinishToolCalls:
+			return "", fmt.Errorf("compaction model stopped without a complete summary: finish %s", response.Finish)
+		case response.Finish.IsCutOff():
+			cutOff := fmt.Errorf("%w: finish %s at tool_result_max_length %d after %d output tokens",
+				ErrCompactionSummaryCutOff, response.Finish, maxLen, used.Output)
+
+			if limit := resolved.generation.OutputLimit(); limit != nil && used.Output >= *limit {
+				return "", fmt.Errorf("%w; max_output_tokens %d was used up", cutOff, *limit)
+			}
+
+			debug.Log("[compact] %v", cutOff)
+
+			retry = cutOff
+
+			continue
+		}
+
+		content := strings.TrimSpace(response.Content)
+		if content == "" {
+			return "", errors.New("compaction model returned empty response")
+		}
+
+		debug.Log("[compact] summary accepted: finish=%s output_tokens=%d", response.Finish, used.Output)
+
+		return content, nil
 	}
 
-	reqMessages := buildChunkMessages(resolved.prompt, chunk, maxLen, todoState, prevSummary, chunkNum, totalChunks)
+	if retry != nil {
+		return "", retry
+	}
 
+	return "", fmt.Errorf(
+		"%w: an estimated %d input tokens with tool_result_max_length %d exceeds %d (%s); "+
+			"increase compaction.chunks or start a new conversation",
+		ErrCompactionInputBudget, smallest, lengths[len(lengths)-1], budget.Tokens, budget.Basis)
+}
+
+// estimateRequest estimates a summarization request's input. Messages are rendered
+// as text and counted with the session estimator plus the observed provider overhead;
+// it is an approximation, not the provider's tokenizer.
+func (a *Assistant) estimateRequest(ctx context.Context, reqMessages message.Messages) int {
+	return a.estimator.Estimate(ctx, reqMessages.Render()) + a.tokens.overhead
+}
+
+// requestSummary performs one summarization call without tools; summarize validates
+// the response and its reported finish reason.
+func (a *Assistant) requestSummary(
+	ctx context.Context,
+	resolved FeatureResolution,
+	reqMessages message.Messages,
+) (message.Message, usage.Usage, error) {
 	req := request.Request{
 		Model:         resolved.mdl,
 		Think:         resolved.think,
 		Generation:    resolved.generation,
 		Messages:      reqMessages,
 		ContextLength: resolved.contextLen,
-		Truncate:      true,
-		Shift:         true,
+		// Reject overflow instead of letting the provider silently discard source.
+		Truncate: false,
+		Shift:    false,
+		// No tools — compaction must not make tool calls
 	}
 
-	response, _, err := resolved.provider.Chat(ctx, req, noopStream)
+	response, used, err := resolved.provider.Chat(ctx, req, noopStream)
 	if err != nil {
-		return "", fmt.Errorf("compaction chat (chunk %d/%d): %w", chunkNum, totalChunks, err)
+		return message.Message{}, usage.Usage{}, fmt.Errorf("compaction chat: %w", err)
 	}
 
-	if len(response.Calls) > 0 {
-		return "", fmt.Errorf("compaction model issued tool calls (chunk %d/%d)", chunkNum, totalChunks)
-	}
-
-	content := strings.TrimSpace(response.Content)
-	if content == "" {
-		return "", fmt.Errorf("compaction model returned empty response (chunk %d/%d)", chunkNum, totalChunks)
-	}
-
-	return content, nil
+	return response, used, nil
 }
 
 // shouldSkipCompaction returns true if any injection requests compaction skip.

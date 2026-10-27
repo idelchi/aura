@@ -15,13 +15,14 @@ func (ms Messages) ForLLM() Messages {
 
 // ForCompaction returns messages to send to the compaction LLM.
 // Excludes Synthetic, Ephemeral, internal types, and thinking content.
-// Tool results are truncated to maxResultLen characters.
+// Tool results keep at most maxResultLen bytes, with a marker for anything cut
+// or omitted (see ExcerptResults).
 func (ms Messages) ForCompaction(maxResultLen int) Messages {
 	return ms.WithoutSyntheticMessages().
 		WithoutInternalMessages().
 		WithoutEphemeralMessages().
 		WithoutThinking().
-		TruncateResults(maxResultLen)
+		ExcerptResults(maxResultLen)
 }
 
 // ForPreservation returns messages safe to keep after compaction.

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/idelchi/aura/pkg/llm/message"
 	"github.com/idelchi/aura/pkg/llm/request"
 	"github.com/idelchi/aura/pkg/providers"
 )
@@ -84,9 +85,29 @@ func TestInvalidScriptsFailToLoad(t *testing.T) {
 		`{"steps":[{"error":{"class":"weird"}}]}`,
 		`{"steps":[{"delay":"soon"}]}`,
 		`{"steps":[{"unknown":1}]}`,
+		`{"steps":[{"finish":"truncated"}]}`,
 	} {
 		if _, err := New(write(t, body)); err == nil {
 			t.Errorf("script %s loaded", body)
+		}
+	}
+}
+
+// TestStepsReportFinish replays an explicit finish reason, or the one a complete step implies.
+func TestStepsReportFinish(t *testing.T) {
+	p, err := New(write(t, `{"steps":[
+		{"content":"done"},
+		{"calls":[{"name":"Bash","args":{"command":"x"}}]},
+		{"content":"partial","finish":"length"},
+		{"content":"unsure","finish":"unreported"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, want := range []message.Finish{message.FinishStop, message.FinishToolCalls, message.FinishLength, message.FinishUnreported} {
+		msg, _, err := p.Chat(context.Background(), request.Request{}, nil)
+		if err != nil || msg.Finish != want {
+			t.Fatalf("finish = %q (%v), want %q", msg.Finish, err, want)
 		}
 	}
 }

@@ -28,10 +28,12 @@ type Compaction struct {
 	// named system prompt (from prompts/) instead of delegating to a dedicated agent.
 	// When set, Agent is ignored. This is the "self-compact" signal.
 	Prompt string `yaml:"prompt"`
-	// ToolResultMaxLen is the max character length for tool results in the compaction transcript.
+	// ToolResultMaxLen is the max byte length of each tool result in the compaction
+	// transcript. Longer results are excerpted with a marker; zero or less omits them.
 	ToolResultMaxLen int `yaml:"tool_result_max_length"`
-	// TruncationRetries is the sequence of progressively lower tool result lengths tried
-	// when compaction fails. The initial attempt uses ToolResultMaxLen; these are the retries.
+	// TruncationRetries are progressively lower tool result lengths. A summarization
+	// request uses the first length, starting with ToolResultMaxLen, whose estimated
+	// input fits InputBudget, and moves on after a provider context overflow.
 	TruncationRetries []int `yaml:"truncation_retries"`
 	// Chunks is the number of chunks to split the compactable history into.
 	// 1 = single-pass (current behavior). >1 = sequential chunked compaction
@@ -51,6 +53,55 @@ type Prune struct {
 	// ArgThreshold is the minimum estimated token count for a tool call's
 	// arguments to be eligible for pruning.
 	ArgThreshold int `yaml:"arg_threshold"`
+}
+
+// InputBudget returns the estimated input admitted for one summarization request on a
+// model with the given context window (0 when unknown) and optional output allowance.
+// It applies this compaction trigger, so a summarization request is admitted under the
+// same fill limit as any other request in the conversation:
+//   - MaxTokens when set and smaller than a known window (or the window is unknown);
+//   - otherwise Threshold percent of the window. This also replaces a MaxTokens that
+//     reaches or exceeds a smaller summarizer window, which would leave no room for the
+//     summary. A Threshold above 100 (automatic compaction effectively disabled) is
+//     capped at the window and leaves no headroom; one at or below 0 is an error.
+//
+// A configured output allowance then stays free within a known window. Zero tokens
+// means no limit can be derived (unknown window and no MaxTokens). The budget admits
+// input only; it never limits the summary. basis explains the derivation.
+func (c Compaction) InputBudget(window int, maxOutput *int) (tokens int, basis string, err error) {
+	switch {
+	case c.MaxTokens > 0 && (window == 0 || c.MaxTokens < window):
+		tokens, basis = c.MaxTokens, fmt.Sprintf("compaction.max_tokens %d", c.MaxTokens)
+	case window > 0:
+		if c.Threshold <= 0 {
+			return 0, "", fmt.Errorf(
+				"compaction.threshold %g cannot derive an input budget for a %d-token summarizer window", c.Threshold, window)
+		}
+
+		tokens = int(float64(window) * c.Threshold / 100)
+		basis = fmt.Sprintf("compaction.threshold %g%% of a %d-token window", c.Threshold, window)
+
+		if c.MaxTokens > 0 {
+			basis += fmt.Sprintf(" (compaction.max_tokens %d does not fit below it)", c.MaxTokens)
+		}
+
+		if tokens > window {
+			tokens, basis = window, basis+", capped at the window"
+		}
+	default:
+		return 0, "unknown context window and no compaction.max_tokens", nil
+	}
+
+	if window > 0 && maxOutput != nil && window-*maxOutput < tokens {
+		tokens = window - *maxOutput
+		basis = fmt.Sprintf("%d-token window minus max_output_tokens %d", window, *maxOutput)
+	}
+
+	if tokens <= 0 {
+		return 0, basis, fmt.Errorf("compaction input budget is %d tokens (%s)", tokens, basis)
+	}
+
+	return tokens, basis, nil
 }
 
 // PruneMode controls when tool result pruning runs.

@@ -61,3 +61,13 @@ func (g *Generation) Merge(other *Generation) {
 		g.ThinkBudget = other.ThinkBudget
 	}
 }
+
+// OutputLimit returns a positive configured output cap. Unset and nonpositive values
+// are not finite caps; providers may use them as sentinels. The wire value is unchanged.
+func (g *Generation) OutputLimit() *int {
+	if g == nil || g.MaxOutputTokens == nil || *g.MaxOutputTokens <= 0 {
+		return nil
+	}
+
+	return g.MaxOutputTokens
+}

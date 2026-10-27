@@ -13,15 +13,25 @@ Compaction is enabled by default. When the conversation fills the context window
 
 1. **Synthetic trim** — At 50% context fill (configurable), duplicate synthetic messages are removed to delay compaction.
 2. **Auto-compaction** — At 80% context fill (configurable), compaction triggers automatically.
-3. **Summarize** — Older messages are preprocessed (thinking blocks removed, tool results truncated) and sent to the compaction agent, which generates a summary preserving structured data while compressing narrative.
+3. **Summarize** — Older messages are preprocessed (thinking blocks removed, tool results bounded with explicit markers) and sent to the compaction agent, which summarizes only what that transcript establishes.
 4. **Rebuild** — History is reconstructed: system prompt + compaction summary + most recent messages.
 
 ## What Gets Preserved
 
-- Requirement checklists and acceptance criteria — reproduced verbatim
-- File paths, package names, and dependency choices
-- Explicit decisions and rationale stated in conversation
+- Requirements, constraints, decisions and corrections as the conversation states them; a later correction replaces
+  what it corrects
+- Identifiers, paths, values and quotations only where the transcript shows them in full
 - Todo state — mechanically appended to the summary
+
+User and assistant text is sent to the summarizer unshortened. Each tool result keeps at most
+`tool_result_max_length` bytes. A longer result ends in a marker such as
+`[tool result excerpt: first 200 of 18097 bytes shown; the remaining 17897 bytes are absent from this transcript]`,
+cut on a UTF-8 character boundary. A length of zero or less replaces every non-empty result with
+`[tool result omitted: all 18097 bytes are absent from this transcript]`. The summarization instruction forbids
+completing schemas, listings, code, JSON or quotations from partial evidence and asks the summary to name the source to
+re-read instead. An instruction does not guarantee that a model complies; summary faithfulness has to be evaluated on
+actual outputs. The instruction is the same for single-pass and chunked compaction; the configured compaction prompt
+still decides what to retain.
 
 ## Manual Trigger
 
@@ -40,7 +50,8 @@ Use `/compact` to trigger compaction manually at any time.
 | `chunks`                 | 1          | Chunks for sequential compaction (1 = single-pass)               |
 | `agent`                  | Compaction | Agent for generating summaries                                   |
 | `prompt`                 |            | Named prompt for self-compaction (overrides `agent`)             |
-| `tool_result_max_length` | 200        | Max chars for tool results in compaction messages                |
+| `tool_result_max_length` | 200        | Max bytes per tool result sent to the summarizer; <= 0 omits them |
+| `truncation_retries`     | 150, 100, 50, 0 | Smaller lengths for over-budget requests and provider overflow |
 | `prune.mode`             | off        | When to prune old tool results: `off`, `iteration`, `compaction` |
 | `prune.protect_percent`  | 30         | % of context window to protect from pruning                      |
 | `prune.arg_threshold`    | 200        | Min estimated tokens for tool call args to be prunable           |
@@ -106,18 +117,57 @@ non-system messages. An ineffective zero-tail attempt or a skipped recovery stop
 with an error. At most three consecutive provider-overflow recoveries are allowed
 without a successful main response; cancellation stops recovery immediately.
 
-Compaction retries with progressively shorter tool result content **only for context-overflow errors**
-(`200 → 150 → 100 → 50 → 0` chars), then with progressively lower `keep_last_messages` down to 0.
-Empty summaries, attempted tool calls, authorization failures and exhausted transport retries stop that recovery;
-shrinking the transcript does not correct those failures. Tools emitted by a compactor are never executed.
-Set `truncation_retries: []` to disable the inner size-retry sequence.
+### Summarization request budget
+
+Each summarization request — the single pass, or each chunk — is admitted against an estimated input budget before it
+is sent. The budget reuses the conversation's own compaction trigger, applied to the summarizer's context window:
+`max_tokens` when set and smaller than that window, otherwise `threshold` percent of the window. A `max_tokens` that
+reaches or exceeds a smaller summarizer window would leave no room for the summary, so that window's `threshold`
+percentage applies instead. A `threshold` above 100 (automatic compaction effectively disabled) is capped at the window
+and leaves no headroom; a `threshold` at or below 0 cannot derive a budget and is a configuration error. When the
+summarizer's agent sets a positive `max_output_tokens`, that many tokens then stay free within the window. Nonpositive
+provider sentinel values remain unchanged on the wire and are not treated as finite output caps. The budget limits only
+what is sent; it never caps the summary, its reasoning or the task. A `max_output_tokens` that leaves no input room is
+a configuration error. With neither a known window nor `max_tokens`, no budget is applied and only provider overflow
+handling remains. The window is the summarizer agent's configured `context`, otherwise the context the provider reports
+for the model.
+
+The request uses the first length in `tool_result_max_length`, then `truncation_retries`, whose estimate fits. Larger
+lengths that do not fit are skipped without a provider call. If the provider still reports a context overflow, the
+request moves on to the next length. For providers exposing truncation and context-shift controls (Ollama), compaction
+disables both so overflow is rejected rather than silently removing source. Any other failure — an empty summary,
+attempted tool calls, authorization,
+exhausted transport retries, cancellation — stops at once. Tools emitted by a compactor are never executed. Chunks
+choose their lengths independently, so one large tool result does not shorten the evidence of every other chunk.
+
+A summary is accepted only if the provider does not report it cut off. When the provider reports that generation
+stopped at a length limit (`finish` `length`, normalized from llama.cpp/OpenAI-compatible `finish_reason`, Ollama
+`done_reason` and the Fantasy-based providers), the summary may be incomplete and never replaces the history. If the
+summarizer agent's `max_output_tokens` was used up, compaction fails at once, because less input would not help.
+Otherwise the request moves on to the next length, which leaves more room; when the lengths run out it fails with
+`ErrCompactionSummaryCutOff`. Recovery then stops instead of shortening the preserved tail. A provider that reports no
+finish reason is accepted as before; that is not proof of completeness. Reported errors, content filtering and tool-call
+termination are rejected even when the provider supplies text without actual tool calls. The debug log records the
+finish reason of each accepted summary. Ordinary chat responses are unaffected by this check.
+
+User and assistant text is never shortened. When even the last configured length does not fit, compaction fails
+with `ErrCompactionInputBudget`, naming the estimate, the budget and how the budget was derived. The conversation is
+unchanged. Recovery does not retry with a shorter preserved tail, because that would only enlarge the request. Raise
+`chunks`, clear context or start a new conversation. A provider overflow at the last length keeps the earlier
+behaviour: recovery then also reduces `keep_last_messages` towards 0. Set `truncation_retries: []` to use only
+`tool_result_max_length`.
+
+Estimates use the session's token estimator on the rendered request plus the observed provider input overhead. They
+are approximations, not the provider's tokenizer, so provider overflow handling remains in place.
 
 `timeout` bounds the whole recovery, including all chunks and retries. It cannot extend the parent task deadline.
 For a short automated assessment, a single chunk and a bounded timeout avoid multiplying summarization calls.
 
 After compaction, Aura also attaches actual current-turn tool receipts outside the model-generated summary.
-They list executed tools and their returned responses (bounded excerpts for long outputs), including suppressed
-or failed actions. These receipts take precedence over summary claims; they do not cover earlier turns or prove
+They list executed tools and their returned responses, including suppressed or failed actions. A response longer than
+200 bytes is shown as an excerpt ending in `[receipt excerpt: first 200 of N bytes; the rest is not shown]`. This
+fixed size is independent of `tool_result_max_length`, so giving the summarizer full evidence does not enlarge the
+rebuilt context. These receipts take precedence over summary claims; they do not cover earlier turns or prove
 an external effect beyond what the tool response confirms. The usual summary still carries interpretations and
 evidence; it is not an authoritative delivery ledger.
 

@@ -13,8 +13,8 @@ compaction:
   chunks: 3                      # sequential chunks (1 = single-pass, N = chunked summary)
   agent: Compaction              # dedicated agent for generating summaries
   prompt: ""                     # named prompt for self-compaction (overrides agent — uses current model)
-  tool_result_max_length: 200    # max chars for tool results in compaction transcript
-  truncation_retries: [150, 100, 50, 0]  # retry sequence with progressively shorter tool results
+  tool_result_max_length: 200    # max bytes per tool result in the compaction transcript; longer = marked excerpt, <= 0 = omitted with its size
+  truncation_retries: [150, 100, 50, 0]  # smaller lengths, used when a request exceeds its input budget or the provider reports overflow
   prune:
     mode: iteration              # "off", "iteration" (prune each loop), "compaction" (prune on compact only)
     protect_percent: 30          # % of context window to protect from pruning (most recent messages)

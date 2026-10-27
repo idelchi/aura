@@ -37,6 +37,9 @@ type Message struct {
 	Parts []part.Part `json:"-"`
 	// Error is set if an error occurred during message generation.
 	Error error `json:"-"`
+	// Finish is why the provider ended this response (provider responses only).
+	// It is response metadata, not conversation history, and is never persisted.
+	Finish Finish `json:"-"`
 	// Tokens holds per-message token counts (exact from API or estimated).
 	Tokens Tokens `json:"tokens,omitzero"`
 	// CreatedAt is when the message was created.

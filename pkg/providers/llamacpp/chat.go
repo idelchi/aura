@@ -123,6 +123,7 @@ func (c *Client) Chat(
 		Content:  content,
 		Thinking: reasoning.String(),
 		Calls:    toolCalls,
+		Finish:   toFinish(acc.Choices[0].FinishReason),
 	}
 
 	u := usage.Usage{
@@ -131,6 +132,25 @@ func (c *Client) Chat(
 	}
 
 	return msg, u, nil
+}
+
+// toFinish normalizes a Chat Completions finish_reason; "length" means generation stopped
+// at a token limit.
+func toFinish(reason string) message.Finish {
+	switch reason {
+	case "stop":
+		return message.FinishStop
+	case "length":
+		return message.FinishLength
+	case "tool_calls", "function_call":
+		return message.FinishToolCalls
+	case "content_filter":
+		return message.FinishContentFilter
+	case "":
+		return message.FinishUnreported
+	default:
+		return message.FinishOther
+	}
 }
 
 // isToolParseError recognizes llama.cpp's generated-response parser failure.

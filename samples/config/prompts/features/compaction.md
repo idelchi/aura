@@ -26,7 +26,7 @@ TASK:
 
 REQUIREMENTS:
 
-- Reproduce verbatim any checklists, acceptance criteria, or structural constraints from the task definition or user instructions
+- Reproduce verbatim any checklists, acceptance criteria, or structural constraints from the task definition or user instructions, as they appear in full in the transcript
 - Include package names, dependency choices, directory layouts, and naming conventions that were SPECIFIED (not just attempted)
 - If a requirement was stated but not yet met, say so explicitly
 
@@ -73,3 +73,4 @@ REMAINING WORK:
 12. Do NOT issue ANY tool calls. Only use the information in the transcript to summarize progress.
 13. REQUIREMENTS from task definitions, specs, or user instructions must be preserved exactly as stated. Do NOT reinterpret, paraphrase, or override them.
 14. If a requirement and a conversation action contradict (e.g., spec says "use pflag" but code uses "flag"), note BOTH — the requirement AND the actual state. Do not silently resolve the contradiction.
+15. Tool results may be marked as excerpts or omissions, with their original size. Quote only text that appears in full. Never reconstruct or complete the missing part of a result, schema, file or listing; name the source to re-read instead.

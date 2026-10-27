@@ -80,8 +80,12 @@ func TestInputAdmissionCompaction(t *testing.T) {
 		until   bool
 		accept  bool
 		batch   bool
+		// refused keeps the oversized history as user text, which summarization
+		// never shortens: the request cannot fit and is refused before any call.
+		refused bool
 	}{
 		{name: "space recovered", summary: "Facts retained.", accept: true},
+		{name: "unshortenable history refused before summarizing", refused: true},
 		{name: "summary still oversized", summary: strings.Repeat("oversized ", 40000)},
 		{name: "until stops on rejected input", summary: strings.Repeat("oversized ", 40000), until: true},
 		{name: "until stops with oversized recent tool batch", summary: "Earlier facts.", until: true, batch: true},
@@ -104,7 +108,14 @@ func TestInputAdmissionCompaction(t *testing.T) {
 			}
 			a.resolved.model = &model.Model{Name: "test"}
 			a.resolved.compactModel = &model.Model{Name: "test"}
-			a.builder.AddUserMessage(t.Context(), strings.Repeat("old evidence ", 40000), 40000)
+			// Old evidence fills the window. As a tool result, summarization can excerpt it.
+			if tc.refused {
+				a.builder.AddUserMessage(t.Context(), strings.Repeat("old evidence ", 40000), 40000)
+			} else {
+				a.builder.AddUserMessage(t.Context(), "Inspect the old evidence.", 5)
+				a.builder.AddAssistantMessage(message.Message{Calls: []call.Call{{ID: "old", Name: "Read"}}})
+				a.builder.AddToolResult(t.Context(), "Read", "old", strings.Repeat("old evidence ", 40000), 40000)
+			}
 			a.builder.AddAssistantMessage(message.Message{Content: "Latest answer."})
 			a.builder.AddBookmark("turn boundary")
 			if tc.batch {
@@ -135,8 +146,15 @@ func TestInputAdmissionCompaction(t *testing.T) {
 			if errors.Is(err, context.DeadlineExceeded) {
 				t.Fatalf("admission did not terminate on its own: %v", err)
 			}
-			if (err == nil) != tc.accept || compactions != 1 {
+			wantCompactions := 1
+			if tc.refused {
+				wantCompactions = 0
+			}
+			if (err == nil) != tc.accept || compactions != wantCompactions {
 				t.Fatalf("accepted=%t compactions=%d error=%v", tc.accept, compactions, err)
+			}
+			if tc.refused && (!errors.Is(err, ErrCompactionInputBudget) || !errors.Is(err, ErrInputRejected)) {
+				t.Fatalf("refusal lost its cause: %v", err)
 			}
 			if tc.failure != nil && !errors.Is(err, tc.failure) {
 				t.Fatalf("lost compaction cause: %v", err)
@@ -144,7 +162,7 @@ func TestInputAdmissionCompaction(t *testing.T) {
 			if tc.accept && chats != 1 || !tc.accept && chats != 0 {
 				t.Fatalf("main chats = %d, accepted=%t", chats, tc.accept)
 			}
-			if !tc.accept && tc.failure == nil && !strings.Contains(err.Error(), "input rejected after compaction") {
+			if !tc.accept && tc.failure == nil && !tc.refused && !strings.Contains(err.Error(), "input rejected after compaction") {
 				t.Fatalf("missing admission diagnostic: %v", err)
 			}
 			// A rejected turn must not poison the session: clearing context permits

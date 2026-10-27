@@ -64,6 +64,10 @@ type Step struct {
 	Calls    []Call       `json:"calls"`
 	Error    *Failure     `json:"error"`
 	Usage    *usage.Usage `json:"usage"`
+	// Finish is the reported finish reason (message.Finish values, or "unreported").
+	// Empty reports "tool_calls" for a step with calls and "stop" otherwise: a replayed
+	// step is complete by definition.
+	Finish string `json:"finish"`
 }
 
 // Script is the content of a script file.
@@ -116,8 +120,29 @@ func New(path string) (*Provider, error) {
 	return &Provider{path: path, script: script}, nil
 }
 
-// validate checks durations and failure classes.
+// finish returns the finish reason this step reports.
+func (s Step) finish() message.Finish {
+	switch {
+	case s.Finish == "unreported":
+		return message.FinishUnreported
+	case s.Finish != "":
+		return message.Finish(s.Finish)
+	case len(s.Calls) > 0:
+		return message.FinishToolCalls
+	default:
+		return message.FinishStop
+	}
+}
+
+// validate checks durations, finish reasons and failure classes.
 func (s Step) validate() error {
+	switch message.Finish(s.Finish) {
+	case "", "unreported", message.FinishStop, message.FinishLength, message.FinishToolCalls,
+		message.FinishContentFilter, message.FinishError, message.FinishOther:
+	default:
+		return fmt.Errorf("unknown finish %q", s.Finish)
+	}
+
 	for _, d := range []string{s.Delay, s.Stall} {
 		if d == "" {
 			continue
@@ -240,7 +265,7 @@ func (p *Provider) Chat(ctx context.Context, _ request.Request, streamFunc strea
 		}
 	}
 
-	msg := message.Message{Role: roles.Assistant, Content: step.Content, Thinking: step.Thinking}
+	msg := message.Message{Role: roles.Assistant, Content: step.Content, Thinking: step.Thinking, Finish: step.finish()}
 
 	for i, c := range step.Calls {
 		id := c.ID

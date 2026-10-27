@@ -89,16 +89,16 @@ func TestCompactionInferenceSettings(t *testing.T) {
 						if req.Model.Name != wanted.Name || req.ContextLength != wanted.Context {
 							t.Errorf("wrong model/context: %s/%d", req.Model.Name, req.ContextLength)
 						}
-						if len(req.Tools) != 0 || !req.Truncate || !req.Shift || req.Messages[0].Content != resolved.prompt {
+						if len(req.Tools) != 0 || req.Truncate || req.Shift || req.Messages[0].Content != resolved.prompt {
 							t.Error("compaction request semantics changed")
 						}
 						return message.Message{Content: "Preserved facts."}, usage.Usage{}, nil
 					}}
 					history := message.Messages{{Role: roles.User, Content: "A"}, {Role: roles.Assistant, Content: "B"}}
 					if chunks == 1 {
-						_, err = a.CompactOnce(t.Context(), resolved, history, 200, true)
+						_, err = a.CompactOnce(t.Context(), resolved, history, []int{200}, compactionBudget{}, true)
 					} else {
-						_, err = a.CompactChunks(t.Context(), resolved, history, chunks, 200)
+						_, err = a.CompactChunks(t.Context(), resolved, history, chunks, []int{200}, compactionBudget{})
 					}
 					if err != nil || calls != chunks {
 						t.Fatalf("calls=%d, err=%v", calls, err)

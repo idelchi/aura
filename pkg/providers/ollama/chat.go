@@ -106,12 +106,28 @@ func (c *Client) Chat(
 		Content:  contentBuilder.String(),
 		Thinking: thinkingBuilder.String(),
 		Calls:    calls,
+		Finish:   toFinish(response.DoneReason),
 	}
 
 	return msg, usage.Usage{
 			Input: response.PromptEvalCount, Output: response.EvalCount,
 		},
 		nil
+}
+
+// toFinish normalizes Ollama's done_reason; "length" means generation stopped at a token
+// limit. Other values, such as "load" or "unload", are reported as other.
+func toFinish(reason string) message.Finish {
+	switch reason {
+	case "stop":
+		return message.FinishStop
+	case "length":
+		return message.FinishLength
+	case "":
+		return message.FinishUnreported
+	default:
+		return message.FinishOther
+	}
 }
 
 // isToolParseError recognizes Ollama's JSON and XML tool-parser failures.

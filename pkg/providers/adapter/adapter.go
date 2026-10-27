@@ -164,6 +164,7 @@ func StreamToMessage(
 		signature string
 		toolInput strings.Builder
 		streamErr error
+		finish    message.Finish
 	)
 
 	for part := range streamIter {
@@ -226,6 +227,7 @@ func StreamToMessage(
 				Input:  int(part.Usage.InputTokens),
 				Output: int(part.Usage.OutputTokens),
 			}
+			finish = ToFinish(part.FinishReason)
 
 		case fantasy.StreamPartTypeError:
 			streamErr = part.Error
@@ -249,9 +251,31 @@ func StreamToMessage(
 		Thinking:          thinking.String(),
 		ThinkingSignature: signature,
 		Calls:             calls,
+		Finish:            finish,
 	}
 
 	return msg, u, nil
+}
+
+// ToFinish normalizes a Fantasy finish reason. Fantasy's "unknown" (no reason transmitted)
+// stays unreported.
+func ToFinish(reason fantasy.FinishReason) message.Finish {
+	switch reason {
+	case fantasy.FinishReasonStop:
+		return message.FinishStop
+	case fantasy.FinishReasonLength:
+		return message.FinishLength
+	case fantasy.FinishReasonToolCalls:
+		return message.FinishToolCalls
+	case fantasy.FinishReasonContentFilter:
+		return message.FinishContentFilter
+	case fantasy.FinishReasonError:
+		return message.FinishError
+	case fantasy.FinishReasonOther:
+		return message.FinishOther
+	default:
+		return message.FinishUnreported
+	}
 }
 
 // extractSignature pulls the ThinkingSignature from Fantasy's provider metadata.

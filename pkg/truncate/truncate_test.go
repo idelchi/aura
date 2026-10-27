@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/idelchi/aura/pkg/truncate"
 )
@@ -214,5 +215,49 @@ func TestMapToJSON(t *testing.T) {
 				t.Errorf("MapToJSON(%v) round-trip has %d keys, want %d", tt.m, len(decoded), len(tt.m))
 			}
 		})
+	}
+}
+
+// TestPrefix keeps the longest whole-character prefix that fits, including a
+// character ending exactly at the limit, and never collapses invalid input.
+func TestPrefix(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name  string
+		input string
+		n     int
+		want  string
+	}{
+		{name: "fits", input: "short", n: 5, want: "short"},
+		{name: "zero", input: "short", n: 0, want: ""},
+		{name: "negative", input: "short", n: -1, want: ""},
+		{name: "ascii cut", input: "abcdef", n: 3, want: "abc"},
+		{name: "two-byte kept at boundary", input: "éa", n: 2, want: "é"},
+		{name: "two-byte straddling", input: "éa", n: 1, want: ""},
+		{name: "four-byte straddling", input: "a😀b", n: 4, want: "a"},
+		{name: "four-byte kept at boundary", input: "a😀b", n: 5, want: "a😀"},
+		{name: "stray continuation bytes", input: strings.Repeat("\x80", 10), n: 6, want: strings.Repeat("\x80", 3)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := truncate.Prefix(tc.input, tc.n); got != tc.want {
+				t.Fatalf("Prefix(%q, %d) = %q, want %q", tc.input, tc.n, got, tc.want)
+			}
+		})
+	}
+
+	mixed := strings.Repeat("aé😀世", 8)
+	for n := range len(mixed) + 2 {
+		got := truncate.Prefix(mixed, n)
+		if len(got) > max(n, 0) || !utf8.ValidString(got) || !strings.HasPrefix(mixed, got) {
+			t.Fatalf("Prefix(mixed, %d) = %q is not a valid prefix within the limit", n, got)
+		}
+		if rest := mixed[len(got):]; rest != "" {
+			if _, size := utf8.DecodeRuneInString(rest); len(got)+size <= n {
+				t.Fatalf("Prefix(mixed, %d) = %d bytes; the next character also fits", n, len(got))
+			}
+		}
 	}
 }

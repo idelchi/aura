@@ -9,11 +9,18 @@ import (
 
 	"github.com/idelchi/aura/pkg/llm/message"
 	"github.com/idelchi/aura/pkg/llm/roles"
+	"github.com/idelchi/aura/pkg/truncate"
 )
+
+// receiptExcerptBytes bounds each current-turn receipt. It is fixed, independent of
+// the summarizer's tool-result setting: receipts stay in the rebuilt context for the
+// rest of the turn, so their size must not grow with how much evidence the
+// summarizer is allowed to read.
+const receiptExcerptBytes = 200
 
 // compactionReceipts retains actual current-turn tool responses outside the
 // model-generated summary. They describe execution, never inferred side effects.
-func compactionReceipts(calls []injector.ToolCall, limit int) string {
+func compactionReceipts(calls []injector.ToolCall) string {
 	var result strings.Builder
 	result.WriteString("\n[CURRENT TURN TOOL RECEIPTS — recorded by Aura, not the summarizing model]\nThese are all tool invocations in this turn, not earlier turns. Prefer these receipts over conflicting summary claims. Execution alone does not prove an external effect.\n")
 	if len(calls) == 0 {
@@ -24,11 +31,12 @@ func compactionReceipts(calls []injector.ToolCall, limit int) string {
 		if call.Error != "" {
 			output = "Execution failed: " + call.Error
 		}
-		runes := []rune(output)
-		if len(runes) > max(limit, 200) {
-			output = string(runes[:max(limit, 200)]) + " [response excerpt; remaining output omitted]"
+		marker := ""
+		if shown := truncate.Prefix(output, receiptExcerptBytes); len(shown) < len(output) {
+			marker = fmt.Sprintf(" [receipt excerpt: first %d of %d bytes; the rest is not shown]", len(shown), len(output))
+			output = shown
 		}
-		fmt.Fprintf(&result, "%d. %s returned: %q\n", i+1, call.Name, output)
+		fmt.Fprintf(&result, "%d. %s returned: %q%s\n", i+1, call.Name, output, marker)
 	}
 	result.WriteString("[END CURRENT TURN TOOL RECEIPTS]")
 	return result.String()
@@ -138,25 +146,37 @@ func splitIntoChunks(msgs message.Messages, n int) []message.Messages {
 }
 
 // prepareCompactionMessages filters and preprocesses conversation messages for compaction.
-// It strips synthetic messages, thinking, truncates tool results, and wraps in a system message.
+// It strips synthetic messages and thinking, bounds tool results with explicit
+// excerpt/omission markers, and wraps the result in the summarizer's system prompt.
+// User and assistant text is never shortened.
 func prepareCompactionMessages(systemPrompt string, msgs message.Messages, maxLen int) message.Messages {
-	prepared := msgs.ForCompaction(maxLen)
-
 	result := message.New(message.Message{Role: roles.System, Content: systemPrompt})
 
-	for _, msg := range prepared {
+	for _, msg := range msgs.ForCompaction(maxLen) {
 		if msg.IsSystem() {
 			continue
-		}
-
-		if msg.IsTool() && maxLen <= 0 {
-			msg.Content = "[tool output stripped]"
 		}
 
 		result = append(result, msg)
 	}
 
 	return result
+}
+
+// compactionRules returns the instruction shared by single-pass and chunked summaries:
+// keep to what the supplied transcript establishes. Tool results in that transcript may
+// be excerpts or omissions (message.ExcerptResults), so the rules forbid reconstructing
+// them. They ask for faithfulness; they cannot guarantee it.
+func compactionRules() string {
+	return heredoc.Doc(`
+	Rules:
+	- Retain requirements, constraints, decisions and corrections only as the messages above state them. A later correction replaces what it corrects.
+	- Copy an identifier, path, value, count or quotation only when it appears in full above. Put quotation marks only around text copied exactly.
+	- Never complete or reconstruct a schema, listing, file, code, JSON value, quotation or catalogue from memory or partial evidence.
+	- A tool result marked as an excerpt or as omitted is incomplete: name the source to re-read instead of describing its missing part.
+	- Report a change, check or outcome as done only when a message above shows it.
+	- Follow the system instructions for what to retain. Do not continue the task or call tools; write only the summary.
+	`)
 }
 
 // buildCompactionMessages builds a multi-message request with the actual
@@ -170,15 +190,7 @@ func buildCompactionMessages(
 ) message.Messages {
 	result := prepareCompactionMessages(systemPrompt, toCompact, maxLen)
 
-	userPrompt := heredoc.Doc(`
-		Produce a compacted summary of the conversation above. Preserve the following EXACTLY:
-		- Requirement checklists, acceptance criteria, and structural constraints (reproduce verbatim)
-		- Specific file paths, package names, and dependency choices that were decided or required
-		- Decisions made and their rationale — only report decisions that were EXPLICITLY stated, not inferred from errors
-
-		Summarize narrative and discussion freely, but structured data must survive intact.
-		Do NOT attempt to continue the task or issue tool calls. Only SUMMARIZE as instructed.
-	`)
+	userPrompt := "Summarize the conversation above for its continuation.\n\n" + compactionRules()
 
 	if todoState != "" {
 		userPrompt = todoState + "\n\n" + userPrompt
@@ -215,10 +227,9 @@ func buildChunkMessages(
 	}
 
 	parts = append(parts, fmt.Sprintf(
-		"This is chunk %d of %d. Produce a compacted summary that incorporates any previous summary and this chunk. "+
-			"Preserve requirement checklists, structural constraints, and explicit decisions verbatim. "+
-			"Do NOT attempt to continue the task or issue tool calls. Only SUMMARIZE as instructed.",
-		chunkNum, totalChunks,
+		"This is chunk %d of %d. Write one summary that combines the previous summary, if any, with the messages above. "+
+			"The previous summary is itself a summary: keep what it says unless these messages correct it, and add no detail that neither contains.\n\n%s",
+		chunkNum, totalChunks, compactionRules(),
 	))
 
 	result = append(result, message.Message{Role: roles.User, Content: strings.Join(parts, "\n\n")})

@@ -311,3 +311,29 @@ func TestChatRequiresAFinishReason(t *testing.T) {
 		t.Fatalf("truncated stream = %+v, %v; want a network error", msg, err)
 	}
 }
+
+// TestChatReportsFinishReason normalizes finish_reason, so a caller can tell a response
+// cut off at a token limit from a complete one. Content is returned either way.
+func TestChatReportsFinishReason(t *testing.T) {
+	req := request.Request{Model: model.Model{Name: "m"}, Messages: message.Messages{{Role: roles.User, Content: "hi"}}}
+
+	for reason, want := range map[string]message.Finish{
+		"stop":           message.FinishStop,
+		"length":         message.FinishLength,
+		"tool_calls":     message.FinishToolCalls,
+		"content_filter": message.FinishContentFilter,
+		"something_new":  message.FinishOther,
+	} {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "text/event-stream")
+			_, _ = fmt.Fprint(w, "data: "+`{"id":"c","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"content":"partial"},"finish_reason":"`+reason+`"}]}`+"\n\ndata: [DONE]\n\n")
+		}))
+
+		msg, _, err := New(server.URL, "", time.Minute).Chat(t.Context(), req, nil)
+		server.Close()
+
+		if err != nil || msg.Content != "partial" || msg.Finish != want {
+			t.Fatalf("finish_reason %q: content=%q finish=%q err=%v, want %q", reason, msg.Content, msg.Finish, err, want)
+		}
+	}
+}

@@ -23,6 +23,16 @@ type FeatureResolution struct {
 	generation *generation.Generation
 }
 
+// ContextLength is the feature call's effective context window: the resolved agent's
+// configured context, otherwise the provider-reported model context, 0 if unknown.
+func (r FeatureResolution) ContextLength() int {
+	if r.contextLen > 0 {
+		return r.contextLen
+	}
+
+	return int(r.mdl.ContextLength)
+}
+
 // FeatureAgentConfig holds the inputs for resolving a feature agent.
 type FeatureAgentConfig struct {
 	label      string        // debug log label ("compact", "thinking", "guardrail-tool_calls")

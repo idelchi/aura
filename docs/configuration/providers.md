@@ -179,8 +179,10 @@ scripted:
 ```
 
 Each chat request consumes the next step: `delay` (wait before responding), `thinking`, `content`, `stall` (wait
-after streaming, before returning), `calls` (`id` optional) or `error` (`class` is one of `network`, `server`,
-`rate_limit`, `auth`, `credit`, `model_unavailable`, `content_filter`, `context`; optional `status`, `retry_after`).
+after streaming, before returning), `calls` (`id` optional), `finish` (the reported finish reason: `stop`, `length`,
+`tool_calls`, `content_filter`, `error`, `other` or `unreported`; by default `tool_calls` with calls and `stop`
+otherwise) or `error` (`class` is one of `network`, `server`, `rate_limit`, `auth`, `credit`, `model_unavailable`,
+`content_filter`, `context`; optional `status`, `retry_after`).
 Waits honour cancellation. `metadata_error` (same shape as `error`) fails every model metadata request. The replay
 position is persisted in `<script>.cursor` (a step is consumed when it starts), so a run killed and resumed in a new
 process continues with the next step; delete the cursor to restart. An exhausted script fails the request explicitly.

@@ -70,8 +70,8 @@ compaction:
   chunks: 1 # 1 = single-pass; N splits history into N sequential chunks
   agent: Compaction
   # prompt: ""           # named prompt for self-compaction (overrides agent)
-  tool_result_max_length: 200
-  truncation_retries: [150, 100, 50, 0]
+  tool_result_max_length: 200 # bytes per tool result sent to the summarizer; longer results are marked excerpts, <= 0 omits them
+  truncation_retries: [150, 100, 50, 0] # smaller lengths for requests over the input budget or after a provider overflow
   prune:
     mode: "off" # "off", "iteration", "compaction"
     protect_percent: 30 # % of context to protect; includes the boundary message
