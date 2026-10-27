@@ -32,6 +32,11 @@ tasks:
     vars:
       WINDOWS_CC: '{{.WINDOWS_CC | default "x86_64-w64-mingw32-gcc"}}'
       WINDOWS_CXX: '{{.WINDOWS_CXX | default "x86_64-w64-mingw32-g++"}}'
+    preconditions:
+      - sh: command -v gcc && command -v g++
+        msg: Linux CGO builds require gcc and g++.
+      - sh: command -v '{{.WINDOWS_CC}}' && command -v '{{.WINDOWS_CXX}}'
+        msg: Windows CGO builds require the MinGW C and C++ compilers, even when build results are cached.
     cmds:
       - cmd: /usr/local/go/bin/go build ./...
         env:
