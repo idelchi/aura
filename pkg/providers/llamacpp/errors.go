@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/packages/ssestream"
 
 	"github.com/idelchi/aura/pkg/providers"
 	"github.com/idelchi/aura/pkg/providers/adapter"
@@ -126,9 +127,36 @@ func decodeJSON(req *http.Request, resp *http.Response, v any) error {
 }
 
 // inferenceError classifies a failure of the OpenAI-compatible inference API. HTTP errors
-// map by status (and llama.cpp's structured context-size type); others go through the
-// shared adapter, which types network failures.
+// map by status (and llama.cpp's structured context-size type). Once streaming has
+// started, errors arrive in a successful HTTP response and must be classified by the
+// event's structured type. Other errors go through the shared network error adapter.
 func (c *Client) inferenceError(err error) error {
+	if streamErr, ok := errors.AsType[*ssestream.StreamError](err); ok {
+		var event struct {
+			Error struct {
+				Type string `json:"type"`
+			} `json:"error"`
+		}
+		if json.Unmarshal(streamErr.Event.Data, &event) != nil {
+			return err
+		}
+
+		// Preserve the SDK error and its original event. Do not infer an HTTP
+		// failure status from an event received after a successful response.
+		switch event.Error.Type {
+		case "server_error", "unavailable_error":
+			return fmt.Errorf("%w: %w", providers.ErrServerError, err)
+		case "authentication_error":
+			return fmt.Errorf("%w: %w", providers.ErrAuth, err)
+		case "rate_limit_error":
+			return &providers.RateLimitError{RetryAfter: providers.DefaultRetryAfter, Err: err}
+		case exceedsContext:
+			return fmt.Errorf("%w: %w", providers.ErrContextExhausted, err)
+		default:
+			return err
+		}
+	}
+
 	apiErr, ok := errors.AsType[*openai.Error](err)
 	if !ok {
 		return adapter.MapError(err)
