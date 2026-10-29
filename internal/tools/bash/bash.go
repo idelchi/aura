@@ -154,8 +154,10 @@ func New(truncation config.BashTruncation, rewrite string) *Tool {
 					Avoid using Bash for file reading, writing, or editing.
 					NEVER prefix the command with 'bash', 'bash -lc', or anything similar.
 
-					Do not change the default timeout unless absolutely necessary.
-					If you have to increase the timeout significantly, you most probably have an issue that you should address differently.
+					Keep ordinary commands short and focused; avoid arbitrary sleeps.
+					Known builds or test suites may need a longer timeout_ms; allow realistic headroom for their expected runtime.
+					Preserve the command's exit status when filtering output, and check for timeout markers.
+					A successful tool call does not by itself mean the command succeeded.
 
 					Output is byte-capped at 1MB per stream (stdout/stderr) to prevent memory issues.
 					Output over 200 lines is automatically truncated to the first 100 and last 80 lines.
