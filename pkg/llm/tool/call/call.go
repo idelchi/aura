@@ -97,6 +97,19 @@ func (c Call) DisplayFull() (header, args string) {
 	return header, args
 }
 
+// DisplayTranscript retains the available arguments and output rather than the
+// bounded previews used on screen. Restored calls may only have a preview.
+func (c Call) DisplayTranscript() (header, args, result string) {
+	header, _ = c.DisplayFull()
+	if len(c.Arguments) > 0 {
+		args = truncate.MapToJSON(c.Arguments)
+	}
+	if c.FullOutput != "" {
+		c.Preview = c.FullOutput
+	}
+	return header, args, c.DisplayResult()
+}
+
 // DisplayResult returns the formatted result or error string for UI display.
 func (c Call) DisplayResult() string {
 	if c.State == Pending || c.State == Running {

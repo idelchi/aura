@@ -2,6 +2,7 @@ package simple_test
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -11,7 +12,7 @@ import (
 )
 
 func TestSimpleShutdownNeverApproves(t *testing.T) {
-	s := simple.New(ui.Status{Agent: "test"}, filepath.Join(t.TempDir(), "history"))
+	s := simple.New(ui.Status{Agent: "test"}, filepath.Join(t.TempDir(), "history"), os.Stdout, os.Stdout)
 
 	ask := make(chan string, 1)
 	confirm := make(chan ui.ConfirmAction, 1)

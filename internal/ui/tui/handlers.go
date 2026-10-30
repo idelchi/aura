@@ -57,6 +57,8 @@ func (m *Model) handleKeyMsg(msg tea.KeyPressMsg) (bool, tea.Cmd) {
 
 	case "esc":
 		if m.state == StateStreaming {
+			m.activity.RequestCancel()
+
 			go func() {
 				m.cancel <- struct{}{}
 			}()
@@ -466,7 +468,6 @@ func (m *Model) handleMessageStarted(msg ui.MessageStarted) {
 		Role:  roles.Assistant,
 		Parts: []part.Part{},
 	}
-	m.spinnerMsg = m.spintext.Random()
 	m.updateViewportContent()
 }
 
@@ -506,7 +507,6 @@ func (m *Model) handleMessageFinalized(msg ui.MessageFinalized) {
 
 	m.messages = append(m.messages, msg.Message)
 	m.currentMessage = nil
-	m.spinnerMsg = "" // Clear streaming spinner — standalone spinners (compaction) manage their own lifecycle
 	m.toolOutputLine = ""
 	m.updateViewportContent()
 }

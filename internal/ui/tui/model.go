@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/idelchi/aura/internal/spintext"
 	"github.com/idelchi/aura/internal/ui"
 	"github.com/idelchi/aura/internal/ui/tui/autocomplete"
 	"github.com/idelchi/aura/pkg/llm/message"
@@ -33,6 +32,7 @@ const (
 	inputBorderSize  = 2 // Top + bottom border
 	layoutPadding    = 2 // Extra vertical padding
 	footerHeight     = 2 // Status line + help line below input
+	activityHeight   = 1 // Activity row between viewport and input
 	maxTextareaLines = 3 // Maximum lines before textarea scrolls
 )
 
@@ -78,8 +78,9 @@ type Model struct {
 	state    State                // Current UI state
 	textarea textarea.Model       // User input area
 	viewport viewport.Model       // Scrollable chat history
-	spinner  spinner.Model        // Animated spinner for streaming state
-	spintext *spintext.SpinText   // Randomized spinner messages
+	spinner  spinner.Model        // Animated spinner for the activity row and running tools
+	activity ui.Activity          // What the assistant is doing, shown in the activity row
+	clock    func() time.Time     // Time source for activity tracking and display
 	input    chan<- ui.UserInput  // Channel for sending user input
 	actions  chan<- ui.UserAction // Channel for sending actions
 	cancel   chan<- struct{}      // Channel for sending cancel requests
@@ -89,9 +90,6 @@ type Model struct {
 	// Conversation history
 	messages       message.Messages // All finalized messages
 	currentMessage *message.Message // Message being streamed
-
-	// Spinner message for current streaming session
-	spinnerMsg string
 
 	// Latest streaming tool output line (shown below spinner during execution)
 	toolOutputLine string
@@ -185,7 +183,7 @@ func NewModel(
 		textarea:           ta,
 		viewport:           vp,
 		spinner:            sp,
-		spintext:           spintext.Default(),
+		clock:              time.Now,
 		input:              input,
 		actions:            actions,
 		cancel:             cancel,
@@ -281,7 +279,6 @@ func (m *Model) finishStreaming() tea.Cmd {
 	m.textarea.Focus()
 
 	m.scrollLocked = false
-	m.spinnerMsg = ""
 	m.toolOutputLine = ""
 	m.processingMessages = nil
 	m.viewport.GotoBottom()

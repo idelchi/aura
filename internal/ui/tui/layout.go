@@ -53,6 +53,6 @@ func (m *Model) recalculateLayout() {
 		flashHeight = 1
 	}
 
-	m.viewport.SetHeight(max(1, m.height-inputHeight-footerHeight-flashHeight-layoutPadding))
+	m.viewport.SetHeight(max(1, m.height-activityHeight-inputHeight-footerHeight-flashHeight-layoutPadding))
 	m.viewport.SetWidth(m.width)
 }

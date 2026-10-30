@@ -1,8 +1,12 @@
 package tui
 
 import (
+	"bufio"
 	"context"
+	"fmt"
+	"io"
 	"os"
+	"time"
 
 	"github.com/idelchi/aura/internal/ui"
 
@@ -14,21 +18,23 @@ type HintFunc func(name string) string
 
 // UI implements a bubbletea-based TUI.
 type UI struct {
-	status      ui.Status          // Status bar information
-	events      chan ui.Event      // Channel for receiving assistant events
-	input       chan ui.UserInput  // Channel for sending user input
-	actions     chan ui.UserAction // Channel for sending actions
-	cancel      chan struct{}      // Channel for cancel requests
-	program     *tea.Program       // Bubbletea program instance
-	historyPath string             // Path for persistent input history file
-	output      *os.File           // Override bubbletea output (nil = default os.Stdout)
-	hintFunc    HintFunc           // Resolves slash command hints
-	workdir     string             // Working directory for directive autocomplete
+	status           ui.Status          // Status bar information
+	events           chan ui.Event      // Channel for receiving assistant events
+	input            chan ui.UserInput  // Channel for sending user input
+	actions          chan ui.UserAction // Channel for sending actions
+	cancel           chan struct{}      // Channel for cancel requests
+	program          *tea.Program       // Bubbletea program instance
+	historyPath      string             // Path for persistent input history file
+	output           *os.File           // Override bubbletea output (nil = default os.Stdout)
+	hintFunc         HintFunc           // Resolves slash command hints
+	workdir          string             // Working directory for directive autocomplete
+	transcript       *ui.Transcript     // Semantic output log; independent of terminal redraws
+	transcriptBuffer *bufio.Writer
 }
 
 // New creates a new TUI with the given status information and history file path.
-func New(status ui.Status, historyPath string, output *os.File) *UI {
-	return &UI{
+func New(status ui.Status, historyPath string, output *os.File, transcript io.Writer) *UI {
+	u := &UI{
 		status:      status,
 		events:      make(chan ui.Event, 100),
 		input:       make(chan ui.UserInput),
@@ -37,6 +43,11 @@ func New(status ui.Status, historyPath string, output *os.File) *UI {
 		historyPath: historyPath,
 		output:      output,
 	}
+	if transcript != nil {
+		u.transcriptBuffer = bufio.NewWriter(transcript)
+		u.transcript = ui.NewTranscript(u.transcriptBuffer)
+	}
+	return u
 }
 
 // Cancel returns the channel for receiving cancel requests.
@@ -71,9 +82,12 @@ func (u *UI) Actions() <-chan ui.UserAction {
 
 // Run starts the TUI, blocking until exit.
 func (u *UI) Run(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	model := NewModel(u.status, u.input, u.actions, u.cancel, u.historyPath, u.hintFunc, u.workdir)
 
-	var opts []tea.ProgramOption
+	opts := []tea.ProgramOption{tea.WithContext(ctx)}
 
 	if u.output != nil {
 		opts = append(opts, tea.WithOutput(u.output))
@@ -82,22 +96,63 @@ func (u *UI) Run(ctx context.Context) error {
 	u.program = tea.NewProgram(model, opts...)
 
 	// Bridge events to bubbletea
-	go u.bridgeEvents(ctx)
+	done := make(chan error, 1)
+	go func() {
+		done <- u.bridgeEvents(ctx, cancel)
+	}()
 
 	_, err := u.program.Run()
+	cancel()
+	if logErr := <-done; logErr != nil {
+		return logErr
+	}
 
 	return err
 }
 
 // bridgeEvents reads from the events channel and sends to the tea.Program.
-func (u *UI) bridgeEvents(ctx context.Context) {
+func (u *UI) bridgeEvents(ctx context.Context, cancel context.CancelFunc) (err error) {
+	defer ui.DrainEvents(u.events)
+	var tick <-chan time.Time
+	if u.transcriptBuffer != nil {
+		// Bound log latency without putting a filesystem write on every token.
+		ticker := time.NewTicker(250 * time.Millisecond)
+		defer ticker.Stop()
+		tick = ticker.C
+		defer func() {
+			if flushErr := u.transcriptBuffer.Flush(); err == nil && flushErr != nil {
+				err = fmt.Errorf("output transcript: %w", flushErr)
+			}
+		}()
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return nil
+		case <-tick:
+			if err := u.transcriptBuffer.Flush(); err != nil {
+				cancel()
+				return fmt.Errorf("output transcript: %w", err)
+			}
 		case event, ok := <-u.events:
 			if !ok {
-				return
+				return nil
+			}
+
+			if u.transcript != nil {
+				if err := u.transcript.Record(event); err != nil {
+					cancel()
+					return fmt.Errorf("output transcript: %w", err)
+				}
+				switch event.(type) {
+				case ui.Flush, ui.AssistantDone, ui.MessageFinalized, ui.CommandResult,
+					ui.ToolConfirmRequired, ui.AskRequired:
+					if err := u.transcriptBuffer.Flush(); err != nil {
+						cancel()
+						return fmt.Errorf("output transcript: %w", err)
+					}
+				}
 			}
 
 			if u.program != nil {

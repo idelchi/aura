@@ -4,12 +4,14 @@ package headless
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/fatih/color"
 
 	"github.com/idelchi/aura/internal/ui"
+	"github.com/idelchi/aura/pkg/llm/part"
 	"github.com/idelchi/aura/pkg/llm/roles"
 )
 
@@ -213,11 +215,17 @@ func (h *Headless) handleMessageAdded(e ui.MessageAdded) {
 }
 
 func (h *Headless) handleMessagePartAdded(e ui.MessagePartAdded) {
-	ui.RenderPartAdded(h.tracker.Added(e.Part), e.Part, h.verbose, h.status.AssistantPrompt())
+	delta := h.tracker.Added(e.Part)
+	if e.Part.Type == part.Tool && delta.SectionBreak {
+		// Pending tools print nothing yet, but consume the part transition.
+		// End preceding prose before the later Running event prints its header.
+		fmt.Println()
+	}
+	ui.RenderPartAdded(os.Stdout, delta, e.Part, h.verbose, h.status.AssistantPrompt())
 }
 
 func (h *Headless) handleMessagePartUpdated(e ui.MessagePartUpdated) {
-	ui.RenderPartUpdated(h.tracker.Updated(e.Part), e.Part, h.verbose, h.status.AssistantPrompt())
+	ui.RenderPartUpdated(os.Stdout, h.tracker.Updated(e.Part), e.Part, h.verbose, h.status.AssistantPrompt())
 }
 
 func (h *Headless) handleCommandResult(e ui.CommandResult) {

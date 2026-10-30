@@ -179,7 +179,15 @@ func (a *Assistant) SetReadBeforePolicy(p tool.ReadBeforePolicy) error {
 }
 
 // RequestExit signals the assistant loop to exit gracefully.
-func (a *Assistant) RequestExit() { a.toggles.exitRequested = true }
+func (a *Assistant) RequestExit() {
+	a.toggles.exitRequested = true
+	if a.stream.cancel != nil {
+		a.stream.cancel()
+	}
+	// The exit command persists its result after returning. Finish the cancelled
+	// turn's persistence first so the two saves cannot race or overwrite it.
+	a.awaitTurn()
+}
 
 // ModelListCache returns the cached model list (nil on first call).
 func (a *Assistant) ModelListCache() []slash.ProviderModels { return a.modelListCache }

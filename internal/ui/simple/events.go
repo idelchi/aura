@@ -2,6 +2,7 @@ package simple
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -12,18 +13,22 @@ import (
 	"github.com/alecthomas/chroma/v2/styles"
 
 	"github.com/idelchi/aura/internal/ui"
+	"github.com/idelchi/aura/pkg/llm/part"
 	"github.com/idelchi/aura/pkg/llm/roles"
 	"github.com/idelchi/godyl/pkg/path/file"
 )
 
 // handleEvent renders one event on Run's goroutine, in arrival order. A flush is
 // therefore released only after every earlier event has been rendered.
+// The activity observes every event; the prompt is redrawn afterwards if it changed.
 func (s *Simple) handleEvent(event ui.Event) {
+	s.activity.Observe(event, s.clock())
+
 	switch e := event.(type) {
 	case ui.MessageAdded:
 		s.handleMessageAdded(e)
 	case ui.MessageStarted:
-		s.handleMessageStarted()
+		s.tracker.Reset()
 	case ui.MessagePartAdded:
 		s.handleMessagePartAdded(e)
 	case ui.MessagePartUpdated:
@@ -35,28 +40,30 @@ func (s *Simple) handleEvent(event ui.Event) {
 	case ui.DisplayHintsChanged:
 		s.hints = e.Hints
 	case ui.WaitingForInput:
-		s.handleWaitingForInput()
+		// No-op: the activity follows the turn's events
 	case ui.CommandResult:
 		s.handleCommandResult(e)
 	case ui.AssistantDone:
 		s.handleAssistantDone(e)
 	case ui.SyntheticInjected:
-		s.spinner.Stop()
-		ui.SyntheticStyle.Printf("\n%s\n%s\n", e.Header, e.Content)
+		s.clearPrompt()
+		ui.SyntheticStyle.Fprintf(s.out, "\n%s\n%s\n", e.Header, e.Content)
+		s.printed(ui.LineStart)
 	case ui.ToolConfirmRequired:
 		s.handleToolConfirm(e)
 	case ui.AskRequired:
 		s.handleAskRequired(e)
 	case ui.PickerOpen:
-		s.rl.Clean()
-		fmt.Print(e.Display())
-		s.rl.Refresh()
+		s.clearPrompt()
+		s.endLine()
+		fmt.Fprint(s.out, e.Display())
+		s.printed(ui.LineStart)
 	case ui.TodoEditRequested:
 		s.handleTodoEditRequested(e)
 	case ui.SpinnerMessage:
-		s.handleSpinnerMessage(e)
+		// No-op: shown by the activity prompt
 	case ui.ToolOutputDelta:
-		s.handleToolOutputDelta(e)
+		// No-op: counts as progress for the activity prompt
 	case ui.UserMessagesProcessed:
 		// No-op for simple UI
 	case ui.SessionRestored:
@@ -66,110 +73,129 @@ func (s *Simple) handleEvent(event ui.Event) {
 	case ui.Flush:
 		close(e.Done)
 	}
+
+	s.redraw()
 }
 
 func (s *Simple) handleMessageAdded(e ui.MessageAdded) {
-	if e.Message.IsBookmark() {
-		fmt.Fprintf(os.Stderr, "\n--- %s ---\n", strings.TrimSpace(e.Message.Content))
-
+	switch {
+	case e.Message.IsBookmark():
+		s.clearPrompt()
+		fmt.Fprintf(s.out, "\n--- %s ---\n", strings.TrimSpace(e.Message.Content))
+	case e.Message.IsDisplayOnly():
+		s.clearPrompt()
+		ui.SyntheticStyle.Fprintf(s.out, "\n%s\n", strings.TrimSpace(e.Message.Content))
+	case e.Message.Role == roles.User:
+		s.clearPrompt()
+		s.endLine()
+		ui.UserStyle.Fprintf(s.out, "%s%s\n", s.status.UserPrompt(), strings.TrimSpace(e.Message.Content))
+	default:
 		return
 	}
 
-	if e.Message.IsDisplayOnly() {
-		ui.SyntheticStyle.Printf("\n%s\n", strings.TrimSpace(e.Message.Content))
-
-		return
-	}
-
-	if e.Message.Role == roles.User {
-		ui.UserStyle.Printf("%s%s\n", s.status.UserPrompt(), strings.TrimSpace(e.Message.Content))
-	}
-}
-
-func (s *Simple) handleMessageStarted() {
-	s.state = StateStreaming
-	s.tracker.Reset()
-	s.spinner.Update(s.spintext.Random())
-	s.spinner.Start()
+	s.printed(ui.LineStart)
 }
 
 func (s *Simple) handleMessagePartAdded(e ui.MessagePartAdded) {
-	s.spinner.Stop()
-	ui.RenderPartAdded(s.tracker.Added(e.Part), e.Part, s.hints.Verbose, s.status.AssistantPrompt())
+	d := s.tracker.Added(e.Part)
+
+	if e.Part.IsTool() {
+		// Registered only — its header prints once it runs. End an open streamed line
+		// now, so the header does not continue the text.
+		s.endLine()
+
+		return
+	}
+
+	s.renderPart(d, e.Part, ui.RenderPartAdded)
 }
 
 func (s *Simple) handleMessagePartUpdated(e ui.MessagePartUpdated) {
-	s.spinner.Stop()
-	ui.RenderPartUpdated(s.tracker.Updated(e.Part), e.Part, s.hints.Verbose, s.status.AssistantPrompt())
+	s.renderPart(s.tracker.Updated(e.Part), e.Part, ui.RenderPartUpdated)
+}
+
+// renderPart prints a streamed part. The prompt is removed first unless the part prints
+// nothing (hidden thinking within a thinking section), which avoids redrawing it per delta.
+func (s *Simple) renderPart(d ui.Delta, p part.Part, render func(io.Writer, ui.Delta, part.Part, bool, string) ui.Line) {
+	if !(p.IsThinking() && !s.hints.Verbose && !d.SectionBreak) {
+		s.clearPrompt()
+	}
+
+	s.printed(render(s.out, d, p, s.hints.Verbose, s.status.AssistantPrompt()))
 }
 
 func (s *Simple) handleMessageFinalized(e ui.MessageFinalized) {
-	s.spinner.Stop()
+	s.clearPrompt()
 
 	if e.Message.Error != nil {
-		ui.ErrorStyle.Printf("\nError: %v\n", e.Message.Error)
+		ui.ErrorStyle.Fprintf(s.out, "\nError: %v\n", e.Message.Error)
 
 		s.lastErrorShown = true
 	} else {
-		fmt.Println()
+		fmt.Fprintln(s.out)
 
 		s.lastErrorShown = false
 	}
 
-	s.state = StateIdle
+	s.printed(ui.LineStart)
 	s.tracker.Reset()
-	s.rl.Refresh()
-}
-
-func (s *Simple) handleWaitingForInput() {
-	s.spinner.Stop()
-
-	s.state = StateIdle
-	s.rl.Refresh()
 }
 
 func (s *Simple) handleCommandResult(e ui.CommandResult) {
+	s.clearPrompt()
+
 	if e.Clear {
-		fmt.Print("\033[2J\033[H")
-		s.rl.Refresh()
+		s.endLine()
+		fmt.Fprint(s.out, "\033[2J\033[H")
+		s.printed(ui.LineStart)
 
 		return
 	}
 
-	s.rl.Clean()
+	if e.Command == "" && e.Error == nil && e.Message == "" {
+		return
+	}
+
+	s.endLine()
 
 	if e.Command != "" {
-		ui.UserStyle.Printf("%s%s\n", s.status.UserPrompt(), e.Command)
+		ui.UserStyle.Fprintf(s.out, "%s%s\n", s.status.UserPrompt(), e.Command)
 	}
 
 	if e.Error != nil {
-		ui.ErrorStyle.Printf("Error: %v\n", e.Error)
+		ui.ErrorStyle.Fprintf(s.out, "Error: %v\n", e.Error)
 	} else if e.Message != "" {
-		fmt.Println(strings.TrimSpace(e.Message))
+		fmt.Fprintln(s.out, strings.TrimSpace(e.Message))
 	}
 
-	s.rl.Refresh()
+	s.printed(ui.LineStart)
 }
 
 func (s *Simple) handleAssistantDone(e ui.AssistantDone) {
-	s.spinner.Stop()
-
-	s.state = StateIdle
-
-	if e.Cancelled {
-		fmt.Println("\n(cancelled)")
-	} else if e.Error != nil && !s.lastErrorShown {
-		ui.ErrorStyle.Printf("\nError: %v\n", e.Error)
+	switch {
+	case e.Cancelled:
+		s.clearPrompt()
+		fmt.Fprintln(s.out, "\n(cancelled)")
+		s.printed(ui.LineStart)
+	case e.Error != nil && !s.lastErrorShown:
+		s.clearPrompt()
+		ui.ErrorStyle.Fprintf(s.out, "\nError: %v\n", e.Error)
+		s.printed(ui.LineStart)
 	}
 
 	s.lastErrorShown = false
-	s.rl.Refresh()
 }
 
 func (s *Simple) handleTodoEditRequested(e ui.TodoEditRequested) {
+	s.clearPrompt()
+	s.endLine()
+
+	// The editor takes over the terminal; whatever it leaves, continue on a fresh line.
+	defer s.printed(ui.LineStart)
+
 	tmp, err := file.CreateRandomInDir("", "aura-todo-*.md")
 	if err != nil {
-		ui.ErrorStyle.Printf("Error: %v\n", err)
+		ui.ErrorStyle.Fprintf(s.out, "Error: %v\n", err)
 
 		return
 	}
@@ -178,14 +204,14 @@ func (s *Simple) handleTodoEditRequested(e ui.TodoEditRequested) {
 
 	f, err := tmp.OpenForWriting()
 	if err != nil {
-		ui.ErrorStyle.Printf("Error: %v\n", err)
+		ui.ErrorStyle.Fprintf(s.out, "Error: %v\n", err)
 
 		return
 	}
 
 	if _, err := f.WriteString(e.Content); err != nil {
 		f.Close()
-		ui.ErrorStyle.Printf("Error: %v\n", err)
+		ui.ErrorStyle.Fprintf(s.out, "Error: %v\n", err)
 
 		return
 	}
@@ -200,18 +226,18 @@ func (s *Simple) handleTodoEditRequested(e ui.TodoEditRequested) {
 	cmd := exec.Command(editor, tmp.Path())
 
 	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
+	cmd.Stdout = s.terminal
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		ui.ErrorStyle.Printf("Editor error: %v\n", err)
+		ui.ErrorStyle.Fprintf(s.out, "Editor error: %v\n", err)
 
 		return
 	}
 
 	data, err := tmp.Read()
 	if err != nil {
-		ui.ErrorStyle.Printf("Error reading file: %v\n", err)
+		ui.ErrorStyle.Fprintf(s.out, "Error reading file: %v\n", err)
 
 		return
 	}
@@ -222,33 +248,32 @@ func (s *Simple) handleTodoEditRequested(e ui.TodoEditRequested) {
 }
 
 func (s *Simple) handleToolConfirm(e ui.ToolConfirmRequired) {
-	s.spinner.Stop()
-	s.rl.Clean()
+	s.clearPrompt()
 
-	fmt.Println()
+	fmt.Fprintln(s.out)
 
 	if e.DiffPreview != "" {
-		fmt.Println(highlightDiffSimple(e.DiffPreview))
-		fmt.Println()
+		fmt.Fprintln(s.out, highlightDiffSimple(e.DiffPreview))
+		fmt.Fprintln(s.out)
 	}
 
-	ui.AssistantStyle.Printf("? Confirm %s: %s\n", e.ToolName, e.Detail)
+	ui.AssistantStyle.Fprintf(s.out, "? Confirm %s: %s\n", e.ToolName, e.Detail)
 
 	if e.Description != "" {
-		ui.ToolStyle.Printf("  %s\n", e.Description)
+		ui.ToolStyle.Fprintf(s.out, "  %s\n", e.Description)
 	}
 
-	ui.ToolStyle.Println("  1. Allow")
-	ui.ToolStyle.Printf("  2. Allow \"%s\" (session)\n", e.Pattern)
-	ui.ToolStyle.Printf("  3. Allow \"%s\" (project)\n", e.Pattern)
-	ui.ToolStyle.Printf("  4. Allow \"%s\" (global)\n", e.Pattern)
-	ui.ToolStyle.Println("  5. Deny")
-	fmt.Println()
+	ui.ToolStyle.Fprintln(s.out, "  1. Allow")
+	ui.ToolStyle.Fprintf(s.out, "  2. Allow \"%s\" (session)\n", e.Pattern)
+	ui.ToolStyle.Fprintf(s.out, "  3. Allow \"%s\" (project)\n", e.Pattern)
+	ui.ToolStyle.Fprintf(s.out, "  4. Allow \"%s\" (global)\n", e.Pattern)
+	ui.ToolStyle.Fprintln(s.out, "  5. Deny")
+	fmt.Fprintln(s.out)
 
+	s.printed(ui.LineStart)
+
+	// The prompt switches to "confirm> " on the redraw that follows every event.
 	s.pendingConfirm = &e
-
-	s.rl.SetPrompt(successStyle.Sprint("confirm> "))
-	s.rl.Refresh()
 }
 
 // highlightDiffSimple applies Chroma ANSI highlighting to unified diff content.
@@ -278,12 +303,11 @@ func highlightDiffSimple(content string) string {
 }
 
 func (s *Simple) handleAskRequired(e ui.AskRequired) {
-	s.spinner.Stop()
-	s.rl.Clean()
+	s.clearPrompt()
 
 	// Print question
-	fmt.Println()
-	ui.AssistantStyle.Printf("? %s\n", e.Question)
+	fmt.Fprintln(s.out)
+	ui.AssistantStyle.Fprintf(s.out, "? %s\n", e.Question)
 
 	// Print numbered options
 	for i, o := range e.Options {
@@ -292,40 +316,17 @@ func (s *Simple) handleAskRequired(e ui.AskRequired) {
 			line += " — " + o.Description
 		}
 
-		ui.ToolStyle.Println(line)
+		ui.ToolStyle.Fprintln(s.out, line)
 	}
 
 	if len(e.Options) > 0 && e.MultiSelect {
-		ui.ToolStyle.Println("\n  Enter comma-separated numbers or text:")
+		ui.ToolStyle.Fprintln(s.out, "\n  Enter comma-separated numbers or text:")
 	}
 
-	fmt.Println()
+	fmt.Fprintln(s.out)
 
-	// Store pending ask and change prompt
+	s.printed(ui.LineStart)
+
+	// The prompt switches to "answer> " on the redraw that follows every event.
 	s.pendingAsk = &e
-
-	s.rl.SetPrompt(successStyle.Sprint("answer> "))
-	s.rl.Refresh()
-}
-
-func (s *Simple) handleSpinnerMessage(e ui.SpinnerMessage) {
-	if s.state == StateStreaming {
-		return
-	}
-
-	if e.Text == "" {
-		s.spinner.Stop()
-
-		return
-	}
-
-	s.spinner.Update(e.Text)
-}
-
-func (s *Simple) handleToolOutputDelta(e ui.ToolOutputDelta) {
-	if s.state == StateStreaming {
-		return
-	}
-
-	s.spinner.Update(fmt.Sprintf("%s: %s", e.ToolName, e.Line))
 }

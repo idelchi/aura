@@ -67,7 +67,7 @@ aura run --agent high "Hello"
 | `--workdir`         | `-w`  |               | Working directory for tool execution and path resolution                                                                                              |
 | `--resume`          |       |               | Resume a saved session by ID prefix                                                                                                                   |
 | `--continue`        | `-c`  | `false`       | Resume the most recent session                                                                                                                        |
-| `--output`          | `-o`  |               | Mirror all output to a file                                                                                                                           |
+| `--output`          | `-o`  |               | Write terminal output and the interactive transcript to a file; see [logging](../ui/index.md#transcript-logging) |
 | `--without-plugins` |       | `false`       | Disable Go plugins                                                                                                                                    |
 | `--unsafe-plugins`  |       | `false`       | Allow plugins to use os/exec and other restricted imports                                                                                             |
 | `--debug`           |       | `false`       | Enable debug logging                                                                                                                                  |

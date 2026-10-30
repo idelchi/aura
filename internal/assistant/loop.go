@@ -76,6 +76,7 @@ func (a *Assistant) Loop(
 
 		case <-a.stream.done:
 			a.stream.active = false
+			a.stream.cancel = nil
 
 			if len(a.stream.pending) > 0 {
 				pending := a.stream.pending
@@ -93,6 +94,7 @@ func (a *Assistant) awaitTurn() {
 		<-a.stream.done
 
 		a.stream.active = false
+		a.stream.cancel = nil
 	}
 }
 
@@ -209,7 +211,7 @@ func (a *Assistant) processWithTracking(ctx context.Context, inputs []ui.UserInp
 
 			cancelFn()
 
-			a.stream.cancel = nil
+			// The loop owns stream.cancel and clears it after this handoff.
 			a.stream.done <- struct{}{}
 		}()
 

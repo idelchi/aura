@@ -15,9 +15,14 @@ type Spinner struct {
 
 // New creates a new Spinner with the given message.
 func New(message string) *Spinner {
+	return NewWithOutput(message, os.Stderr)
+}
+
+// NewWithOutput keeps progress on the terminal when normal stderr is redirected.
+func NewWithOutput(message string, output *os.File) *Spinner {
 	const spinnerDelay = 100 * time.Millisecond
 
-	s := spinner.New(spinner.CharSets[14], spinnerDelay, spinner.WithWriterFile(os.Stderr))
+	s := spinner.New(spinner.CharSets[14], spinnerDelay, spinner.WithWriterFile(output))
 
 	s.Suffix = " " + message
 	s.Color("cyan")

@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/x/ansi"
 
@@ -22,28 +23,32 @@ var (
 			Bold(true).
 			Foreground(lipgloss.Color("214")) // Orange for assistant
 
+	// Secondary text uses explicit muted colors instead of Faint: terminals render
+	// faint inconsistently, and faint on top of dark gray becomes unreadable.
+
+	thinkingLabelStyle = lipgloss.NewStyle().
+				Bold(true).
+				Italic(true).
+				Foreground(lipgloss.Color("246")) // Muted gray heading for thinking
+
 	thinkingStyle = lipgloss.NewStyle().
-			Faint(true).
-			Foreground(lipgloss.Color("241")) // Gray for thinking
+			Italic(true).
+			Foreground(lipgloss.Color("246")) // Muted gray italic for thinking
 
 	contentStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("252")) // Light gray for content
 
 	toolStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("39")). // Blue for tools
-			Faint(true)
+			Foreground(lipgloss.Color("74")) // Muted blue for tool headings
 
 	toolPendingStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("240")). // Dimmed for pending tools
-				Faint(true)
+				Foreground(lipgloss.Color("243")) // Gray for pending tools
 
 	toolResultStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("242")). // Dim gray for results
-			Faint(true)
+			Foreground(lipgloss.Color("244")) // Muted gray for results
 
 	toolErrorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("196")). // Red for tool errors
-			Faint(true)
+			Foreground(lipgloss.Color("167")) // Muted red for tool errors
 
 	selectionStyle = lipgloss.NewStyle().
 			Background(lipgloss.Color("33")). // Blue background
@@ -83,7 +88,46 @@ var (
 	syntheticStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("39")). // Blue
 			Faint(true)
+
+	activityStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("252")) // Light gray: the assistant is working
+
+	activityAwaitingStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("214")). // Orange: the assistant waits for the user
+				Bold(true)
+
+	activityIdleStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("244")) // Muted gray: nothing running
+
+	activityFailedStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("167")) // Muted red: the last turn failed
 )
+
+// renderActivity renders the one-line activity row shown between the viewport and the input.
+// It is outside the viewport, so it stays visible however the history is scrolled.
+// Only work is animated; waiting for the user and idle states are static.
+func (m Model) renderActivity(now time.Time) string {
+	text := m.activity.Display(now)
+
+	var row string
+
+	switch m.activity.State() {
+	case ui.ActivityWorking:
+		row = m.spinner.View() + activityStyle.Render(text)
+	case ui.ActivityAwaitingUser:
+		row = activityAwaitingStyle.Render("? " + text)
+	case ui.ActivityDone:
+		row = activityIdleStyle.Render("✓ " + text)
+	case ui.ActivityFailed:
+		row = activityFailedStyle.Render("✗ " + text)
+	case ui.ActivityCancelled:
+		row = activityIdleStyle.Render("■ " + text)
+	default:
+		row = activityIdleStyle.Render("  " + text)
+	}
+
+	return ansi.Truncate(row, m.width, "…")
+}
 
 // View renders the TUI.
 func (m Model) View() tea.View {
@@ -100,6 +144,10 @@ func (m Model) View() tea.View {
 		b.WriteString(m.viewport.View())
 	}
 
+	b.WriteString("\n")
+
+	// Activity row: always visible, whatever the viewport shows or how far it is scrolled.
+	b.WriteString(m.renderActivity(m.clock()))
 	b.WriteString("\n")
 
 	// Input area (with inline ghost hint if applicable)

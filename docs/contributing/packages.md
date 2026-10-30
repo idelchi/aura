@@ -29,7 +29,7 @@ Aura's source splits into three top-level areas:
 | Features   | `agent/`, `prompts/`, `directive/`, `condition/`, `task/`, `subagent/`, `todo/`, `snapshot/` | Agent resolution, prompt rendering, input directives, conditions, tasks                             |
 | Search     | `embedder/`, `indexer/`, `chunker/`                                                          | Embeddings pipeline (embed → index → chunk)                                                         |
 | UI         | `ui/` (tui, simple, headless, web)                                                           | Four UI backends (Bubble Tea, readline, headless, htmx)                                             |
-| Support    | `debug/`, `mirror/`, `diffpreview/`, `spintext/`, `stats/`, `tmpl/`                          | Debug logging, output mirroring, diff display, spinner text, statistics, template expansion         |
+| Support    | `debug/`, `mirror/`, `diffpreview/`, `stats/`, `tmpl/` | Debug logging, output mirroring, diff display, statistics, template expansion |
 
 ## pkg/
 

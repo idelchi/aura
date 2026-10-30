@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -33,7 +34,7 @@ func prepare(t *testing.T) *harness {
 	t.Helper()
 
 	reader, writer := io.Pipe()
-	s := New(ui.Status{Agent: "test"}, "")
+	s := New(ui.Status{Agent: "test"}, "", os.Stdout, os.Stdout)
 	s.stdin = reader
 
 	return &harness{t: t, s: s, input: writer, cancel: func() {}, done: make(chan error, 1)}

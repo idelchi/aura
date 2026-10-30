@@ -24,6 +24,7 @@ type Mirror struct {
 	stdoutWrite *os.File
 	stderrWrite *os.File
 	wg          sync.WaitGroup
+	mu          sync.Mutex
 }
 
 // New creates a mirror that duplicates stdout and stderr to the file at path.
@@ -81,6 +82,26 @@ func New(path string) (*Mirror, error) {
 // OrigStdout returns the original os.Stdout that was captured before the mirror replaced it.
 func (m *Mirror) OrigStdout() *os.File { return m.origStdout }
 
+// OrigStderr preserves terminal progress output when stderr is mirrored to a pipe.
+func (m *Mirror) OrigStderr() *os.File { return m.origStderr }
+
+// Stdout returns a writer that writes synchronously to the original stdout and the file.
+// Writes through os.Stdout reach the terminal later, via the tee goroutine; use this writer
+// for output whose order relative to direct terminal writes (e.g. readline redraws) matters.
+func (m *Mirror) Stdout() io.Writer { return io.MultiWriter(m.origStdout, m) }
+
+// Write records semantic transcript text without echoing it to the terminal.
+// It shares the file with mirrored stdout/stderr and serializes complete writes.
+func (m *Mirror) Write(p []byte) (int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, err := io.WriteString(m.file, ansi.Strip(string(p))); err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
 // Close restores original stdout/stderr, flushes remaining pipe data, and closes the file.
 func (m *Mirror) Close() {
 	// Restore originals first — new writes bypass the pipe.
@@ -102,8 +123,7 @@ func (m *Mirror) Close() {
 func (m *Mirror) tee(r, orig *os.File) {
 	defer m.wg.Done()
 
-	stripped := &stripWriter{w: m.file}
-	w := io.MultiWriter(orig, stripped)
+	w := io.MultiWriter(orig, m)
 
 	if _, err := io.Copy(w, r); err != nil {
 		debug.Log("[mirror] tee copy: %v", err)
@@ -112,21 +132,4 @@ func (m *Mirror) tee(r, orig *os.File) {
 	if err := r.Close(); err != nil {
 		debug.Log("[mirror] tee close: %v", err)
 	}
-}
-
-// stripWriter wraps an io.Writer and strips ANSI escape sequences before writing.
-type stripWriter struct {
-	w io.Writer
-}
-
-func (s *stripWriter) Write(p []byte) (int, error) {
-	clean := ansi.Strip(string(p))
-
-	_, err := s.w.Write([]byte(clean))
-	if err != nil {
-		return 0, err
-	}
-
-	// Return original length — callers expect len(p) on success.
-	return len(p), nil
 }

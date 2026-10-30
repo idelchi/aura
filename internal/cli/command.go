@@ -364,7 +364,7 @@ func buildApp(version string) (*cli.Command, *core.Flags) {
 				Local:       true,
 				Category:    "Output:",
 				Aliases:     []string{"o"},
-				Usage:       "Mirror all output to file",
+				Usage:       "Write terminal output and the interactive transcript to file",
 				Sources:     cli.EnvVars("AURA_OUTPUT"),
 				Destination: &flags.Output,
 			},

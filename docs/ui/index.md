@@ -30,6 +30,7 @@ The spinner stops automatically before the UI takes the terminal.
 │  You: ...                                   │
 │  Aura: ...                                  │
 │                                             │
+│  ⠋ Running Bash · 12s                        │
 ├─────────────────────────────────────────────┤
 │  ╭──────────────────────────────────────╮   │
 │  │ Input area (1-3 lines, auto-grows)   │   │
@@ -42,9 +43,22 @@ The spinner stops automatically before the UI takes the terminal.
 ```
 
 - **Top**: Scrollable chat history viewport
+- **Activity row**: Current work or final outcome, visible while scrolling through earlier messages
 - **Middle**: Input textarea with rounded blue border (1-3 lines, grows with content)
 - **Status line**: Runtime state joined with " • "
 - **Help line**: Keybinding hints
+
+### Activity
+
+The activity indicator lasts for the whole agent turn, including thinking, response generation, sequential tools, retries
+and compaction. A finished message or tool does not make the agent look idle while it continues working.
+
+The fixed TUI row shows the phase, elapsed time and, during a quiet interval, how long since the last update. The spinner
+means Aura is still waiting or working; it does not prove that the provider is making progress. Tool arguments arrive only
+after generation completes, so that interval uses a general model-waiting label. Hidden thinking still shows activity.
+
+Questions and confirmations show a static waiting-for-you indicator. Completion, cancellation and failure show their
+outcome. In the simple interface, activity appears in the readline prompt without drawing over streamed text.
 
 ## Visual Styles
 
@@ -52,12 +66,12 @@ The spinner stops automatically before the UI takes the terminal.
 | ------------------- | ----------------- | ------------------------------------------------------------------------------------- |
 | User messages       | Blue (#39)        | Bold                                                                                  |
 | Assistant messages  | Orange (#214)     | Bold                                                                                  |
-| Thinking content    | Gray (#241)       | Faint                                                                                 |
+| Thinking content    | Gray (#246)       | Italic, with a separate bold italic `Thinking` heading                                 |
 | Content             | Light gray (#252) | Normal                                                                                |
-| Tool calls          | Blue (#39)        | Faint                                                                                 |
-| Tool pending        | Gray (#240)       | Faint                                                                                 |
-| Tool results        | Dim gray (#242)   | Faint; Read uses Chroma syntax highlighting, Rg highlights pattern matches in magenta |
-| Tool errors         | Red (#196)        | Faint                                                                                 |
+| Tool calls          | Blue (#74)        | Normal, with hanging indentation for wrapped arguments                                 |
+| Tool pending        | Gray (#243)       | Normal                                                                                |
+| Tool results        | Gray (#244)       | Normal; Read uses Chroma syntax highlighting, Rg highlights matches in magenta           |
+| Tool errors         | Red (#167)        | Normal                                                                                |
 | Errors              | Red (#196)        | Bold                                                                                  |
 | Synthetic/System    | Blue (#39)        | Faint                                                                                 |
 | DisplayOnly notices | Blue (#39)        | Faint                                                                                 |
@@ -68,11 +82,39 @@ The spinner stops automatically before the UI takes the terminal.
 ## Chat Rendering
 
 - **User messages**: `"You: "` prefix + content
-- **Assistant messages**: `"Aura: "` prefix, then parts in order (thinking → content → tool calls)
+- **Assistant messages**: Parts in order, with one blank line between blocks. Content has an `Aura:` prefix;
+  thinking has its own heading. Tool results stay with their call and never share a line with subsequent thinking.
 - **Tool calls**: 4-state lifecycle — `○` Pending (dimmed), spinner Running, `✓` Complete (with result), `✗` Error. All tool calls from a single LLM response are registered upfront as Pending before sequential execution begins
 - **DisplayOnly**: Rendered as notice text (never sent to the LLM)
 - **Bookmark**: Rendered as `--- label ---` divider line
 - Text wrapping: ANSI-aware word wrapping to terminal width
+
+## Transcript Logging
+
+Start an interactive session with a live plain-text log:
+
+```sh
+aura --output ./aura-session.log
+```
+
+The full TUI records conversation events: user messages, assistant text, thinking, tool calls and results, interactive
+questions, command output, cancellations and errors. Thinking is recorded even when hidden on screen. Tool arguments and
+results use their full available text, independently of the shortened previews in the chat viewport. On resume, restored
+text and tool-call headings are included; prior execution details remain in the earlier run's transcript.
+
+The log excludes screen redraws and activity animation. Streaming text is flushed at least every 250 ms, and at message
+boundaries and exit. Tool results are written when the call finishes; ephemeral live tool progress is omitted. An output
+write failure stops the session and reports the error.
+
+`--output` creates or truncates the file at startup. `/clear` adds a marker and preserves earlier log entries. Simple,
+headless and utility commands continue to mirror stdout and stderr to the file. The TUI also captures diagnostics written
+to those streams. This transcript is separate from `debug.log` and the structured session history.
+
+To follow it from another shell:
+
+```sh
+tail -f ./aura-session.log
+```
 
 ## Keybindings
 
@@ -103,7 +145,7 @@ Ghost text shows autocomplete suggestions for directives (@File, @Image, etc.) a
 
 | Key         | Action                                                                  |
 | ----------- | ----------------------------------------------------------------------- |
-| `Ctrl+C`    | Copy selection → clear input → cancel streaming → quit (priority order) |
+| `Ctrl+C`    | Dismiss a question/confirmation → copy selection → clear input → confirm exit |
 | `Esc`       | Cancel current streaming                                                |
 | `Shift+Tab` | Cycle to next agent                                                     |
 | `Ctrl+T`    | Toggle thinking visibility in UI                                        |
@@ -142,8 +184,9 @@ The footer shows scroll position as a percentage when content exceeds the viewpo
 
 ### Exit Behavior
 
-- First `Ctrl+C` (no selection, empty input, not streaming): shows "Press Ctrl+C again to quit"
+- First `Ctrl+C` (no dialog, no selection, empty input): shows "Press Ctrl+C again to exit..."
 - Second `Ctrl+C` within 2 seconds: exits
+- `Esc` cancels the current turn while keeping the session open. `/exit` stops the turn and closes the session.
 
 ### Input History
 

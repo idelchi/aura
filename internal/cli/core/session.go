@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -81,7 +82,11 @@ func RunSession(parent context.Context, flags Flags, selection Selection, makeUI
 
 	doneStartup := debug.Span("startup")
 
-	sp := spinner.New("Starting...")
+	progress := os.Stderr
+	if flags.Mirror != nil {
+		progress = flags.Mirror.OrigStderr()
+	}
+	sp := spinner.NewWithOutput("Starting...", progress)
 
 	sp.Start()
 	defer sp.Stop()
@@ -223,16 +228,26 @@ func InteractiveUI(flags Flags) (ui.UI, error) {
 	}
 
 	if flags.Simple {
-		return simple.New(ui.Status{Agent: flags.Agent}, historyPath), nil
+		// Text and readline redraws must reach the terminal in program order: with --output,
+		// os.Stdout is the mirror's asynchronous pipe, so text goes through the synchronous writer.
+		out, terminal := io.Writer(os.Stdout), os.Stdout
+
+		if flags.Mirror != nil {
+			out, terminal = flags.Mirror.Stdout(), flags.Mirror.OrigStdout()
+		}
+
+		return simple.New(ui.Status{Agent: flags.Agent}, historyPath, out, terminal), nil
 	}
 
 	var output *os.File
+	var transcript io.Writer
 
 	if flags.Mirror != nil {
 		output = flags.Mirror.OrigStdout()
+		transcript = flags.Mirror
 	}
 
-	return tui.New(ui.Status{Agent: flags.Agent}, historyPath, output), nil
+	return tui.New(ui.Status{Agent: flags.Agent}, historyPath, output, transcript), nil
 }
 
 // HeadlessUI creates a headless UI for non-interactive commands.
@@ -765,10 +780,10 @@ func RunInteractive(ctx context.Context, cancel context.CancelCauseFunc, asst *a
 	u.Events() <- ui.DisplayHintsChanged{Hints: asst.DisplayHints()}
 
 	go func() {
-		if err := asst.Loop(ctx, u.Input(), u.Actions(), u.Cancel()); err != nil {
+		err := asst.Loop(ctx, u.Input(), u.Actions(), u.Cancel())
+		if err != nil {
 			if !errors.Is(err, context.Canceled) {
 				debug.Log("[session] loop error: %v", err)
-				cancel(err)
 
 				select {
 				case u.Events() <- ui.CommandResult{Error: err}:
@@ -776,10 +791,28 @@ func RunInteractive(ctx context.Context, cancel context.CancelCauseFunc, asst *a
 				}
 			}
 		}
+		// The assistant can finish normally (/exit) while the UI still waits for
+		// input. Deliver its final events before stopping either interactive UI.
+		done := make(chan struct{})
+		select {
+		case u.Events() <- ui.Flush{Done: done}:
+			select {
+			case <-done:
+			case <-ctx.Done():
+			}
+		case <-ctx.Done():
+		}
+		cancel(err)
 	}()
 
-	if err := u.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
-		fmt.Fprintf(os.Stderr, "UI error: %v\n", err)
+	if err := u.Run(ctx); err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, io.EOF) {
+		if cause := context.Cause(ctx); cause != nil && !errors.Is(cause, context.Canceled) {
+			return cause
+		}
+		return fmt.Errorf("UI: %w", err)
+	}
+	if cause := context.Cause(ctx); cause != nil && !errors.Is(cause, context.Canceled) {
+		return cause
 	}
 
 	return nil
