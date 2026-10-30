@@ -31,7 +31,7 @@ const defaultBaseURL = "https://api.openai.com/v1"
 
 // New creates an OpenAI-compatible client for the given base URL, token, and response timeout.
 // If baseURL is empty, defaults to the OpenAI API.
-func New(baseURL, token string, timeout time.Duration, headers map[string]string) *Client {
+func New(baseURL, token string, timeout time.Duration, headers map[string]string, api string) *Client {
 	if baseURL == "" {
 		baseURL = defaultBaseURL
 	}
@@ -69,6 +69,11 @@ func New(baseURL, token string, timeout time.Duration, headers map[string]string
 
 	if token != "" {
 		fpOpts = append(fpOpts, fantasyopenai.WithAPIKey(token))
+	}
+	if api != "" {
+		fpOpts = append(fpOpts, fantasyopenai.WithResponsesAPIFunc(func(string) bool {
+			return api == "responses"
+		}))
 	}
 
 	fp, err := fantasyopenai.New(fpOpts...)

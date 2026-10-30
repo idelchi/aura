@@ -57,6 +57,8 @@ type Provider struct {
 	Script string `yaml:"script"`
 	// Headers adds HTTP headers for OpenAI-compatible providers. Values support environment expansion.
 	Headers map[string]string `yaml:"headers"`
+	// API selects the wire API for type openai. Empty retains SDK model detection.
+	API string `yaml:"api" validate:"omitempty,oneof=responses chat_completions"`
 	// Models controls which models appear in visual listings.
 	Models ModelFilter `yaml:"models"`
 	// KeepAlive controls how long models stay loaded in VRAM after a request (Ollama only).
@@ -83,6 +85,9 @@ type Provider struct {
 
 // ApplyDefaults sets sane defaults for zero-valued fields.
 func (p *Provider) ApplyDefaults() error {
+	if p.API != "" && p.Type != "openai" {
+		return fmt.Errorf("api is only supported for provider type openai, got %q", p.Type)
+	}
 	if p.Timeout == "" {
 		p.Timeout = "5m"
 	}

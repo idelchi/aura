@@ -54,12 +54,17 @@ func New(token string, timeout time.Duration) *Client {
 		fantasyopenai.WithHTTPClient(httpClient),
 		fantasyopenai.WithBaseURL(placeholder),
 		fantasyopenai.WithUseResponsesAPI(),
+		// Chat already checks Copilot's supported_endpoints. Do not let the
+		// SDK's separate model-name heuristic route a newer model elsewhere.
+		fantasyopenai.WithResponsesAPIFunc(func(string) bool { return true }),
 	))
 
 	fantasyAnthropic := initFantasyProvider(fanthropic.New(
 		fanthropic.WithHTTPClient(httpClient),
 		fanthropic.WithBaseURL(placeholder),
-		fanthropic.WithSkipAuth(true),
+		// The SDK requires a credential before our transport can replace it
+		// with the Copilot bearer token. SkipAuth only covers Vertex/Bedrock.
+		fanthropic.WithAPIKey("copilot-transport"),
 	))
 
 	debug.Log("[copilot] initialized")

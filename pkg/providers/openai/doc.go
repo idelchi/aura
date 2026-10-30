@@ -1,2 +1,2 @@
-// Package openai implements a generic OpenAI-compatible provider for any /v1/chat/completions endpoint.
+// Package openai implements OpenAI-compatible Responses and Chat Completions providers.
 package openai

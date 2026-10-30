@@ -82,7 +82,7 @@ func New(provider config.Provider) (Provider, error) {
 	case "llamaswap":
 		p = llamaswap.New(provider.URL, provider.Token, timeout)
 	case "openai":
-		p = openai.New(provider.URL, provider.Token, timeout, provider.Headers)
+		p = openai.New(provider.URL, provider.Token, timeout, provider.Headers, provider.API)
 	case "anthropic":
 		p = anthropic.New(provider.URL, provider.Token, timeout)
 	case "google":

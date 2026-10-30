@@ -44,6 +44,9 @@ anthropic:
 openai:
   url: https://api.openai.com/v1
   type: openai
+  # Explicit wire API; do not depend on the SDK recognizing new model names.
+  # Values: responses, chat_completions. Omitted: SDK model-name detection.
+  api: responses
   token: ${OPENAI_API_KEY}
   timeout: 3m
 

@@ -51,6 +51,8 @@ func New(url, token, authFilePath string, timeout time.Duration) *Client {
 		fantasyopenai.WithHTTPClient(httpClient),
 		fantasyopenai.WithBaseURL(url),
 		fantasyopenai.WithUseResponsesAPI(),
+		// Codex serves Responses, including models newer than the SDK's list.
+		fantasyopenai.WithResponsesAPIFunc(func(string) bool { return true }),
 	)
 	if err != nil {
 		debug.Log("[codex] fantasy provider init: %v", err)

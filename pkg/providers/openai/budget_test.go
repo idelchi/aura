@@ -19,18 +19,19 @@ import (
 // and an omitted budget, so request-local extensions cannot leak into later calls.
 func TestThinkingBudgetWire(t *testing.T) {
 	t.Parallel()
-	for _, name := range []string{"route/local-model", "gpt-5-mini"} {
-		t.Run(name, func(t *testing.T) {
+	for _, tc := range []struct{ name, api, path string }{
+		{"route/local-model", "", "/v1/chat/completions"},
+		{"gpt-5-mini", "", "/v1/responses"},
+		{"future-model", "responses", "/v1/responses"},
+		{"gpt-5-mini", "chat_completions", "/v1/chat/completions"},
+	} {
+		t.Run(tc.name+"/"+tc.api, func(t *testing.T) {
 			t.Parallel()
 			var expected *int
 			seen := make(chan struct{}, 1)
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				wantPath := "/v1/chat/completions"
-				if name == "gpt-5-mini" {
-					wantPath = "/v1/responses"
-				}
-				if r.URL.Path != wantPath {
-					t.Errorf("path = %q, want %q", r.URL.Path, wantPath)
+				if r.URL.Path != tc.path {
+					t.Errorf("path = %q, want %q", r.URL.Path, tc.path)
 				}
 				if r.Header.Get("X-Test-Header") != "configured" || r.Header.Get("Authorization") != "Bearer test-key" {
 					t.Error("configured header or authentication missing")
@@ -65,11 +66,11 @@ func TestThinkingBudgetWire(t *testing.T) {
 				_, _ = fmt.Fprint(w, `{"error":{"message":"wire inspected","type":"invalid_request_error"}}`)
 			}))
 			defer server.Close()
-			client := New(server.URL+"/v1", "test-key", time.Second, map[string]string{"X-Test-Header": "configured"})
+			client := New(server.URL+"/v1", "test-key", time.Second, map[string]string{"X-Test-Header": "configured"}, tc.api)
 			for _, budget := range []*int{new(2048), nil, new(0), new(4096), nil} {
 				expected = budget
 				_, _, err := client.Chat(t.Context(), request.Request{
-					Model:      model.Model{Name: name},
+					Model:      model.Model{Name: tc.name},
 					Messages:   message.Messages{{Role: roles.User, Content: "Reply OK."}},
 					Generation: &generation.Generation{ThinkBudget: budget, MaxOutputTokens: new(8192)},
 				}, nil)

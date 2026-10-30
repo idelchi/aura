@@ -17,7 +17,7 @@ Providers are YAML files in `.aura/config/providers/`. Each file configures a co
 | `llamacpp`   | OpenAI-compatible              | Chat, reranking, thinking, vision, STT (whisper), TTS (kokoro) |
 | `llamaswap` | llama-swap with llama.cpp workers | llama.cpp inference, per-model tokenization, load/unload routing |
 | `openrouter` | OpenRouter API                 | Chat, embedding (cloud models, token auth)                     |
-| `openai`     | OpenAI Responses API           | Chat, embedding, transcription, synthesis                      |
+| `openai`     | OpenAI Responses / Chat Completions | Chat, embedding, transcription, synthesis                  |
 | `anthropic`  | Native Anthropic Messages API  | Chat, thinking, vision, tools                                  |
 | `google`     | Native Gemini API              | Chat, thinking, vision, tools, embedding                       |
 | `copilot`    | GitHub Copilot (dual-protocol) | Chat (GPT via Responses API, Claude via Messages API)          |
@@ -44,6 +44,10 @@ provider_name:
   # headers:
   #   X-Custom-Header: value
 
+  # Wire API for type openai only: responses or chat_completions.
+  # Omitted: SDK model-name detection. Set responses for current OpenAI models.
+  # api: responses
+
   # How long models stay loaded in VRAM (Ollama only). Go duration syntax.
   # keep_alive: 15m
 
@@ -67,6 +71,12 @@ provider_name:
     base_delay: 1s
     max_delay: 30s
 ```
+
+For `type: openai`, set `api: responses` when using the OpenAI API or a gateway that implements Responses.
+Set `api: chat_completions` for a server that only implements Chat Completions. This explicit choice also applies
+to models introduced after the SDK was released; an unrecognized name must not determine which endpoint you use.
+Omitting `api` retains the SDK's model-name detection. Copilot follows its discovered supported endpoints, and
+Codex always uses Responses.
 
 ## Token Resolution
 

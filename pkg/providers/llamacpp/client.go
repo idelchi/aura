@@ -30,7 +30,7 @@ func New(serverURL, token string, timeout time.Duration, options ...Option) *Cli
 	debug.Log("[llamacpp] initialized (url=%s)", serverURL)
 
 	client := &Client{
-		Client:  openaiProvider.New(apiURL, token, timeout, nil),
+		Client:  openaiProvider.New(apiURL, token, timeout, nil, "chat_completions"),
 		baseURL: serverURL,
 		name:    "llamacpp",
 	}

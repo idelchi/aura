@@ -106,10 +106,12 @@ func TestToolSchemaWire(t *testing.T) {
 					t.Fatal(err)
 				}
 			case "bifrost-chat", "openai-responses":
-				client = openai.New(server.URL+"/v1", "test", time.Second, nil)
+				api := "chat_completions"
 				if backend == "openai-responses" {
-					name = "gpt-5-mini"
+					api = "responses"
+					name = "future-model"
 				}
+				client = openai.New(server.URL+"/v1", "test", time.Second, nil, api)
 			case "anthropic":
 				client = anthropic.New(server.URL, "test", time.Second)
 			case "google":
