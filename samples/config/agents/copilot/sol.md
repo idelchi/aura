@@ -1,14 +1,13 @@
 ---
-description: GitHub Copilot subscription; uses saved Aura OAuth login.
-fallback: []
-mode: Edit
+name: Copilot-Sol
+description: Sol 6.1 coding with medium reasoning through GitHub Copilot.
 model:
-  context: 131072
-  name: gpt-6.1-sol
   provider: copilot
+  name: gpt-6.1-sol
   think: medium
-name: copilot-sol
+  context: 131072
 system: Agentic
+mode: Edit
 tools:
   enabled:
     - '*'
@@ -22,4 +21,5 @@ tools:
     - Task
     - Speak
     - Transcribe
+fallback: []
 ---

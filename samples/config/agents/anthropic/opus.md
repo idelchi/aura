@@ -1,14 +1,13 @@
 ---
-description: Anthropic API; general coding.
-fallback: []
-mode: Edit
+name: Claude-Opus
+description: Claude Opus 5.5 for repository edits and debugging with medium reasoning through Anthropic.
 model:
-  context: 131072
-  name: claude-opus-5-5
   provider: anthropic
+  name: claude-opus-5-5
   think: medium
-name: claude-opus
+  context: 131072
 system: Agentic
+mode: Edit
 tools:
   enabled:
     - '*'
@@ -22,4 +21,5 @@ tools:
     - Task
     - Speak
     - Transcribe
+fallback: []
 ---

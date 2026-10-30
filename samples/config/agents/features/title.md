@@ -1,18 +1,17 @@
 ---
-agentsmd: none
-description: Agent for generating session titles from conversation content.
-hide: true
-model:
-  context: 32768
-  name: qwen3.5:9b-q8_0
-  provider: ollama
-  think: false
 name: Title
+description: Generate concise session titles from the conversation.
+model:
+  provider: ollama
+  name: qwen3.5:9b-q8_0
+  think: false
+  context: 32768
 tools:
   disabled:
-  - '*'
+    - '*'
+hide: true
+agentsmd: none
 ---
-
 Generate a short title for this conversation session.
 
 Rules:

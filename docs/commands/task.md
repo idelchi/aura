@@ -283,7 +283,7 @@ Iterate over lines from a file or shell command. Each iteration expands runtime 
 logs:
   description: Analyze logs of all containers
   timeout: 1h
-  agent: logs
+  agent: Logs
   pre:
     - aura tools --mcp-servers portainer mcp__portainer__containers "{}" --raw --headless > /tmp/containers
   foreach:

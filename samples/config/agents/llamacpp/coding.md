@@ -1,30 +1,29 @@
 ---
-description: Local llama.cpp coding; model name must match the alias served by your
-  worker.
-features:
-  compaction:
-    prune:
-      mode: compaction
-  estimation:
-    method: rough+tiktoken
+name: LlamaCpp
+description: Qwen Flash-Next coding on a local llama.cpp worker with medium reasoning and workspace tools.
 inherit:
-- High
-mode: Edit
+  - High
 model:
+  provider: llamacpp
+  name: qwen3.8:flash-next
+  think: medium
   context: 131072
   generation:
     seed: 42
     temperature: 1
     top_k: 20
     top_p: 0.95
-  name: qwen3.8:flash-next
-  provider: llamacpp
-  think: medium
-name: LlamaCpp
+mode: Edit
 tools:
   disabled: []
   enabled:
-  - '*'
-  - Write
-  - Edit
+    - '*'
+    - Write
+    - Edit
+features:
+  compaction:
+    prune:
+      mode: compaction
+  estimation:
+    method: rough+tiktoken
 ---

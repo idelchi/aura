@@ -36,3 +36,11 @@ No MCP server is enabled by the portable starter; examples show how to add one.
 
 Files named `.example.*` document configuration fields and are not loaded. The starter supplies configuration only:
 models, provider accounts, optional services and installed plugins remain environment-owned state.
+
+## Agent file conventions
+
+Start agent frontmatter with `name` and `description`, then keep inheritance, defaults, model, thinking, prompt/mode,
+tools, hooks, features and visibility fields in that order when present. Capitalize agent identifiers consistently
+(e.g. `Flash`, `Codex-Sol`, `Gemma-E2B`) and preserve model/provider IDs verbatim. Describe the actual model and role,
+with meaningful settings where useful. Avoid catalogue, billing or generic alternative wording. Agent names are
+lookup keys: update inheritance, feature and task references when renaming them.

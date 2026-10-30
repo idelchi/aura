@@ -1,20 +1,20 @@
 ---
+name: Base
+description: GPT-OSS 20B base preset with low reasoning, inherited by local coding profiles.
+model:
+  provider: ollama
+  name: gpt-oss:20b
+  think: low
+  context: 32768
+system: Agentic
+mode: Ask
+tools:
+  disabled:
+    - '*'
 features:
   compaction:
     prompt: Compaction
-mode: Ask
-model:
-  context: 32768
-  name: gpt-oss:20b
-  provider: ollama
-  think: low
-name: Base
-system: Agentic
-tools:
-  disabled:
-  - '*'
 ---
-
 To prevent reasoning loops, follow these strict rules:
 
 - If a tool output is the same as a previous attempt, do NOT retry the same parameters.

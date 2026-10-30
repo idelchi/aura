@@ -1,14 +1,13 @@
 ---
-description: OpenRouter API; general coding.
-fallback: []
-mode: Edit
+name: Router-Sol
+description: Sol 6.1 coding through OpenRouter with automatic reasoning and workspace tools.
 model:
-  context: 131072
-  name: openai/gpt-6.1-sol
   provider: openrouter
+  name: openai/gpt-6.1-sol
   think: auto
-name: router-sol
+  context: 131072
 system: Agentic
+mode: Edit
 tools:
   enabled:
     - '*'
@@ -22,4 +21,5 @@ tools:
     - Task
     - Speak
     - Transcribe
+fallback: []
 ---

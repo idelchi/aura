@@ -1,14 +1,13 @@
 ---
-description: GitHub Copilot subscription; uses saved Aura OAuth login.
-fallback: []
-mode: Edit
+name: Copilot-Opus
+description: Claude Opus 5.5 coding with medium reasoning through GitHub Copilot.
 model:
-  context: 131072
-  name: claude-opus-5.5
   provider: copilot
+  name: claude-opus-5.5
   think: medium
-name: copilot-opus
+  context: 131072
 system: Agentic
+mode: Edit
 tools:
   enabled:
     - '*'
@@ -22,4 +21,5 @@ tools:
     - Task
     - Speak
     - Transcribe
+fallback: []
 ---

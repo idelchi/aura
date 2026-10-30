@@ -1,16 +1,16 @@
 ---
 name: Haiku
-description: Fast and cheap Anthropic model
+description: Claude Haiku 5.5 coding with medium reasoning and the editing toolset through Anthropic.
 
 model:
   provider: anthropic
   name: claude-haiku-5-5
 
-  context: 131072
   think: medium
-tools:
-  enabled: ["*"]
+  context: 131072
 
 system: Agentic
 mode: Edit
+tools:
+  enabled: ["*"]
 ---

@@ -1,14 +1,13 @@
 ---
-description: OpenAI API billing; general coding.
-fallback: []
-mode: Edit
+name: OpenAI-Astra
+description: Astra 6 coding with medium reasoning through the OpenAI API.
 model:
-  context: 131072
-  name: gpt-6-astra
   provider: openai
+  name: gpt-6-astra
   think: medium
-name: openai-astra
+  context: 131072
 system: Agentic
+mode: Edit
 tools:
   enabled:
     - '*'
@@ -22,4 +21,5 @@ tools:
     - Task
     - Speak
     - Transcribe
+fallback: []
 ---

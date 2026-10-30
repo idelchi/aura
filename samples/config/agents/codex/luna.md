@@ -1,14 +1,13 @@
 ---
-description: ChatGPT subscription via Aura login; general coding.
-fallback: []
-mode: Edit
+name: Codex-Luna
+description: Luna 6 coding with medium reasoning through the ChatGPT subscription.
 model:
-  context: 131072
-  name: gpt-6-luna
   provider: codex
+  name: gpt-6-luna
   think: medium
-name: codex-luna
+  context: 131072
 system: Agentic
+mode: Edit
 tools:
   enabled:
     - '*'
@@ -22,4 +21,5 @@ tools:
     - Task
     - Speak
     - Transcribe
+fallback: []
 ---

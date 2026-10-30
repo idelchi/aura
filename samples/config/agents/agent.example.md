@@ -5,6 +5,9 @@
 # Unique identifier for this agent. Shown in /agent listing and status bar.
 name: CodeReview
 
+# Human-readable description. Shown in agent listings.
+description: Review code quality and suggest fixes in Ask mode.
+
 # Inherit config from one or more parent agents.
 # Key absent in child = inherit from parent. Key present = replace parent's value.
 # Slices are always replaced (no append). Use `disabled: []` to clear a parent's list.
@@ -12,8 +15,10 @@ name: CodeReview
 # The `default` field is NOT inherited — it is an identity property.
 inherit: [Base]
 
-# Human-readable description. Shown in agent listings.
-description: Code review agent — reads code, runs tests, provides feedback without editing.
+# Mark this agent as the default when --agent is not specified.
+# Only one agent may have default: true. Hidden agents can also be default.
+# If no agent has default: true, the first non-hidden agent (alphabetical) is used.
+default: false
 
 # AI model configuration.
 model:
@@ -67,6 +72,14 @@ model:
 # Values: "" (keep as-is), "strip" (remove from history), "rewrite" (condense via thinking agent).
 thinking: strip
 
+# System prompt name. Must match a name in prompts/*.md.
+# Values: "Agentic", "Chat", "Lite", or any custom prompt you define.
+system: Agentic
+
+# Default mode when this agent is active. Must match a name in modes/*.md.
+# Values: "Edit", "Plan", "Ask", or any custom mode you define.
+mode: Ask
+
 # Tool access control. Supports wildcard patterns (e.g., "mcp__*", "Todo*").
 tools:
   # Patterns to enable. ["*"] = all tools. [] = all (default).
@@ -100,22 +113,28 @@ hooks:
   enabled: []
   disabled: ["go:*"]
 
-# System prompt name. Must match a name in prompts/*.md.
-# Values: "Agentic", "Chat", "Lite", or any custom prompt you define.
-system: Agentic
-
-# Default mode when this agent is active. Must match a name in modes/*.md.
-# Values: "Edit", "Plan", "Ask", or any custom mode you define.
-mode: Ask
+# Feature overrides. Merged on top of global features/*.yaml defaults.
+# Only set fields you want to override — unset fields keep global values.
+features:
+  snapshot:
+    disabled: true # skip Git code snapshots for this read-only agent
+  compaction:
+    threshold: 70
+    keep_last_messages: 5
+    agent: Compaction
+  tools:
+    max_steps: 30
+    read_before:
+      write: true
+  sandbox:
+    enabled: true
+    extra:
+      ro:
+        - /var/log
 
 # Exclude from /agent listing and Shift+Tab cycling.
 # Hidden agents can still be selected via /agent <name> or --agent flag.
 hide: false
-
-# Mark this agent as the default when --agent is not specified.
-# Only one agent may have default: true. Hidden agents can also be default.
-# If no agent has default: true, the first non-hidden agent (alphabetical) is used.
-default: false
 
 # Mark this agent as available for the Task tool (subagent delegation).
 # When true, the LLM can spawn this agent as a subagent via the Task tool.
@@ -143,27 +162,7 @@ files:
   # - "{{ if env \"EXTRA_RULES\" }}config/prompts/extra-rules.md{{ end }}"
   # From global config home
   # - "{{ .Config.Global }}/shared/coding-standards.md"
-
-# Feature overrides. Merged on top of global features/*.yaml defaults.
-# Only set fields you want to override — unset fields keep global values.
-features:
-  snapshot:
-    disabled: true # skip Git code snapshots for this read-only agent
-  compaction:
-    threshold: 70
-    keep_last_messages: 5
-    agent: Compaction
-  tools:
-    max_steps: 30
-    read_before:
-      write: true
-  sandbox:
-    enabled: true
-    extra:
-      ro:
-        - /var/log
 ---
-
 You are a code review agent. Your job is to analyze code quality, find bugs, and suggest improvements — without making edits.
 
 {{ if .Tools.Eager -}}

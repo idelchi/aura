@@ -1,14 +1,13 @@
 ---
-description: ChatGPT subscription via Aura login; general coding.
-fallback: []
-mode: Edit
+name: Codex-Sol
+description: Sol 6.1 coding with medium reasoning through the ChatGPT subscription.
 model:
-  context: 131072
-  name: gpt-6.1-sol
   provider: codex
+  name: gpt-6.1-sol
   think: medium
-name: codex-sol
+  context: 131072
 system: Agentic
+mode: Edit
 tools:
   enabled:
     - '*'
@@ -22,4 +21,5 @@ tools:
     - Task
     - Speak
     - Transcribe
+fallback: []
 ---

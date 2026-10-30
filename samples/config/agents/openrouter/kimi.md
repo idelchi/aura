@@ -1,14 +1,13 @@
 ---
-description: OpenRouter API; general coding.
-fallback: []
-mode: Edit
+name: Router-Kimi
+description: Kimi K3.1 Pro coding through OpenRouter with automatic reasoning and workspace tools.
 model:
-  context: 131072
-  name: moonshotai/kimi-k3.1-pro
   provider: openrouter
+  name: moonshotai/kimi-k3.1-pro
   think: auto
-name: router-kimi
+  context: 131072
 system: Agentic
+mode: Edit
 tools:
   enabled:
     - '*'
@@ -22,4 +21,5 @@ tools:
     - Task
     - Speak
     - Transcribe
+fallback: []
 ---

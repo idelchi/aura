@@ -1,30 +1,30 @@
 ---
-default: true
-description: Local Ollama coding preset; configure a model installed on your server.
-features:
-  compaction:
-    prune:
-      mode: compaction
-  estimation:
-    method: rough+tiktoken
+name: Qwen
+description: Default Qwen 3.5 9B coding through local Ollama with thinking enabled and workspace tools.
 inherit:
-- High
-mode: Edit
+  - High
+default: true
 model:
+  provider: ollama
+  name: qwen3.5:9b-q8_0
+  think: true
   context: 32768
   generation:
     seed: 42
     temperature: 0.6
     top_k: 20
     top_p: 0.95
-  name: qwen3.5:9b-q8_0
-  provider: ollama
-  think: true
-name: Qwen
+mode: Edit
 tools:
   disabled: []
   enabled:
-  - '*'
-  - Write
-  - Edit
+    - '*'
+    - Write
+    - Edit
+features:
+  compaction:
+    prune:
+      mode: compaction
+  estimation:
+    method: rough+tiktoken
 ---
