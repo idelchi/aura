@@ -61,7 +61,7 @@ func extractEmbedded(w io.Writer, dest string) error {
 		}
 
 		if path == "." {
-			return nil
+			return folder.New(dest).Create()
 		}
 
 		dst := file.New(dest, path)

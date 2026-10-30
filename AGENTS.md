@@ -34,7 +34,8 @@ Use `CLAUDE.md` as the broader project reference. This file captures the rules a
 - The assistant loop increments `a.loop.iteration` before `BeforeChat` hooks run.
 - The loop hard-stops after `max_steps + 1`, reserving one final text-only response after tools are disabled.
 - Therefore the `max-steps` injector should disable tools when `iteration > max_steps`, not when `iteration == max_steps`.
-- `max_steps <= 0` is invalid resolved config. `token_budget == 0` is valid and means disabled.
+- `max_steps == -1` means unlimited; zero and values below -1 are invalid resolved config.
+  `token_budget == 0` is valid and means disabled.
 
 ## Implementation Habits
 
