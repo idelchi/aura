@@ -16,5 +16,5 @@ sandbox:
     rw:
       - /tmp
       - $HOME/.cache
-      - $HOME/go
+      - $HOME/go/pkg/mod
       - /dev/null

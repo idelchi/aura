@@ -1,0 +1,5 @@
+embeddings:
+  type: llamacpp
+  url: http://localhost:8083
+  capabilities:
+  - embed

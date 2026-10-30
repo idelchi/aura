@@ -1,0 +1,5 @@
+reranker:
+  type: llamacpp
+  url: http://localhost:8084
+  capabilities:
+  - rerank

@@ -1,4 +1,5 @@
 kokoro:
-  url: http://localhost:8081
   type: llamacpp
-  capabilities: [synthesize]
+  url: http://localhost:8081
+  capabilities:
+    - synthesize

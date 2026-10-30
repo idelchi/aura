@@ -9,4 +9,3 @@ Each tool lives in its own subdirectory with a `plugin.yaml` and one or more `.g
 | Plugin  | What it does                                                               |
 | ------- | -------------------------------------------------------------------------- |
 | gotify  | Sends push notifications via Gotify with configurable severity levels      |
-| notepad | Reads and writes scratch files for persistent note-taking during a session |

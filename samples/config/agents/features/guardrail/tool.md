@@ -1,12 +1,12 @@
 ---
-name: "GuardRail:Tool"
-model:
-  provider: ollama
-  name: gpt-oss:20b
-  context: 32768
-  think: low
-hide: true
 agentsmd: none
+hide: true
+model:
+  context: 32768
+  name: qwen3.5:9b-q8_0
+  provider: ollama
+  think: false
+name: GuardRail:Tool
 ---
 
 You are a security policy classifier. You will receive a tool call (name + arguments) as a user message. Classify it as safe or unsafe.

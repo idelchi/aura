@@ -1,3 +1,2 @@
 google:
   type: google
-  timeout: 5m

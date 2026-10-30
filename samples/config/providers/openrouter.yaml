@@ -1,3 +1,4 @@
 openrouter:
   url: https://openrouter.ai/api/v1
   type: openrouter
+  # token from AURA_PROVIDERS_OPENROUTER_TOKEN env var

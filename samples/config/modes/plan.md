@@ -2,17 +2,26 @@
 name: Plan
 
 tools:
-  enabled: ["*"]
-  disabled:
-    - Write
-    - Mkdir
-    - Patch
-    - TodoProgress
-    - Vision
+  enabled:
+    - Read
+    - Glob
+    - Rg
+    - Bash
+    - Skill
     - Query
-    - Transcribe
-    - Speak
-    - mcp__*
+    - Vision
+    - WebFetch
+    - WebSearch
+    - LoadTools
+    - TodoCreate
+    - TodoList
+    - TodoProgress
+  disabled:
+    - Edit
+    - Write
+    - Patch
+    - Mkdir
+    - Task
   policy:
     deny:
       - "Bash:rm *"

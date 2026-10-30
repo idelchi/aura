@@ -13,8 +13,8 @@ compaction:
   chunks: 3                      # sequential chunks (1 = single-pass, N = chunked summary)
   agent: Compaction              # dedicated agent for generating summaries
   prompt: ""                     # named prompt for self-compaction (overrides agent — uses current model)
-  tool_result_max_length: 200    # max bytes per tool result in the compaction transcript; longer = marked excerpt, <= 0 = omitted with its size
-  truncation_retries: [150, 100, 50, 0]  # smaller lengths, used when a request exceeds its input budget or the provider reports overflow
+  tool_result_max_length: 200    # max chars for tool results in compaction transcript
+  truncation_retries: [150, 100, 50, 0]  # retry sequence with progressively shorter tool results
   prune:
     mode: iteration              # "off", "iteration" (prune each loop), "compaction" (prune on compact only)
     protect_percent: 30          # % of context window to protect from pruning (most recent messages)
@@ -53,7 +53,7 @@ stt:
 # Text-to-speech synthesis.
 tts:
   agent: Speak                   # agent with a synthesis-capable provider
-  voice: af_heart                # voice identifier (depends on TTS server)
+  voice: Bryony                  # voice identifier (depends on TTS server)
   format: mp3                    # output format: mp3, opus, aac, flac, wav, pcm
   speed: 1.0                     # playback speed (0.25-4.0)
 
@@ -79,7 +79,7 @@ tools:
     max_tokens: 20000            # single result token limit (mode: tokens)
     max_percentage: 90           # context fill % limit (mode: percentage)
   read_small_file_tokens: 4000   # below this, Read tool returns full file ignoring line ranges
-  max_steps: 200                 # normal LLM iterations before text-only wrap-up
+  max_steps: -1                  # -1 = unlimited; positive = normal iterations before wrap-up
   token_budget: 0                # cumulative token limit (input+output); 0 = disabled
   rejection_message:             # error returned when result is rejected (%d = tokens, limit)
     >-
@@ -154,7 +154,7 @@ plugins:
 
 # Subagent — Task tool configuration
 subagent:
-  max_steps: 25                  # max LLM round-trips per subagent run
+  max_steps: -1                  # -1 = unlimited; positive = max subagent round-trips
   default_agent: explore         # agent to use when Task tool doesn't specify one (empty = parent agent)
 
 # MCP server filtering.

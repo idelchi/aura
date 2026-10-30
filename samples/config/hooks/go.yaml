@@ -31,19 +31,3 @@ go:fix:
       done
     done
   timeout: 30
-
-go:lint:
-  description: Lint Go files with golangci-lint after fixes
-  inherit: [go:format]
-  depends: [go:fix]
-  silent: false
-  command: |
-    go_packages=$(jq -r '.file_paths[] | select(endswith(".go"))' |
-      while IFS= read -r file; do
-        [ -f "${file}" ] || continue
-        dirname "${file}"
-      done | sort -u)
-    [ -n "${go_packages}" ] || exit 0
-    printf '%s\n' "${go_packages}" | while IFS= read -r package; do
-      golangci-lint run "${package}" || exit
-    done

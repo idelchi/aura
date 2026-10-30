@@ -1,16 +1,13 @@
 ---
-name: High
-default: true
-inherit:
-  - Base
-
-model:
-  think: high
-
-tools:
-  disabled: []
-
 features:
   estimation:
     method: native
+inherit:
+- Base
+mode: Edit
+model:
+  think: high
+name: High
+tools:
+  disabled: []
 ---

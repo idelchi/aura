@@ -2,14 +2,24 @@
 name: Ask
 
 tools:
-  enabled: ["*"]
+  enabled:
+    - Read
+    - Glob
+    - Rg
+    - Bash
+    - Skill
+    - Query
+    - Vision
+    - WebFetch
+    - WebSearch
+    - LoadTools
+    - MemoryRead
   disabled:
+    - Edit
     - Write
-    - Mkdir
     - Patch
-    - TodoCreate
-    - TodoProgress
-    - Ask
+    - Mkdir
+    - Task
   policy:
     deny:
       - "Bash:rm *"

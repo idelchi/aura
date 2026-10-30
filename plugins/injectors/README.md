@@ -10,9 +10,10 @@ Each injector lives in its own subdirectory with a `plugin.yaml` and one or more
 | ----------------------- | --------------------------------------------------------------------------------- |
 | done-reminder           | Reminds the LLM to call the Done tool when it stops without finishing             |
 | empty-response          | Nudges the LLM when it returns an empty response                                  |
-| failure-circuit-breaker | Stops after 3+ consecutive different tool failures                               |
+| failure-circuit-breaker | Asks the agent to reconsider after consecutive tool failures                     |
 | loop-detection          | Detects consecutive identical tool calls                                          |
 | max-steps               | Disables tools and forces a summary after the iteration limit is reached          |
+| response-validation     | Requests a bounded correction when a final answer violates its response format |
 | session-stats           | Injects a session summary every 5 turns (elapsed time, tool calls, context usage) |
 | todo-not-finished       | Nudges the LLM when it stops but has incomplete tasks                             |
 | todo-reminder           | Periodic reminder to review and update the TodoList                               |

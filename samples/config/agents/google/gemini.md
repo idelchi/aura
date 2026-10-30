@@ -3,9 +3,10 @@ name: Gemini
 
 model:
   provider: google
-  name: gemini-2.5-flash
-  think: true
+  name: gemini-3.8-flash
+  think: auto
 
+  context: 131072
 thinking: ""
 
 tools:

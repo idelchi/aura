@@ -3,9 +3,10 @@ name: Gemini Pro
 
 model:
   provider: google
-  name: gemini-2.5-pro
-  think: true
+  name: gemini-4-argon
+  think: auto
 
+  context: 131072
 thinking: ""
 
 tools:

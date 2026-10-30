@@ -1,3 +1,5 @@
 llamacpp:
-  url: http://localhost:8080
   type: llamacpp
+  url: http://localhost:8080
+  capabilities:
+  - chat

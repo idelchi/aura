@@ -64,7 +64,7 @@ curl -sSL https://raw.githubusercontent.com/idelchi/aura/refs/heads/dev/install.
 aura init
 
 # Install recommended plugins
-aura plugins add --subpath plugins/injectors,plugins/tools https://github.com/idelchi/aura
+aura plugins add --subpath plugins/injectors,plugins/tools --ref dev https://github.com/idelchi/aura
 
 # Start interactive session
 aura
@@ -75,6 +75,9 @@ aura run "explain this codebase"
 # List available models
 aura models
 ```
+
+The [starter configuration](samples/README.md) is a portable subset of the canonical development setup. It documents
+the default model, optional local services, toolchain dependencies and recommended plugins.
 
 ## Providers
 

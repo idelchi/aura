@@ -2,23 +2,20 @@
 name: Edit
 
 tools:
-  enabled: ["*"]
-  disabled:
+  enabled:
+    - '*'
+    - Write
+    - Edit
     - Ask
-    - MemoryRead
-    - MemoryWrite
-    - Vision
-    - Transcribe
+    - Done
+    - Task
     - Speak
+    - Transcribe
+    - Diagnostics
     - WebFetch
     - WebSearch
-    - Diagnostics
-    - Query
-    - Skill
-    - Task
-    - TodoCreate
-    - mcp__*
-
+    - Gotify
+  disabled: []
 description: Use this mode to make edits to the codebase based on the user's requests.
 
 features:

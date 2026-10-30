@@ -1,22 +1,18 @@
 ---
-name: Base
-
-model:
-  provider: ollama
-  name: gpt-oss:20b
-  context: 32768
-  think: low
-
-tools:
-  disabled:
-    - "*"
-
-system: Agentic
-mode: Ask
-
 features:
   compaction:
     prompt: Compaction
+mode: Ask
+model:
+  context: 32768
+  name: gpt-oss:20b
+  provider: ollama
+  think: low
+name: Base
+system: Agentic
+tools:
+  disabled:
+  - '*'
 ---
 
 To prevent reasoning loops, follow these strict rules:
