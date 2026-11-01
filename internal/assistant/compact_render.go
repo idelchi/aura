@@ -22,7 +22,7 @@ const receiptExcerptBytes = 200
 // model-generated summary. They describe execution, never inferred side effects.
 func compactionReceipts(calls []injector.ToolCall) string {
 	var result strings.Builder
-	result.WriteString("\n[CURRENT TURN TOOL RECEIPTS — recorded by Aura, not the summarizing model]\nThese are all tool invocations in this turn, not earlier turns. Prefer these receipts over conflicting summary claims. Execution alone does not prove an external effect.\n")
+	result.WriteString("\n[CURRENT TURN TOOL RECEIPTS — recorded by Aura, not the summarizing model]\nThese are tool responses, never request examples. They describe this turn, not earlier turns. Prefer these receipts over conflicting summary claims. Execution alone does not prove an external effect.\n")
 	if len(calls) == 0 {
 		result.WriteString("No tools were invoked in this turn.\n")
 	}
@@ -36,7 +36,7 @@ func compactionReceipts(calls []injector.ToolCall) string {
 			marker = fmt.Sprintf(" [receipt excerpt: first %d of %d bytes; the rest is not shown]", len(shown), len(output))
 			output = shown
 		}
-		fmt.Fprintf(&result, "%d. %s returned: %q%s\n", i+1, call.Name, output, marker)
+		fmt.Fprintf(&result, "%d. %s returned%s:\n%s\n", i+1, call.Name, marker, output)
 	}
 	result.WriteString("[END CURRENT TURN TOOL RECEIPTS]")
 	return result.String()

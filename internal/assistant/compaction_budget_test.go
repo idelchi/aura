@@ -3,6 +3,8 @@ package assistant
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +19,45 @@ import (
 	"github.com/idelchi/aura/pkg/llm/usage"
 	"github.com/idelchi/aura/pkg/providers"
 )
+
+func TestCompactionReloadsCurrentAssignmentFiles(t *testing.T) {
+	a := selectionAssistant(t)
+	path := filepath.Join(t.TempDir(), "assignment.md")
+	write := func(content string) {
+		t.Helper()
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("Old assignment and old revision")
+	key, configured := a.cfg.Agents.GetWithKey(a.agent.Name)
+	configured.Metadata.Files = []string{path}
+	a.cfg.Agents[key] = *configured
+	if err := a.RebuildState(); err != nil {
+		t.Fatal(err)
+	}
+	a.cfg.Features.Compaction.Prompt = "Compaction"
+	a.cfg.Features.Compaction.Chunks = 1
+	a.resolved.compactModel = &model.Model{Name: "test"}
+	a.builder.AddUserMessage(t.Context(), "Historical teaching from a different checkout", 12)
+	a.builder.AddUserMessage(t.Context(), "Current task: cadi_loan_forgiven", 12)
+	write("Current checkout /work/cadi; revision actual-123; scenario cadi_loan_forgiven; use native JSON arrays")
+	a.agent.Provider = compactionProbe{Provider: a.agent.Provider, chat: func(context.Context) (message.Message, usage.Usage, error) {
+		return message.Message{Content: "A deliberately incomplete summary."}, usage.Usage{}, nil
+	}}
+	if err := a.CompactWith(t.Context(), true, 0); err != nil {
+		t.Fatal(err)
+	}
+	system := a.builder.History()[0].Content
+	for _, fact := range []string{"Current checkout /work/cadi", "actual-123", "cadi_loan_forgiven", "native JSON arrays"} {
+		if !strings.Contains(system, fact) {
+			t.Fatalf("compaction lost the anchored fact %q", fact)
+		}
+	}
+	if strings.Contains(system, "Old assignment and old revision") {
+		t.Fatal("compaction retained the stale file contents")
+	}
+}
 
 // compactionProbe replaces only Chat; configuration/model selection use Aura's
 // real assistant and cached model resolution.
@@ -76,7 +117,7 @@ func TestCompactionReceipts(t *testing.T) {
 	if !strings.Contains(got, "Notification suppressed") || strings.Contains(got, "Notification sent") {
 		t.Fatal(got)
 	}
-	if !strings.Contains(got, `"`+strings.Repeat("x", receiptExcerptBytes)+`" [receipt excerpt: first 200 of 500 bytes; the rest is not shown]`) {
+	if !strings.Contains(got, "[receipt excerpt: first 200 of 500 bytes; the rest is not shown]:\n"+strings.Repeat("x", receiptExcerptBytes)) {
 		t.Fatalf("long receipt not excerpted with its size: %s", got)
 	}
 	if !strings.Contains(got, "Execution failed: exit status 1") || !strings.Contains(got, "of 633 bytes") || !utf8.ValidString(got) {

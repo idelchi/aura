@@ -83,6 +83,9 @@ func Command(_ *core.Flags) *cli.Command {
 			launcherLost := func() bool { return errors.Is(context.Cause(ctx), ErrLauncherLost) }
 
 			api := serve.NewUI()
+			if flags.Mirror != nil {
+				api.RecordTo(flags.Mirror)
+			}
 
 			var server *serve.Server
 

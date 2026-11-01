@@ -123,7 +123,8 @@ func (b *Bound) Execute(ctx context.Context, args map[string]any) (string, error
 func Prepare(t Tool, args map[string]any) (Tool, map[string]any, error) {
 	b, ok := t.(*Bound)
 	if !ok {
-		return t, args, nil
+		prepared := t.Schema().NormalizeArgs(args)
+		return t, prepared, nil
 	}
 	prepared := maps.Clone(args)
 	if prepared == nil {
@@ -134,6 +135,7 @@ func Prepare(t Tool, args map[string]any) (Tool, map[string]any, error) {
 		return nil, nil, err
 	}
 	maps.Copy(prepared, fixed)
+	prepared = b.Tool.Schema().NormalizeArgs(prepared)
 	if err := b.Tool.Schema().ValidateArgs(prepared); err != nil {
 		return nil, nil, err
 	}

@@ -20,7 +20,7 @@ type Inputs struct {
 	FilePath   string  `json:"file_path"   jsonschema:"required,description=The absolute path to the file to modify"                               validate:"required"`
 	OldString  string  `json:"old_string"  jsonschema:"required,description=The text to replace"                                                   validate:"required"`
 	NewString  *string `json:"new_string"  jsonschema:"required,description=The replacement text; use an empty string to delete the matched text" validate:"required"`
-	ReplaceAll bool    `json:"replace_all" jsonschema:"description=Replace all occurrences of old_string (default false)"`
+	ReplaceAll bool    `json:"replace_all,omitempty" jsonschema:"description=Replace all occurrences of old_string (default false)"`
 }
 
 // Replacement describes one match against the original file.

@@ -2,6 +2,7 @@ package serve
 
 import (
 	"context"
+	"io"
 
 	"github.com/idelchi/aura/internal/ui"
 )
@@ -10,11 +11,16 @@ import (
 // runs and whose events feed the journal. It is created before the assistant and
 // attached to its Server before the engine loop starts.
 type UI struct {
-	events chan ui.Event
-	input  chan ui.UserInput
-	cancel chan struct{}
-	server *Server
+	events     chan ui.Event
+	input      chan ui.UserInput
+	cancel     chan struct{}
+	server     *Server
+	transcript *ui.Transcript
 }
+
+// RecordTo enables the same local transcript used by interactive clients. Its
+// thinking stays in the operator's file, outside the public automation journal.
+func (u *UI) RecordTo(writer io.Writer) { u.transcript = ui.NewTranscript(writer) }
 
 // NewUI creates the engine adapter.
 func NewUI() *UI {
@@ -42,7 +48,15 @@ func (u *UI) Run(ctx context.Context) error {
 
 			return ctx.Err()
 		case event := <-u.events:
+			var recordErr error
+			if u.transcript != nil {
+				recordErr = u.transcript.Record(event)
+			}
 			u.server.handle(event)
+			if recordErr != nil {
+				u.drain()
+				return recordErr
+			}
 		}
 	}
 }

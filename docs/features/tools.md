@@ -11,6 +11,17 @@ nav_order: 1
 
 Aura includes built-in tools that the LLM can invoke during conversations. Most are always present; `Skill` is registered only when skills are configured; `Done` and `Ask` are added dynamically per session.
 
+Argument preparation errors remain in saved conversation history, including after the model corrects a call. Before
+execution, Aura normalizes explicit string representations to a declared array/object, boolean or integer. For example,
+an array encoded as a JSON string becomes an array, and `"True"` becomes `true` for a boolean parameter. Ambiguous
+values such as `"yes"`, malformed JSON and fractional integers still fail; string parameters are never converted.
+The assistant records a correction notice while keeping structured tool results intact. Policy and plugin denials
+retain their separate behavior.
+
+A response beginning with tool-call markup but containing no parsed calls is treated as a malformed call, rather than
+a final answer. The existing parse-recovery loop asks for a valid call and reports failure after repeated malformed
+responses. Fenced examples and prose describing markup remain ordinary responses.
+
 ## Built-in Tools
 
 | Tool             | Description                                 | Sandboxable | Parallel |

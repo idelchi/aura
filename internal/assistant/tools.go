@@ -24,6 +24,7 @@ import (
 	"github.com/idelchi/aura/internal/tools"
 	"github.com/idelchi/aura/internal/tools/filetime"
 	"github.com/idelchi/aura/internal/ui"
+	"github.com/idelchi/aura/pkg/llm/roles"
 	"github.com/idelchi/aura/pkg/llm/tool"
 	"github.com/idelchi/aura/pkg/llm/tool/call"
 	"github.com/idelchi/godyl/pkg/env"
@@ -82,6 +83,14 @@ func (a *Assistant) IsToolParallel(name string) bool {
 //	Phase B: parallel execution (errgroup for Parallel()==true tools)
 //	Phase C: sequential post-processing (builder, stats, injectors)
 func (a *Assistant) executeTools(ctx context.Context, toolCalls []call.Call) {
+	var corrections []string
+	defer func() {
+		if len(corrections) > 0 {
+			note := strings.Join(corrections, "\n")
+			a.builder.InjectMessage(ctx, roles.System, note)
+			a.send(ui.SyntheticInjected{Header: "Tool argument correction", Content: note})
+		}
+	}()
 	// Pass 1: register all tool calls upfront as Pending.
 	for _, tc := range toolCalls {
 		a.builder.AddToolCall(tc.ID, tc.Name, tc.Arguments)
@@ -128,11 +137,15 @@ func (a *Assistant) executeTools(ctx context.Context, toolCalls []call.Call) {
 		}
 
 		configured := t
+		original := tc.Arguments
 		t, tc.Arguments, err = tool.Prepare(configured, tc.Arguments)
 		if err != nil {
 			a.builder.CompleteToolCall(ctx, tc.ID, "", err)
-			a.builder.AddEphemeralToolResult(ctx, tc.Name, tc.ID, err.Error(), 0)
+			a.builder.AddToolResult(ctx, tc.Name, tc.ID, err.Error(), 0)
 			continue
+		}
+		if note := configured.Schema().NormalizationNotes(original, tc.Arguments); note != "" {
+			corrections = append(corrections, tc.Name+": "+note)
 		}
 
 		// BeforeToolExecution plugin hooks (modify args, block execution).
@@ -160,18 +173,22 @@ func (a *Assistant) executeTools(ctx context.Context, toolCalls []call.Call) {
 				tc.Arguments = beforeResult.Arguments
 			}
 			// Hooks may mutate the original argument map without returning a replacement.
+			original = tc.Arguments
 			t, tc.Arguments, err = tool.Prepare(configured, tc.Arguments)
 			if err != nil {
 				a.builder.CompleteToolCall(ctx, tc.ID, "", err)
-				a.builder.AddEphemeralToolResult(ctx, tc.Name, tc.ID, err.Error(), 0)
+				a.builder.AddToolResult(ctx, tc.Name, tc.ID, err.Error(), 0)
 				continue
+			}
+			if note := configured.Schema().NormalizationNotes(original, tc.Arguments); note != "" {
+				corrections = append(corrections, tc.Name+": "+note)
 			}
 
 			if beforeResult.Arguments != nil {
 				if err := t.Schema().ValidateArgs(tc.Arguments); err != nil {
 					debug.Log("[tool] %s plugin produced invalid args: %v", tc.Name, err)
 					a.builder.CompleteToolCall(ctx, tc.ID, "", err)
-					a.builder.AddEphemeralToolResult(ctx, tc.Name, tc.ID,
+					a.builder.AddToolResult(ctx, tc.Name, tc.ID,
 						fmt.Sprintf("Error: plugin modified arguments are invalid: %v", err), 0)
 
 					continue

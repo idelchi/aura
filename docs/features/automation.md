@@ -86,6 +86,11 @@ Codes: `not_found`, `exists`, `revision_mismatch`, `session_locked`, `session_fr
 
 ## `aura serve`
 
+The root `--output` flag also records a served session's plain-text transcript, including thinking, in a local file.
+It uses the same recorder as the interactive terminal. The automation journal remains free of thinking. Keep this
+operator file separate from evidence shared with review agents. The output file is truncated when a process starts;
+archive it before restarting if the earlier transcript must be retained.
+
 ```sh
 AURA_SERVE_TOKEN=<at least 32 characters> \
   aura [root flags] [--resume <id>] serve [--bind 127.0.0.1:0] --ready-file <path>

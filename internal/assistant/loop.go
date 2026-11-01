@@ -408,6 +408,10 @@ func (a *Assistant) processInputs(ctx context.Context, inputs []ui.UserInput) er
 		a.loop.streamStarted = false // reset per chat attempt
 
 		response, err := a.chat(ctx)
+		if err == nil && len(response.Calls) == 0 && tool.HasUnparsedCall(response.Content) {
+			a.builder.AddAssistantMessage(response)
+			err = fmt.Errorf("%w: tool-call markup was returned as text instead of a parsed call", tool.ErrToolCallParse)
+		}
 		if err == nil && ctx.Err() != nil {
 			// A provider that returns normally after cancellation may hold a truncated
 			// response; the turn was cancelled either way.
