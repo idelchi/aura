@@ -8,6 +8,7 @@ import (
 	"github.com/idelchi/aura/internal/config"
 	"github.com/idelchi/aura/pkg/llm/message"
 	"github.com/idelchi/aura/pkg/llm/request"
+	"github.com/idelchi/aura/pkg/llm/roles"
 	"github.com/idelchi/aura/pkg/llm/tool"
 	"github.com/idelchi/aura/pkg/llm/tool/call"
 )
@@ -41,6 +42,46 @@ func TestArgumentFailureRemainsAfterCorrection(t *testing.T) {
 	}
 	if turn != 3 {
 		t.Fatal(turn)
+	}
+}
+
+func TestRecoveryMessagesSurviveLaterTurns(t *testing.T) {
+	for _, malformed := range []bool{false, true} {
+		t.Run(fmt.Sprint(malformed), func(t *testing.T) {
+			a := selectionAssistant(t)
+			turn := 0
+			a.agent.Provider = toolFilterProvider{Provider: a.agent.Provider, respond: func(req request.Request) message.Message {
+				turn++
+				if turn == 1 {
+					if malformed {
+						return message.Message{Content: "<tool_call>\n<function=Bash=\n</parameter>"}
+					}
+					return message.Message{Calls: []call.Call{{ID: "stringified", Name: "Bash", Arguments: map[string]any{"command": "printf corrected", "timeout_ms": "15000"}}}}
+				}
+				if turn == 2 {
+					return message.Message{Calls: []call.Call{{ID: "later", Name: "Bash", Arguments: map[string]any{"command": "printf later"}}}}
+				}
+				found := false
+				for i, msg := range req.Messages {
+					if i > 0 && msg.Role == roles.System {
+						t.Fatal("tool recovery introduced a mid-conversation system prompt")
+					}
+					if strings.HasPrefix(msg.Content, "[Aura tool recovery]") && msg.Role == roles.User {
+						found = true
+					}
+				}
+				if !found {
+					t.Error("recovery feedback vanished after a later tool turn")
+				}
+				return message.Message{Content: "Done."}
+			}}
+			if err := a.ProcessInput(t.Context(), "Exercise recovery."); err != nil {
+				t.Fatal(err)
+			}
+			if turn != 3 {
+				t.Fatalf("unexpected model turns: %d", turn)
+			}
+		})
 	}
 }
 

@@ -899,10 +899,12 @@ func (a *Assistant) handleParseError(ctx context.Context, err error, retries *in
 
 	a.builder.SetError(err)
 	a.builder.FinalizeAssistant()
-	a.builder.AddEphemeralToolResult(ctx, "", "", fmt.Sprintf(
+	correction := fmt.Sprintf(
 		"Error: your previous response contained malformed tool calls that could not be parsed: %s. Retry using the tool-call format and argument schema advertised in this request.",
 		cleanParseError(err),
-	), 0)
+	)
+	a.builder.AddRecoveryMessage(ctx, correction)
+	a.send(ui.SyntheticInjected{Header: "Tool-call correction", Content: correction})
 	a.builder.StartAssistant()
 
 	return true

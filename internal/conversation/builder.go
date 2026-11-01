@@ -521,6 +521,17 @@ func (b *Builder) InjectMessage(ctx context.Context, role roles.Role, content st
 	})
 }
 
+// AddRecoveryMessage retains harness feedback across model turns and resume.
+// It is a labelled continuation, not a fictitious tool response or a new system prompt.
+// The caller emits SyntheticInjected separately so the UI identifies its source.
+func (b *Builder) AddRecoveryMessage(ctx context.Context, content string) {
+	content = "[Aura tool recovery]\n" + strings.TrimSpace(content)
+	b.history.Add(message.Message{
+		Role: roles.User, Content: content, CreatedAt: time.Now(),
+		Tokens: message.Tokens{Total: b.Estimate(ctx, content)},
+	})
+}
+
 // RebuildAfterCompaction replaces conversation history with a compaction summary
 // and preserved recent message. The system prompt (index 0) is kept in place.
 // summaryTokens is the pre-computed token estimate for the compaction summary.

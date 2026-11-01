@@ -24,7 +24,6 @@ import (
 	"github.com/idelchi/aura/internal/tools"
 	"github.com/idelchi/aura/internal/tools/filetime"
 	"github.com/idelchi/aura/internal/ui"
-	"github.com/idelchi/aura/pkg/llm/roles"
 	"github.com/idelchi/aura/pkg/llm/tool"
 	"github.com/idelchi/aura/pkg/llm/tool/call"
 	"github.com/idelchi/godyl/pkg/env"
@@ -87,7 +86,7 @@ func (a *Assistant) executeTools(ctx context.Context, toolCalls []call.Call) {
 	defer func() {
 		if len(corrections) > 0 {
 			note := strings.Join(corrections, "\n")
-			a.builder.InjectMessage(ctx, roles.System, note)
+			a.builder.AddRecoveryMessage(ctx, note)
 			a.send(ui.SyntheticInjected{Header: "Tool argument correction", Content: note})
 		}
 	}()

@@ -15,12 +15,13 @@ Argument preparation errors remain in saved conversation history, including afte
 execution, Aura normalizes explicit string representations to a declared array/object, boolean or integer. For example,
 an array encoded as a JSON string becomes an array, and `"True"` becomes `true` for a boolean parameter. Ambiguous
 values such as `"yes"`, malformed JSON and fractional integers still fail; string parameters are never converted.
-The assistant records a correction notice while keeping structured tool results intact. Policy and plugin denials
+The assistant records a persistent, labelled continuation message while keeping structured tool results intact. Policy and plugin denials
 retain their separate behavior.
 
 A response beginning with tool-call markup but containing no parsed calls is treated as a malformed call, rather than
 a final answer. The existing parse-recovery loop asks for a valid call and reports failure after repeated malformed
-responses. Fenced examples and prose describing markup remain ordinary responses.
+responses. The correction remains in history across later turns and resume. Fenced examples and prose describing markup
+remain ordinary responses.
 
 ## Built-in Tools
 
